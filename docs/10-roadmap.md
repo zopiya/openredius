@@ -7,7 +7,7 @@
 
 | 里程碑 | 名称 | 状态 | 完成日期 |
 |---|---|---|---|
-| M0 | 仓库基线与工程脚手架 | 🟡 部分(构建修复+提交完成;余骨架/CI/.env.example) | — |
+| M0 | 仓库基线与工程脚手架 | ✅ | 2026-08-06 |
 | M1 | 后端骨架与基础设施 | ⬜ | — |
 | M2 | 领域模型与 CRUD API | ⬜ | — |
 | M3 | FreeRADIUS 集成 | ⬜ | — |
@@ -28,10 +28,10 @@
 
 - [x] 修复 `tsconfig.app.json` TS7 `baseUrl` 报错(2026-08-06 已完成)
 - [x] 提交当前工作区改动(2026-08-06 完成:refactor / fix / docs 三笔提交)
-- [ ] 建立目录骨架:`backend/`(占位 README)、`deploy/`(占位 README)、`.github/workflows/ci.yml`
-- [ ] `.gitignore` 增补:`.env`、`backend/.venv`、`backend/.pytest_cache`、`deploy/backups`、`*.pyc`
-- [ ] 根目录 `.env.example`(键见 04/07,值全为 dev 默认)
-- [ ] CI:frontend job(`bun run verify`);backend job 占位(M1 起生效)
+- [x] 建立目录骨架:`backend/`(占位 README)、`deploy/`(占位 README)、`.github/workflows/ci.yml`(2026-08-06 完成)
+- [x] `.gitignore` 增补:`.env`、`backend/.venv`、`backend/.pytest_cache`、`deploy/backups`、`*.pyc`(2026-08-06 完成)
+- [x] 根目录 `.env.example`(键见 04/07,值全为 dev 默认)(2026-08-06 完成)
+- [x] CI:frontend job(`bun run verify`);backend job 占位(M1 起生效)(2026-08-06 完成)
 
 **验收**:
 

@@ -69,11 +69,11 @@ docker compose -f deploy/docker-compose.dev.yml exec freeradius \
 
 ## CI(GitHub Actions,M0 落地)
 
-.github/workflows/ci.yml 三个 job:
+.github/workflows/ci.yml(M0 落地 frontend + backend 占位):
 
 - `frontend`:oven-sh/setup-bun → `bun install --frozen-lockfile` → `bun run verify`。
-- `backend`:astral-sh/setup-uv → `uv sync` → ruff → `uv run pytest -q`。
-- `audit`(允许失败但标注):pip-audit + bun audit。
+- `backend`:M0 为占位 job,M1 起启用:astral-sh/setup-uv → `uv sync` → ruff → `uv run pytest -q`。
+- `audit`(允许失败但标注):pip-audit + bun audit,随 M7「依赖审计」任务增补。
 
 栈集成不进 CI(依赖 docker),由里程碑验收人工触发并记录结果到 roadmap。
 

@@ -5,3 +5,14 @@ dist
 *.tsbuildinfo
 .tmp
 coverage
+
+# 环境变量与密钥(模板 .env.example 入库)
+.env
+
+# Python 后端(uv + pytest)
+backend/.venv
+backend/.pytest_cache
+*.pyc
+
+# 部署备份产物
+deploy/backups
