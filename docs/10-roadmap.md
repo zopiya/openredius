@@ -10,7 +10,7 @@
 | M0 | 仓库基线与工程脚手架 | ✅ | 2026-08-06 |
 | M1 | 后端骨架与基础设施 | ✅ | 2026-08-12 |
 | M2 | 领域模型与 CRUD API | ✅ | 2026-08-12 |
-| M3 | FreeRADIUS 集成 | ⬜ | — |
+| M3 | FreeRADIUS 集成 | ✅ | 2026-08-12 |
 | M4 | 会话/日志/报表/仪表盘数据面 | ⬜ | — |
 | M5 | 前端接入真实 API | ⬜ | — |
 | M6 | 运维能力(AD 同步/告警/任务) | ⬜ | — |
@@ -125,15 +125,18 @@ uv run pytest -q   # 新增用例全绿
 
 **任务**:
 
-- [ ] `deploy/freeradius/`:Dockerfile、entrypoint(envsubst)、raddb(sql/eap/sites/policy.d)
-- [ ] certs/gen.sh 生成 dev 证书;PEAP 可用
-- [ ] dev compose 增加 freeradius 服务(依赖 postgres healthy)
-- [ ] 策略编译器(04 表):policy_group/user → radgroupreply/radgroupcheck/radusergroup/radcheck
-- [ ] 用户停用/锁定联动 `Auth-Type := Reject` + radreply Class
-- [ ] NAS CRUD → radius.nas + reload 接口(06 流程)
-- [ ] unlang `policy-openredius`(mac/edr/time/cert 检查与 Class 约定)
-- [ ] 集成测试(pytest -m integration):09 场景 9–11
-- [ ] radiusd 配置语法校验流程(`radiusd -XC` 冒烟脚本)
+- [x] `deploy/freeradius/`:Dockerfile、entrypoint(envsubst)、raddb(sql/eap/sites/policy.d)
+      (基线 3.2.10;实测修正全部回写 06「M3 实测修正记录」)
+- [x] certs/gen.sh 生成 dev 证书;PEAP 可用(另加 entrypoint 自签兜底)
+- [x] dev compose 增加 freeradius 服务(依赖 postgres healthy,healthcheck radiusd -CX)
+- [x] 策略编译器(04 表):policy_group/user → radgroupreply/radgroupcheck/radusergroup/radcheck
+      (幂等 diff,SQLite 无 radius 表时跳过;单测覆盖 09 场景 1)
+- [x] 用户停用/锁定联动 `Auth-Type := Reject` + radreply Class
+      (+ OpenRedius-Deny-Reason 镜像属性,radpostauth.class 明文可归类)
+- [x] NAS CRUD → radius.nas + reload 接口(OPENRADIUS_RADIUS_RELOAD_COMMAND,manual 兜底)
+- [x] unlang `policy-openredius`(mac/edr/time/cert 检查与 Class 约定;语法调整见 06 回写)
+- [x] 集成测试(pytest -m integration):09 场景 9–11(7 用例,栈缺失自动 skip)
+- [x] radiusd 配置语法校验流程(deploy/scripts/smoke_freeradius.sh)
 
 **验收**(Codespaces 终端执行,docker-in-docker,见 07「栈集成环境」):
 
