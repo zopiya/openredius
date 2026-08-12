@@ -24,6 +24,7 @@ def _admin_out(admin: AdminUser) -> AdminOut:
         display_name=admin.display_name,
         role=admin.role,
         status=admin.status,
+        linked_account=admin.linked_account,
         created_at=admin.created_at,
     )
 
@@ -57,10 +58,17 @@ async def create_admin(
     ).scalar_one_or_none()
     if exists is not None:
         raise ApiError("conflict", "username already in use", 409)
+    if body.linked_account and not body.password:
+        pass  # Delegated auth — password validated by access_user source.
+    elif not body.password:
+        raise ApiError("validation", "password is required when not linking an account", 422)
+    if body.password and len(body.password) < 10:
+        raise ApiError("validation", "password must be at least 10 characters", 422)
     created = AdminUser(
         username=body.username,
-        display_name=body.display_name,
-        password_hash=hash_password(body.password),
+        display_name=body.display_name or body.username,
+        password_hash=hash_password(body.password) if body.password else None,
+        linked_account=body.linked_account,
         role=body.role,
     )
     db.add(created)

@@ -15,13 +15,15 @@ class AdminOut(BaseModel):
     display_name: str
     role: AdminRole
     status: AdminStatus
+    linked_account: str | None = None
     created_at: datetime
 
 
 class AdminCreate(BaseModel):
     username: str = Field(min_length=2, max_length=64)
     display_name: str = ""
-    password: str = Field(min_length=10, max_length=128)
+    password: str | None = None
+    linked_account: str | None = None
     role: AdminRole = AdminRole.OPERATOR
 
 

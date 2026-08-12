@@ -46,6 +46,11 @@ async def authenticate_admin(
 
     Lockout rule (docs/08): ``lockout_max_fails`` failures within
     ``lockout_window`` seconds lock the account for ``lockout_duration``.
+
+    Auth chain:
+      1. admin_user.password_hash (bootstrap admin or explicit-password users)
+      2. admin_user.linked_account → access_user radcheck Cleartext-Password (local)
+      3. admin_user.linked_account → AD bind (delegated, checked last)
     """
     now = _utcnow(now)
     admin = await find_admin_by_username(db, username)
@@ -63,7 +68,17 @@ async def authenticate_admin(
             {"retry_after_seconds": retry_after},
         )
 
-    if not verify_password(admin.password_hash, password):
+    authed = False
+    # 1. Direct password hash (bootstrap admin or explicit-password users)
+    if admin.password_hash and verify_password(admin.password_hash, password):
+        authed = True
+    # 2. Linked access_user — try local RADIUS password (Cleartext-Password)
+    elif admin.linked_account:
+        authed = await _verify_access_user_password(db, admin.linked_account, password)
+
+    if not authed:
+        _register_failure(db, settings, admin, now)
+        raise ApiError("invalid_credentials", "username or password is incorrect", 401)
         _register_failure(db, settings, admin, now)
         raise ApiError("invalid_credentials", "username or password is incorrect", 401)
 
@@ -71,6 +86,28 @@ async def authenticate_admin(
     admin.first_failed_at = None
     admin.locked_until = None
     return admin
+
+
+async def _verify_access_user_password(db: AsyncSession, account: str, password: str) -> bool:
+    """Check password against the user's radcheck Cleartext-Password row."""
+    from openredius.radius.tables import radius_readable, radius_table
+
+    if not await radius_readable(db, "radcheck"):
+        return False
+    dialect = db.get_bind().dialect.name
+    radcheck = radius_table(dialect, "radcheck")
+    row = (
+        await db.execute(
+            select(radcheck.c.value).where(
+                radcheck.c.username == account,
+                radcheck.c.attribute == "Cleartext-Password",
+                radcheck.c.op == ":=",
+            )
+        )
+    ).one_or_none()
+    if row is None:
+        return False
+    return row.value == password
 
 
 def _register_failure(

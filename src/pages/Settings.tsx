@@ -14,7 +14,7 @@ const ROLE_SCOPES: Record<string, string> = {
   auditor: '仪表盘 / 会话 / 日志 / 报表,仅查看与导出',
 };
 
-interface AdminRow { id: number; username: string; display_name: string; role: string; status: string; created_at: string; }
+interface AdminRow { id: number; username: string; display_name: string; role: string; status: string; linked_account?: string | null; created_at: string; }
 
 const SECTIONS = [
   { id: 'set-radius', label: 'RADIUS 参数' },
@@ -334,13 +334,15 @@ function AdminSection() {
       <div className="card-body" style={{ paddingTop: 6 }}>
         <div className="tbl-wrap">
           <table className="tbl">
-            <thead><tr><th>账号</th><th>角色</th><th>权限范围</th><th>操作</th></tr></thead>
+            <thead><tr><th>账号</th><th>来源</th><th>角色</th><th>权限范围</th><th>操作</th></tr></thead>
             <tbody>
               {admins.map((a) => {
                 const isSelf = me?.username === a.username;
+                const linked = a.linked_account ? `关联用户:${a.linked_account}` : '独立账号';
                 return (
                   <tr key={a.id}>
                     <td><b>{a.username}</b>{isSelf ? ' (当前)' : ''}<br /><span className="sub mono">{a.display_name || '-'}</span></td>
+                    <td><span className="sub">{linked}</span></td>
                     <td>
                       {isSelf ? (
                         <span className="badge bg-info">{ROLE_LABELS[a.role] || a.role}</span>
@@ -386,20 +388,48 @@ function AdminSection() {
 
 function GrantAccessModal({ onClose, onGranted }: { onClose: () => void; onGranted: () => void }) {
   const toast = useToast();
-  const [username, setUsername] = useState('');
-  const [displayName, setDisplayName] = useState('');
-  const [password, setPassword] = useState('');
+  const [users, setUsers] = useState<{ account: string; name: string; dept: string }[]>([]);
+  const [search, setSearch] = useState('');
+  const [selected, setSelected] = useState<string | null>(null);
   const [role, setRole] = useState('operator');
   const [busy, setBusy] = useState(false);
 
+  useEffect(() => {
+    if (MODE !== 'http') {
+      setUsers([
+        { account: 'li.na', name: '李娜', dept: '技术部' },
+        { account: 'wang.lei', name: '王磊', dept: '网络运维部' },
+        { account: 'zhang.wei', name: '张伟', dept: '研发部' },
+      ]);
+      return;
+    }
+    fetchApi('/api/users?size=200')
+      .then((body: any) => {
+        const items = body?.items ?? [];
+        setUsers(items.map((u: any) => ({ account: u.account, name: u.name, dept: u.dept })));
+      })
+      .catch(() => {});
+  }, []);
+
+  const filtered = users.filter((u) => {
+    const q = search.toLowerCase();
+    return u.account.includes(q) || u.name.includes(q) || u.dept.includes(q);
+  });
+
+  const picked = users.find((u) => u.account === selected);
+
   async function grant() {
-    if (!username.trim()) return toast('请输入用户名');
-    if (password.length < 10) return toast('密码至少 10 位');
+    if (!selected) return toast('请选择一个用户');
     setBusy(true);
     try {
       await fetchApi('/api/auth/admins', {
         method: 'POST',
-        body: JSON.stringify({ username: username.trim(), display_name: displayName.trim() || undefined, password, role }),
+        body: JSON.stringify({
+          username: selected,
+          display_name: picked?.name || selected,
+          linked_account: selected,
+          role,
+        }),
       });
       toast('已授权');
       onGranted();
@@ -408,26 +438,60 @@ function GrantAccessModal({ onClose, onGranted }: { onClose: () => void; onGrant
 
   return (
     <div className="modal-overlay show" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 420 }}>
+      <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 480 }}>
         <div className="modal-hd"><b>授权用户访问后台</b></div>
         <div className="modal-bd">
           <p style={{ marginBottom: 12, color: 'var(--muted)', fontSize: 13 }}>
-            为已有用户授予控制台访问权限。用户后续可使用此账号和密码登录。
+            选择一个已有用户,授予后台访问权限。该用户可使用其 RADIUS 密码(本地用户)或 AD 密码登录。
           </p>
-          <label><span>用户名</span><input value={username} onChange={(e) => setUsername(e.target.value)} autoFocus placeholder="与 AD sAMAccountName 一致" /></label>
-          <label><span>显示名(可选)</span><input value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="如:王工" /></label>
-          <label><span>登录密码</span><input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="至少 10 位" /></label>
-          <label><span>角色</span>
-            <select className="sel" value={role} onChange={(e) => setRole(e.target.value)}>
-              <option value="admin">管理员 — 全部功能</option>
-              <option value="operator">运维 — 读+强制下线+用户管理+AD同步</option>
-              <option value="auditor">审计 — 只读</option>
-            </select>
+          <label><span>搜索用户</span>
+            <input
+              value={search}
+              onChange={(e) => { setSearch(e.target.value); setSelected(null); }}
+              autoFocus
+              placeholder="输入账号或姓名…"
+            />
           </label>
+          <div className="tbl-wrap" style={{ maxHeight: 200, overflow: 'auto', marginTop: 4 }}>
+            <table className="tbl">
+              <thead><tr><th>账号</th><th>姓名</th><th>部门</th><th></th></tr></thead>
+              <tbody>
+                {filtered.slice(0, 50).map((u) => (
+                  <tr
+                    key={u.account}
+                    className={selected === u.account ? 'row-sel' : ''}
+                    style={{ cursor: 'pointer' }}
+                    onClick={() => setSelected(u.account)}
+                  >
+                    <td><b>{u.account}</b></td>
+                    <td>{u.name}</td>
+                    <td>{u.dept}</td>
+                    <td>{selected === u.account ? '✓' : ''}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {selected && (
+            <>
+              <label style={{ marginTop: 12 }}><span>已选择</span>
+                <input value={`${selected} · ${picked?.name || ''}`} readOnly />
+              </label>
+              <label><span>角色</span>
+                <select className="sel" value={role} onChange={(e) => setRole(e.target.value)}>
+                  <option value="admin">管理员 — 全部功能</option>
+                  <option value="operator">运维 — 读+强制下线+用户管理+AD同步</option>
+                  <option value="auditor">审计 — 只读</option>
+                </select>
+              </label>
+            </>
+          )}
         </div>
         <div className="modal-act">
           <button type="button" className="btn" onClick={onClose} disabled={busy}>取消</button>
-          <button type="button" className="btn btn-primary" onClick={grant} disabled={busy}>{busy ? '授权中…' : '授权'}</button>
+          <button type="button" className="btn btn-primary" onClick={grant} disabled={busy || !selected}>
+            {busy ? '授权中…' : '授权'}
+          </button>
         </div>
       </div>
     </div>
