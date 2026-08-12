@@ -16,3 +16,6 @@ backend/.pytest_cache
 
 # 部署备份产物
 deploy/backups
+
+# pi session exports(TUI /export 产物)——个人本地文件，不入库
+*.jsonl

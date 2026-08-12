@@ -4,6 +4,14 @@
 
 原型来源:`~/Library/Application Support/Open Design/namespaces/release-stable/data/projects/9a01259b-d4ce-4246-99c0-9fa84278542e`(8 页 HTML + radius-admin.css)。移植保持原有视觉、布局、交互与数据不变:设计样式表 `radius-admin.css` 原样复用,图标改用 `lucide-react`(与原型 lucide 图标一一对应),图表(趋势折线 / 环形占比)为同参数移植的内联 SVG。
 
+## 开发环境与 AI 协作
+
+- 开发环境:GitHub Codespaces(`.devcontainer/`),容器内含 bun / uv /
+  docker-in-docker,详见 [`docs/07-deployment.md`](./docs/07-deployment.md)。
+- Coding agent:[pi](https://pi.dev),配置见根目录 [`AGENTS.md`](./AGENTS.md)(自动加载,
+  路由/协作规则)与 [`.pi/`](./.pi/)(skills/agents/prompts)。这一层只回答"agent 怎么干活",
+  "要做什么"仍然只看 [`docs/`](./docs/README.md)(`docs/10-roadmap.md` 是里程碑权威来源)。
+
 ## 运行
 
 ```bash

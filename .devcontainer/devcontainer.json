@@ -1,0 +1,43 @@
+{
+  "name": "OpenRedius",
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu-24.04",
+  "features": {
+    // 后端(M1 起)：uv + Python 3.13，见 docs/04-backend-design.md
+    "ghcr.io/devcontainers/features/python:1": {
+      "version": "3.13",
+      "installTools": false
+    },
+    // M3 起本地/Codespaces 内直接起 postgres + freeradius compose 栈，
+    // 替代 docs/07 中「本机无 Docker，需远程 SSH 服务器联调」的旧约束。
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {}
+  },
+
+  "postCreateCommand": "bash .devcontainer/post-create.sh",
+
+  "forwardPorts": [5173, 8000, 5432],
+  "portsAttributes": {
+    "5173": { "label": "frontend (vite dev)", "onAutoForward": "openPreview" },
+    "8000": { "label": "backend (FastAPI, M1 起)", "onAutoForward": "silent" },
+    "5432": { "label": "postgres (dev compose, M3 起)", "onAutoForward": "silent" }
+  },
+
+  "remoteEnv": {
+    // ~/.bun/bin：bun 本体 + 全局装的 pi(coding agent，见 AGENTS.md)
+    // ~/.local/bin：uv
+    "PATH": "${containerEnv:HOME}/.bun/bin:${containerEnv:HOME}/.local/bin:${containerEnv:PATH}"
+  },
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "oven.bun-vscode",
+        "ms-python.python",
+        "charliermarsh.ruff",
+        "editorconfig.editorconfig"
+      ],
+      "settings": {
+        "typescript.tsdk": "node_modules/typescript/lib"
+      }
+    }
+  }
+}
