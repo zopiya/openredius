@@ -4,6 +4,7 @@ import { CircleAlert } from 'lucide-react';
 import { Table, Button, Space, Modal, Drawer, Input, Select, Switch, Radio, Checkbox, Typography, Steps, Form } from 'antd';
 import type { ColumnsType } from 'antd/es/table/interface';
 import Shell from '../components/Shell';
+import PageHeader from '../components/PageHeader';
 import { useToast } from '../components/Toast';
 import { fetchPolicies, NEW_POLICY_FORM, POLICY_FORMS, POLICY_FORM_OPTIONS, POLICY_ROWS, type PolicyForm, type PolicyRow } from '../api/resources/policies';
 
@@ -153,16 +154,11 @@ export default function Policies() {
 
   return (
     <Shell page="策略管理">
-      {/* 页头 */}
-      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16, marginBottom: 20 }}>
-        <div>
-          <Typography.Title level={1} style={{ margin: 0, fontSize: 24, fontWeight: 600 }}>策略管理</Typography.Title>
-          <Typography.Text type="secondary" style={{ fontSize: 13, marginTop: 6, display: 'block' }}>
-            802.1X 准入策略 · 多策略匹配时按优先级自上而下执行,先匹配先生效 · 变更即时下发至全部 NAS
-          </Typography.Text>
-        </div>
-        <Button type="primary" data-od-id="new-policy" onClick={openNew}>新建策略</Button>
-      </div>
+      <PageHeader
+        title="策略管理"
+        subtitle="802.1X 准入策略 · 多策略匹配时按优先级自上而下执行,先匹配先生效 · 变更即时下发至全部 NAS"
+        extra={<Button type="primary" data-od-id="new-policy" onClick={openNew}>新建策略</Button>}
+      />
 
       {/* 策略冲突提示 */}
       <div data-od-id="policy-conflict" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '13px 16px', marginBottom: 16, border: '1px solid #eab308', borderRadius: 12, background: '#fefce8', fontSize: 13, color: '#424245' }}>

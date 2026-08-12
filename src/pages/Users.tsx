@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Check, Users } from 'lucide-react';
-import { Table, Select, Button, Space, Modal, Input, Tag, Empty, Skeleton, Result, Drawer, Typography } from 'antd';
+import { Table, Select, Button, Space, Modal, Input, Tag, Empty, Skeleton, Result, Drawer } from 'antd';
 import type { ColumnsType, TableRowSelection } from 'antd/es/table/interface';
 import Shell from '../components/Shell';
+import PageHeader from '../components/PageHeader';
 import { useToast } from '../components/Toast';
 import { fetchUsers, POLICY_RULES, USER_FILTER_OPTIONS, USER_ROWS, type UserRow } from '../api/resources/users';
 
@@ -204,21 +205,18 @@ export default function UsersPage() {
 
   return (
     <Shell page="用户管理">
-      {/* 页头 */}
-      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16, marginBottom: 20 }}>
-        <div>
-          <Typography.Title level={1} style={{ margin: 0, fontSize: 24, fontWeight: 600 }}>用户管理</Typography.Title>
-          <Typography.Text type="secondary" style={{ fontSize: 13, marginTop: 6, display: 'block' }}>
-            共 <b>1,472</b> 个账号,源自 AD 域同步 · 正常 1,408 / 停用 52 / 锁定 12
-          </Typography.Text>
-        </div>
-        <Space>
-          <Button onClick={() => toast('已导出 users-20260727.csv(1,472 条)')}>导出清单</Button>
-          <Button type="primary" data-od-id="sync-now" disabled={syncing} onClick={startSync}>
-            {syncing ? '同步中…' : '立即同步 AD'}
-          </Button>
-        </Space>
-      </div>
+      <PageHeader
+        title="用户管理"
+        subtitle={<>共 <b>1,472</b> 个账号,源自 AD 域同步 · 正常 1,408 / 停用 52 / 锁定 12</>}
+        extra={
+          <>
+            <Button onClick={() => toast('已导出 users-20260727.csv(1,472 条)')}>导出清单</Button>
+            <Button type="primary" data-od-id="sync-now" disabled={syncing} onClick={startSync}>
+              {syncing ? '同步中…' : '立即同步 AD'}
+            </Button>
+          </>
+        }
+      />
 
       {/* AD 同步状态 */}
       <div

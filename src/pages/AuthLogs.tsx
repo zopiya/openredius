@@ -4,6 +4,7 @@ import { FileSearch } from 'lucide-react';
 import { Table, Select, Button, Space, Modal, Input, Tag, Empty, Skeleton, Result } from 'antd';
 import type { ColumnsType } from 'antd/es/table/interface';
 import Shell from '../components/Shell';
+import PageHeader from '../components/PageHeader';
 import { useToast } from '../components/Toast';
 import { fetchAuthLogs, LOG_FILTER_OPTIONS, type LogRow } from '../api/resources/logs';
 
@@ -197,21 +198,18 @@ export default function AuthLogs() {
 
   return (
     <Shell page="认证日志">
-      {/* 页头 */}
-      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16, marginBottom: 20 }}>
-        <div>
-          <h1 style={{ margin: 0, fontSize: 24, fontWeight: 600 }}>认证日志</h1>
-          <div style={{ fontSize: 13, color: '#6e6e73', marginTop: 6 }}>
-            全量 Access-Request 审计记录 · 保留 180 天 · 失败原因点击可跳转聚合分析{prefillNote}
-          </div>
-        </div>
-        <Space>
-          <Link to="/reports" data-od-id="fail-aggregate" style={{ fontSize: 13 }}>失败原因聚合分析 →</Link>
-          <Button type="primary" data-od-id="export-btn" onClick={() => toast('已按当前筛选导出 auth-logs-20260727.csv(12,713 条)')}>
-            导出日志
-          </Button>
-        </Space>
-      </div>
+      <PageHeader
+        title="认证日志"
+        subtitle={<>全量 Access-Request 审计记录 · 保留 180 天 · 失败原因点击可跳转聚合分析{prefillNote}</>}
+        extra={
+          <>
+            <Link to="/reports" data-od-id="fail-aggregate" style={{ fontSize: 13 }}>失败原因聚合分析 →</Link>
+            <Button type="primary" data-od-id="export-btn" onClick={() => toast('已按当前筛选导出 auth-logs-20260727.csv(12,713 条)')}>
+              导出日志
+            </Button>
+          </>
+        }
+      />
 
       {/* 主卡片 */}
       <div

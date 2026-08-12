@@ -2,13 +2,14 @@ import { useEffect, useRef, useState } from 'react';
 import { Anchor, Card, Input, Select, Switch, Checkbox, Button, Space, Table, Modal, Typography, Tag, Radio } from 'antd';
 import type { ColumnsType } from 'antd/es/table/interface';
 import Shell from '../components/Shell';
+import PageHeader from '../components/PageHeader';
 import { useToast } from '../components/Toast';
 import { getAdmin } from '../api/auth';
 import { fetchApi } from '../api/http';
 import { MODE } from '../api/config';
 import { fetchSettings } from '../api/resources/settings';
 
-const { Title, Text } = Typography;
+const { Text } = Typography;
 
 const ROLE_LABELS: Record<string, string> = { admin: '管理员', operator: '运维', auditor: '审计' };
 const ROLE_SCOPES: Record<string, string> = { admin: '全部功能 + 系统设置 + Shared Secret 查看', operator: '读全部 + 强制下线 + 用户启停策略分配 + AD 同步', auditor: '仪表盘 / 会话 / 日志 / 报表,仅查看与导出' };
@@ -60,10 +61,10 @@ export default function Settings() {
 
   return (
     <Shell page="系统设置">
-      <div style={{ marginBottom: 20 }}>
-        <Title level={1} style={{ margin: 0, fontSize: 24, fontWeight: 600 }}>系统设置</Title>
-        <Text type="secondary" style={{ fontSize: 13 }}>所有配置变更即时生效并记录审计日志 · 当前操作人:{getAdmin()?.display_name || getAdmin()?.username || '管理员'}</Text>
-      </div>
+      <PageHeader
+        title="系统设置"
+        subtitle={<>所有配置变更即时生效并记录审计日志 · 当前操作人:{getAdmin()?.display_name || getAdmin()?.username || '管理员'}</>}
+      />
 
       <div style={{ display: 'grid', gridTemplateColumns: '168px 1fr', gap: 24, alignItems: 'start' }}>
         <Anchor data-od-id="settings-subnav" items={anchorItems} style={{ position: 'sticky', top: 80 }} />

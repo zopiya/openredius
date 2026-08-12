@@ -1,15 +1,16 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Card, Row, Col, Segmented, Button, Space, Typography, Table } from 'antd';
+import { Card, Row, Col, Segmented, Button, Typography, Table } from 'antd';
 import type { ColumnsType } from 'antd/es/table/interface';
 import Shell from '../components/Shell';
+import PageHeader from '../components/PageHeader';
 import Donut, { DonutLegend } from '../components/charts/Donut';
 import { useToast } from '../components/Toast';
 import { DEPT_ROWS, ETYPE_ROWS, fetchDepartments, fetchEndpointTypes, fetchSummary, LOAD_TOP, REPORT_PERIODS } from '../api/resources/reports';
 
 type Period = '今日' | '本周' | '本月';
 
-const { Title, Text } = Typography;
+const { Text } = Typography;
 
 export default function Reports() {
   const toast = useToast();
@@ -46,23 +47,23 @@ export default function Reports() {
 
   return (
     <Shell page="报表统计">
-      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16, marginBottom: 20 }}>
-        <div>
-          <Title level={1} style={{ margin: 0, fontSize: 24, fontWeight: 600 }}>报表统计</Title>
-          <Text type="secondary" style={{ fontSize: 13, marginTop: 6, display: 'block' }}>{data.sub}</Text>
-        </div>
-        <Space>
-          <Segmented
-            data-od-id="period-seg"
-            options={['今日', '本周', '本月']}
-            value={period}
-            onChange={(v) => { setPeriod(v as Period); toast('已切换至「' + v + '」统计口径'); }}
-            size="small"
-          />
-          <Button onClick={() => toast('已生成 access-report-20260727.pdf(含 4 个统计模块)')}>导出 PDF</Button>
-          <Button type="primary" data-od-id="export-report" onClick={() => toast('已导出 access-report-20260727.xlsx(3 个工作表)')}>导出 Excel</Button>
-        </Space>
-      </div>
+      <PageHeader
+        title="报表统计"
+        subtitle={data.sub}
+        extra={
+          <>
+            <Segmented
+              data-od-id="period-seg"
+              options={['今日', '本周', '本月']}
+              value={period}
+              onChange={(v) => { setPeriod(v as Period); toast('已切换至「' + v + '」统计口径'); }}
+              size="small"
+            />
+            <Button onClick={() => toast('已生成 access-report-20260727.pdf(含 4 个统计模块)')}>导出 PDF</Button>
+            <Button type="primary" data-od-id="export-report" onClick={() => toast('已导出 access-report-20260727.xlsx(3 个工作表)')}>导出 Excel</Button>
+          </>
+        }
+      />
 
       <Row gutter={16}>
         <Col xs={24} lg={12}>

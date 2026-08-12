@@ -4,7 +4,7 @@ import {
   Activity, BarChart3, Gauge, KeyRound, LogOut,
   ScrollText, Search, Server, Settings, ShieldCheck, Users,
 } from 'lucide-react';
-import { Layout, Menu, Button, Dropdown, Input, Modal, Form, App } from 'antd';
+import { Layout, Menu, Button, Dropdown, Input, Modal, Form, App, Breadcrumb } from 'antd';
 import type { MenuProps } from 'antd';
 import { useTitle } from '../hooks/useTitle';
 import { fetchMe, logout } from '../api/auth';
@@ -201,17 +201,10 @@ export default function Shell({ page, children }: { page: string; children: Reac
             lineHeight: '57px',
           }}
         >
-          <div
-            style={{
-              fontFamily: '"SF Pro Display", sans-serif',
-              fontSize: '16.5px',
-              fontWeight: 600,
-              letterSpacing: '-0.01em',
-              lineHeight: 'normal',
-            }}
-          >
-            {page}
-          </div>
+          <Breadcrumb
+            items={[{ title: '首页' }, { title: page }]}
+            style={{ fontSize: 12.5, lineHeight: 'normal' }}
+          />
 
           <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 14 }}>
             {/* 搜索 */}

@@ -3,7 +3,8 @@
   "title": "阶段B: Pro 设计模式落地",
   "tags": [],
   "status": "open",
-  "created_at": "2026-08-12T15:17:35.951Z"
+  "created_at": "2026-08-12T15:17:35.951Z",
+  "assigned_to_session": "019ff651-79a1-7dea-8c19-2fcc913bafb7"
 }
 
 参考 preview.pro.ant.design，用 antd 6 原生组件复刻：

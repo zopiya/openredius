@@ -2,7 +2,7 @@
   "id": "be1e2aa3",
   "title": "阶段A: antd 6 升级",
   "tags": [],
-  "status": "open",
+  "status": "completed",
   "created_at": "2026-08-12T15:17:32.196Z",
   "assigned_to_session": "019ff651-79a1-7dea-8c19-2fcc913bafb7"
 }

@@ -4,6 +4,7 @@ import { Inbox } from 'lucide-react';
 import { Table, Select, Button, Space, Modal, Tag, Checkbox, Dropdown, Empty, Skeleton, Result } from 'antd';
 import type { ColumnsType, TableRowSelection } from 'antd/es/table/interface';
 import Shell from '../components/Shell';
+import PageHeader from '../components/PageHeader';
 import { useToast } from '../components/Toast';
 import {
   disconnectSessions,
@@ -293,41 +294,38 @@ export default function Sessions() {
 
   return (
     <Shell page="在线会话">
-      {/* 页头 */}
-      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16, marginBottom: 20 }}>
-        <div>
-          <h1 style={{ margin: 0, fontSize: 24, fontWeight: 600 }}>在线会话</h1>
-          <div style={{ fontSize: 13, color: '#6e6e73', marginTop: 6 }}>
-            当前 <b>1,286</b> 个终端在线 · 每 15 秒自动刷新 · 最近刷新 10:24:31
-          </div>
-        </div>
-        <Space>
-          <Dropdown
-            menu={{
-              items: COL_VIS_OPTIONS.map(([k, label]) => ({
-                key: k,
-                label: (
-                  <Checkbox
-                    checked={colVis[k]}
-                    onChange={(e) => setColVis((v) => ({ ...v, [k]: e.target.checked }))}
-                  >
-                    {label}
-                  </Checkbox>
-                ),
-              })),
-            }}
-            trigger={['click']}
-          >
-            <Button data-od-id="col-customize">列自定义 ▾</Button>
-          </Dropdown>
-          <Button
-            data-od-id="export-btn"
-            onClick={() => toast('已按当前筛选导出 sessions-20260727.csv(1,286 条)')}
-          >
-            导出 CSV
-          </Button>
-        </Space>
-      </div>
+      <PageHeader
+        title="在线会话"
+        subtitle={<>当前 <b>1,286</b> 个终端在线 · 每 15 秒自动刷新 · 最近刷新 10:24:31</>}
+        extra={
+          <>
+            <Dropdown
+              menu={{
+                items: COL_VIS_OPTIONS.map(([k, label]) => ({
+                  key: k,
+                  label: (
+                    <Checkbox
+                      checked={colVis[k]}
+                      onChange={(e) => setColVis((v) => ({ ...v, [k]: e.target.checked }))}
+                    >
+                      {label}
+                    </Checkbox>
+                  ),
+                })),
+              }}
+              trigger={['click']}
+            >
+              <Button data-od-id="col-customize">列自定义 ▾</Button>
+            </Dropdown>
+            <Button
+              data-od-id="export-btn"
+              onClick={() => toast('已按当前筛选导出 sessions-20260727.csv(1,286 条)')}
+            >
+              导出 CSV
+            </Button>
+          </>
+        }
+      />
 
       {/* 主卡片 */}
       <div

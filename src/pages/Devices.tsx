@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { CircleAlert, Eye, Laptop, Server } from 'lucide-react';
-import { Table, Button, Space, Modal, Drawer, Select, Input, Tabs, Typography, Tag, Skeleton, Empty, Result } from 'antd';
+import { Table, Button, Modal, Drawer, Select, Input, Tabs, Tag, Skeleton, Empty, Result } from 'antd';
 import type { ColumnsType } from 'antd/es/table/interface';
 import Shell from '../components/Shell';
+import PageHeader from '../components/PageHeader';
 import { useToast } from '../components/Toast';
 import {
   DEVICE_FILTER_OPTIONS, fetchEndpoints, fetchNas,
@@ -138,16 +139,16 @@ export default function Devices() {
 
   return (
     <Shell page="设备管理">
-      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16, marginBottom: 20 }}>
-        <div>
-          <Typography.Title level={1} style={{ margin: 0, fontSize: 24, fontWeight: 600 }}>设备管理</Typography.Title>
-          <Typography.Text type="secondary" style={{ fontSize: 13, marginTop: 6, display: 'block' }}>37 台准入网络设备(NAS)· 1,642 台已登记终端</Typography.Text>
-        </div>
-        <Space>
-          {tab === 'nas' && <Button onClick={() => toast('添加 NAS:填写 IP 与 Shared Secret 后可纳管(演示)')}>添加 NAS</Button>}
-          {tab === 'ep' && <Button type="primary" data-od-id="import-mac" onClick={() => setModal({ kind: 'import' })}>批量导入 MAC 白名单</Button>}
-        </Space>
-      </div>
+      <PageHeader
+        title="设备管理"
+        subtitle="37 台准入网络设备(NAS)· 1,642 台已登记终端"
+        extra={
+          <>
+            {tab === 'nas' && <Button onClick={() => toast('添加 NAS:填写 IP 与 Shared Secret 后可纳管(演示)')}>添加 NAS</Button>}
+            {tab === 'ep' && <Button type="primary" data-od-id="import-mac" onClick={() => setModal({ kind: 'import' })}>批量导入 MAC 白名单</Button>}
+          </>
+        }
+      />
 
       <div data-od-id="device-tabs" style={{ background: '#fff', border: '1px solid #e8e8ed', borderRadius: 18 }}>
         <Tabs

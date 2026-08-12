@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { Row, Col, Card, Statistic, Segmented, Typography, Space, Tag } from 'antd';
 import {
@@ -8,12 +8,13 @@ import {
   WarningOutlined,
 } from '@ant-design/icons';
 import Shell from '../components/Shell';
+import PageHeader from '../components/PageHeader';
 import TrendChart, { TREND_TODAY } from '../components/charts/TrendChart';
 import type { TrendSeries } from '../components/charts/TrendChart';
 import { fetchAlerts, fetchKpis, fetchTrend } from '../api/resources/dashboard';
 import type { AlertItem, KpiSnapshot } from '../api/resources/dashboard';
 
-const { Title, Text } = Typography;
+const { Text } = Typography;
 
 const DEFAULT_KPIS: KpiSnapshot = {
   online_sessions: 1286, auth_today: 12713, auth_success_rate_today: 98.7,
@@ -29,6 +30,37 @@ const ALERTS_FALLBACK: { time: string; color: string; level: string; to: string;
 ];
 
 const LEVEL_COLOR: Record<string, string> = { 严重: 'red', 警告: 'orange', 提示: 'default' };
+
+function KpiCard({
+  icon, iconBg, iconColor, title, value, suffix, valueColor, footer, dataOdId,
+}: {
+  icon: ReactNode;
+  iconBg: string;
+  iconColor: string;
+  title: string;
+  value: number | string;
+  suffix?: ReactNode;
+  valueColor?: string;
+  footer: ReactNode;
+  dataOdId: string;
+}) {
+  return (
+    <Card className="kpi" data-od-id={dataOdId} size="small" style={{ borderRadius: 18 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+        <div style={{ width: 38, height: 38, borderRadius: 10, background: iconBg, color: iconColor, display: 'grid', placeItems: 'center', fontSize: 18, flexShrink: 0 }}>
+          {icon}
+        </div>
+        <span style={{ fontSize: 13, color: '#6e6e73' }}>{title}</span>
+      </div>
+      <Statistic
+        value={value}
+        suffix={suffix}
+        styles={{ content: { fontSize: 30, fontWeight: 600, fontFamily: '"SF Pro Display", sans-serif', lineHeight: 1.2, color: valueColor } }}
+      />
+      <div style={{ marginTop: 10, fontSize: 12, color: '#6e6e73' }}>{footer}</div>
+    </Card>
+  );
+}
 
 export default function Dashboard() {
   const [mode, setMode] = useState<'today' | '7d'>('today');
@@ -55,74 +87,66 @@ export default function Dashboard() {
 
   return (
     <Shell page="仪表盘">
-      {/* 页头 */}
-      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16, marginBottom: 20 }}>
-        <div>
-          <Title level={1} style={{ margin: 0, fontSize: 24, fontWeight: 600 }}>仪表盘</Title>
-          <Text type="secondary" style={{ fontSize: 13, marginTop: 6, display: 'block' }}>
-            内网准入实时概览 · 数据每 30 秒自动刷新 · 2026-07-27(周一)
-          </Text>
-        </div>
-        <Space>
-          <Link to="/auth-logs" style={{ fontSize: 13 }}>查看认证日志</Link>
-          <Link to="/reports" style={{ fontSize: 13 }}>生成报表</Link>
-        </Space>
-      </div>
+      <PageHeader
+        title="仪表盘"
+        subtitle="内网准入实时概览 · 数据每 30 秒自动刷新 · 2026-07-27(周一)"
+        extra={
+          <>
+            <Link to="/auth-logs" style={{ fontSize: 13 }}>查看认证日志</Link>
+            <Link to="/reports" style={{ fontSize: 13 }}>生成报表</Link>
+          </>
+        }
+      />
 
       {/* KPI 卡片 */}
       <Row gutter={16} className="grid-kpi" style={{ marginBottom: 16 }} data-od-id="kpi-row">
         <Col xs={24} sm={12} lg={6}>
-          <Card className="kpi" data-od-id="kpi-online" size="small" style={{ borderRadius: 18 }}>
-            <Statistic
-              title="当前在线终端"
-              value={kpis.online_sessions}
-              styles={{ content: { fontSize: 33, fontWeight: 600, fontFamily: '"SF Pro Display", sans-serif' } }}
-              prefix={<TeamOutlined />}
-              suffix={<Text type="secondary" style={{ fontSize: 12 }}>实时 · 较昨日同时段</Text>}
-            />
-          </Card>
+          <KpiCard
+            dataOdId="kpi-online"
+            icon={<TeamOutlined />}
+            iconBg="#e6f4ff"
+            iconColor="#0071e3"
+            title="当前在线终端"
+            value={kpis.online_sessions}
+            footer={<>实时 · 较昨日同时段 <span style={{ color: '#16a34a' }}>↑ 3.2%</span></>}
+          />
         </Col>
         <Col xs={24} sm={12} lg={6}>
-          <Card className="kpi" data-od-id="kpi-rate" size="small" style={{ borderRadius: 18 }}>
-            <Statistic
-              title="今日认证成功率"
-              value={rateVal}
-              precision={1}
-              suffix="%"
-              styles={{ content: { fontSize: 33, fontWeight: 600, fontFamily: '"SF Pro Display", sans-serif' } }}
-              prefix={<CheckCircleOutlined style={{ color: '#16a34a' }} />}
-            />
-            <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 4 }}>
-              成功 {(kpis.auth_today - failCount).toLocaleString()} / 共 {kpis.auth_today.toLocaleString()} 次
-            </Text>
-          </Card>
+          <KpiCard
+            dataOdId="kpi-rate"
+            icon={<CheckCircleOutlined />}
+            iconBg="#ecfdf5"
+            iconColor="#16a34a"
+            title="今日认证成功率"
+            value={rateVal}
+            suffix="%"
+            footer={<>成功 {(kpis.auth_today - failCount).toLocaleString()} / 共 {kpis.auth_today.toLocaleString()} 次</>}
+          />
         </Col>
         <Col xs={24} sm={12} lg={6}>
-          <Card className="kpi" data-od-id="kpi-fail" size="small" style={{ borderRadius: 18 }}>
-            <Statistic
-              title="今日认证失败"
-              value={failCount}
-              styles={{ content: { fontSize: 33, fontWeight: 600, fontFamily: '"SF Pro Display", sans-serif', color: failCount > 20 ? '#dc2626' : undefined } }}
-              prefix={<CloseCircleOutlined style={{ color: '#dc2626' }} />}
-            />
-            <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 4 }}>
-              峰值时段 09:00–10:00 · —
-            </Text>
-          </Card>
+          <KpiCard
+            dataOdId="kpi-fail"
+            icon={<CloseCircleOutlined />}
+            iconBg="#fef2f2"
+            iconColor="#dc2626"
+            title="今日认证失败"
+            value={failCount}
+            valueColor={failCount > 20 ? '#dc2626' : undefined}
+            footer="峰值时段 09:00–10:00 · 需关注"
+          />
         </Col>
         <Col xs={24} sm={12} lg={6}>
-          <Card className="kpi" data-od-id="kpi-alert" size="small" style={{ borderRadius: 18 }}>
-            <Statistic
-              title="准入设备离线告警"
-              value={kpis.nas_online}
-              suffix={<Text type="secondary" style={{ fontSize: 13 }}>/ {kpis.nas_total}</Text>}
-              styles={{ content: { fontSize: 33, fontWeight: 600, fontFamily: '"SF Pro Display", sans-serif', color: kpis.nas_total - kpis.nas_online > 0 ? '#dc2626' : undefined } }}
-              prefix={<WarningOutlined />}
-            />
-            <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 4 }}>
-              {kpis.nas_total - kpis.nas_online} 台离线
-            </Text>
-          </Card>
+          <KpiCard
+            dataOdId="kpi-alert"
+            icon={<WarningOutlined />}
+            iconBg="#fffbeb"
+            iconColor="#ca8a04"
+            title="准入设备离线告警"
+            value={kpis.nas_online}
+            suffix={<span style={{ fontSize: 14, color: '#6e6e73' }}>/ {kpis.nas_total}</span>}
+            valueColor={kpis.nas_total - kpis.nas_online > 0 ? '#dc2626' : undefined}
+            footer={<>{kpis.nas_total - kpis.nas_online} 台离线</>}
+          />
         </Col>
       </Row>
 
