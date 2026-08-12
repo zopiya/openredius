@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Button, Form, Input, Typography } from 'antd';
+import { Button, Form, Input, Typography, Alert } from 'antd';
 import { UserOutlined, LockOutlined } from '@ant-design/icons';
 import { login } from '../api/auth';
 
@@ -72,18 +72,7 @@ export default function Login() {
 
         {/* 错误提示 */}
         {err && (
-          <div
-            style={{
-              background: '#fdecea',
-              color: '#b71c1c',
-              fontSize: 13,
-              padding: '10px 12px',
-              borderRadius: 8,
-              marginBottom: 16,
-            }}
-          >
-            {err}
-          </div>
+          <Alert type="error" showIcon title={err} style={{ marginBottom: 16 }} />
         )}
 
         {/* 登录表单 */}
@@ -115,6 +104,10 @@ export default function Login() {
             </Button>
           </Form.Item>
         </Form>
+
+        <div style={{ textAlign: 'center', marginTop: 20, fontSize: 12, color: '#86868b' }}>
+          RADIUS 802.1X 企业内网准入 · v2.4.1
+        </div>
       </div>
     </div>
   );

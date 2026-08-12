@@ -1,7 +1,7 @@
 import type { ThemeConfig } from 'antd';
 
 /**
- * Ant Design 5 主题配置
+ * Ant Design 6 主题配置
  * 1:1 映射 radius-admin.css 的设计令牌，保留深色侧边栏 + 品牌色。
  */
 const theme: ThemeConfig = {

@@ -21,7 +21,7 @@
 | [08-security.md](./08-security.md) | 安全设计(RBAC、密钥、审计、暴露面) | 定稿 |
 | [09-testing-quality.md](./09-testing-quality.md) | 测试策略、验证命令、CI、验收流程 | 定稿 |
 | [10-roadmap.md](./10-roadmap.md) | **里程碑 M0–M7 任务分解( `/goal` 的输入)** | 定稿 |
-| [11-ui-migration.md](./11-ui-migration.md) | Ant Design 5 迁移计划(阶段 0–4) | 草案 |
+| [11-ui-migration.md](./11-ui-migration.md) | Ant Design 迁移计划(阶段 0–4,已升级至 v6) | 已完成 |
 | [decisions/](./decisions/) | ADR 架构决策记录(只增不改) | 持续 |
 
 ## 如何配合 `/goal` 使用
