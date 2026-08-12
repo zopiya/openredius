@@ -30,9 +30,7 @@ class AdminUser(Base):
     display_name: Mapped[str] = mapped_column(String(128), default="")
     password_hash: Mapped[str | None] = mapped_column(String(255), nullable=True)
     # When set, the admin authenticates as this access_user (AD or local password).
-    linked_account: Mapped[str | None] = mapped_column(
-        String(64), nullable=True, index=True
-    )
+    linked_account: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
     role: Mapped[AdminRole] = mapped_column(enum_column(AdminRole, 16), default=AdminRole.OPERATOR)
     status: Mapped[AdminStatus] = mapped_column(
         enum_column(AdminStatus, 16), default=AdminStatus.ACTIVE
