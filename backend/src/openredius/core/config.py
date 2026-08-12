@@ -44,6 +44,9 @@ class Settings(BaseSettings):
 
     radius_coa_port: int = 3799
     radius_coa_timeout: float = 3.0
+    # After a Disconnect-ACK, poll radacct this long for the NAS-side stop
+    # before backend-closing the row (docs/04 CoA).
+    radius_coa_close_poll_s: float = 10.0
     # Command used by POST /api/ops/reload-radius (empty = manual mode).
     # Dev: "docker compose -f deploy/docker-compose.dev.yml restart freeradius"
     radius_reload_command: str = ""
@@ -61,6 +64,16 @@ class Settings(BaseSettings):
     lockout_duration: int = 1800
 
     cert_expire_warn_days: int = 14
+
+    # Background jobs (docs/04): APScheduler assembly. Disabled in API tests.
+    jobs_enabled: bool = True
+    jobs_lockout_interval_s: int = 60
+    jobs_nas_watchdog_interval_s: int = 60
+    jobs_cert_scan_interval_s: int = 3600
+    jobs_alert_gc_interval_s: int = 86400
+    # Same (rule_key, subject) won't re-fire within this window (docs/04).
+    alerts_dedup_window_s: int = 600
+    alerts_retention_days: int = 90
 
     bootstrap_admin_user: str = ""
     bootstrap_admin_password: str = ""

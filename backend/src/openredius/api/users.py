@@ -21,6 +21,7 @@ from openredius.models import (
 from openredius.schemas.common import Affected
 from openredius.schemas.users import (
     EndpointBrief,
+    RecentAuth,
     StatusAction,
     UserDetail,
     UserOut,
@@ -123,6 +124,7 @@ async def get_user(
     base = await _user_out(db, user, len(endpoints))
     return UserDetail(
         **base.model_dump(),
+        recent_auth=await _recent_auth(db, user.account),
         endpoints=[
             EndpointBrief(
                 mac=e.mac,
@@ -196,3 +198,40 @@ async def assign_user_policy(
     await compile_policies(db, actor=admin.username, trigger="user.policy")
     await db.commit()
     return Affected(affected=len(users))
+
+
+_RECENT_AUTH_LIMIT = 5
+
+
+async def _recent_auth(db: AsyncSession, account: str) -> list[RecentAuth]:
+    """Last auth attempts from radpostauth (drawer 最近认证; empty on SQLite)."""
+    from openredius.radius.tables import radius_readable, radius_table
+    from openredius.services.reason import classify_reason
+
+    if not await radius_readable(db, "radpostauth"):
+        return []
+    log = radius_table(db.get_bind().dialect.name, "radpostauth")
+    rows = (
+        await db.execute(
+            select(log)
+            .where(log.c.username == account)
+            .order_by(log.c.authdate.desc())
+            .limit(_RECENT_AUTH_LIMIT)
+        )
+    ).all()
+    out: list[RecentAuth] = []
+    for row in rows:
+        mapping = row._mapping
+        reason = classify_reason(mapping.get("class") or None)
+        is_reject = mapping.get("reply") == "Access-Reject"
+        out.append(
+            RecentAuth(
+                time=mapping["authdate"],
+                reply=mapping.get("reply") or "",
+                reason=reason.label if is_reject else None,
+                reason_key=reason.key if is_reject else None,
+                nas_ip=mapping.get("nasipaddress") or "",
+                mac=mapping.get("callingstationid") or "",
+            )
+        )
+    return out

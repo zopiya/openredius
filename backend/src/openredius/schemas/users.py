@@ -33,8 +33,18 @@ class EndpointBrief(BaseModel):
     whitelisted: bool
 
 
+class RecentAuth(BaseModel):
+    time: datetime
+    reply: str
+    reason: str | None = None
+    reason_key: str | None = None
+    nas_ip: str
+    mac: str
+
+
 class UserDetail(UserOut):
     endpoints: list[EndpointBrief]
+    recent_auth: list[RecentAuth] = Field(default_factory=list)
 
 
 class StatusAction(StrEnum):

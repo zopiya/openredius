@@ -1,0 +1,14 @@
+# Minimal RADIUS dictionary for OpenRedius CoA/Disconnect traffic (RFC 5176).
+# pyrad's wheel ships no dictionary file, so we carry only what the client
+# and the dev sink (deploy/scripts/coa_sink.py) need.
+#
+ATTRIBUTE	User-Name		1	string
+ATTRIBUTE	User-Password		2	string
+ATTRIBUTE	NAS-IP-Address		4	ipaddr
+ATTRIBUTE	NAS-Port		5	integer
+ATTRIBUTE	Called-Station-Id	30	string
+ATTRIBUTE	Calling-Station-Id	31	string
+ATTRIBUTE	Acct-Session-Id		44	string
+ATTRIBUTE	Message-Authenticator	80	octets
+ATTRIBUTE	Error-Cause		101	integer
+ATTRIBUTE	Reply-Message		18	string
