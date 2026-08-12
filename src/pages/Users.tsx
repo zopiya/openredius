@@ -57,11 +57,14 @@ export default function UsersPage() {
   const [syncSummary, setSyncSummary] = useState('(新增 12 / 更新 3 / 停用 1)');
   const deepLinked = useRef(false);
 
-  /* 骨架 → 数据(与原型一致:500ms) */
+  /* 数据拉取 */
   useEffect(() => {
     if (view !== 'loading') return;
-    const t = window.setTimeout(() => setView('ready'), 500);
-    return () => window.clearTimeout(t);
+    let cancelled = false;
+    fetchUsers()
+      .then((data) => { if (!cancelled) { setRows(data); setView('ready'); } })
+      .catch(() => { if (!cancelled) setView('error'); });
+    return () => { cancelled = true; };
   }, [view]);
 
   /* 深链:#user=wang.lei → 打开对应用户详情抽屉(等待数据就绪后执行) */

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import Shell from '../components/Shell';
 import Modal from '../components/Modal';
 import { useToast } from '../components/Toast';
+import { fetchSettings } from '../api/resources/settings';
 
 const SECTIONS = [
   { id: 'set-radius', label: 'RADIUS 参数' },
@@ -54,6 +55,12 @@ const INITIAL_RULES: AlertRule[] = [
 
 export default function Settings() {
   const toast = useToast();
+  useEffect(() => {
+    fetchSettings().then((cfg) => {
+      setAuthPort(String(cfg.radius_auth_port));
+      setAcctPort(String(cfg.radius_acct_port));
+    }).catch(() => {});
+  }, []);
   const [active, setActive] = useState('set-radius');
   const [authPort, setAuthPort] = useState('1812');
   const [acctPort, setAcctPort] = useState('1813');

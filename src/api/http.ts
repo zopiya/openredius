@@ -34,6 +34,20 @@ export function assertHttp(): void {
 }
 
 async function handleResponse(resp: Response): Promise<unknown> {
+  // 401 → attempt token refresh once, then retry
+  if (resp.status === 401 && resp.url !== apiUrl('/api/auth/login') && resp.url !== apiUrl('/api/auth/refresh')) {
+    try {
+      const { refresh: doRefresh } = await import('./auth');
+      await doRefresh();
+      // Retry original request with fresh token
+      const headers: Record<string, string> = {};
+      if (_token) headers['Authorization'] = `Bearer ${_token}`;
+      const retryResp = await fetch(resp.url, { ...(resp as any)._init, headers });
+      return handleResponse(retryResp);
+    } catch {
+      // Refresh failed → re-throw original 401
+    }
+  }
   const text = await resp.text();
   let body: any = {};
   try {
@@ -63,6 +77,7 @@ export async function fetchApi(path: string, init?: RequestInit): Promise<unknow
   };
   if (_token) headers['Authorization'] = `Bearer ${_token}`;
   const resp = await fetch(apiUrl(path), { ...init, headers });
+  (resp as any)._init = init;  // stash for retry
   return handleResponse(resp);
 }
 
