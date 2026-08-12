@@ -2,7 +2,7 @@ import { type ReactNode, useEffect, useState, useRef } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
   Activity, BarChart3, Gauge, KeyRound, LogOut,
-  ScrollText, Search, Server, Settings, ShieldCheck, UserCog, Users,
+  ScrollText, Search, Server, Settings, ShieldCheck, Users,
 } from 'lucide-react';
 import { useTitle } from '../hooks/useTitle';
 import { fetchMe, logout } from '../api/auth';
@@ -17,7 +17,6 @@ const ALL_ITEMS = [
   { to: '/devices', label: '设备管理', icon: Server, roles: ['admin'] },
   { to: '/reports', label: '报表统计', icon: BarChart3, roles: ['admin', 'operator', 'auditor'] },
   { to: '/settings', label: '系统设置', icon: Settings, roles: ['admin'] },
-  { to: '/settings/admins', label: '管理员账户', icon: UserCog, roles: ['admin'] },
 ];
 
 interface AdminInfo { username: string; display_name: string; role: string; }

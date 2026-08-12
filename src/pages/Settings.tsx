@@ -3,7 +3,18 @@ import Shell from '../components/Shell';
 import Modal from '../components/Modal';
 import { useToast } from '../components/Toast';
 import { getAdmin } from '../api/auth';
+import { fetchApi } from '../api/http';
+import { MODE } from '../api/config';
 import { fetchSettings } from '../api/resources/settings';
+
+const ROLE_LABELS: Record<string, string> = { admin: '管理员', operator: '运维', auditor: '审计' };
+const ROLE_SCOPES: Record<string, string> = {
+  admin: '全部功能 + 系统设置 + Shared Secret 查看',
+  operator: '读全部 + 强制下线 + 用户启停策略分配 + AD 同步',
+  auditor: '仪表盘 / 会话 / 日志 / 报表,仅查看与导出',
+};
+
+interface AdminRow { id: number; username: string; display_name: string; role: string; status: string; created_at: string; }
 
 const SECTIONS = [
   { id: 'set-radius', label: 'RADIUS 参数' },
@@ -230,29 +241,7 @@ export default function Settings() {
           </section>
 
           {/* 管理员与权限 */}
-          <section className="card set-card" id="set-rbac" data-od-id="set-rbac">
-            <div className="card-head"><div className="card-title">管理员账号与权限(RBAC)</div>
-              <div className="card-extra"><a className="btn btn-outline btn-sm" href="/settings/admins">管理管理员</a></div></div>
-            <div className="card-body" style={{ paddingTop: 6 }}>
-              <div className="tbl-wrap">
-                <table className="tbl">
-                  <thead><tr><th>账号</th><th>角色</th><th>权限范围</th><th>最近登录</th></tr></thead>
-                  <tbody>
-                    <tr><td><b>王工</b><span className="sub mono">wang.ops</span></td>
-                      <td><span className="badge bg-info">超级管理员</span></td>
-                      <td>全部功能 + 系统设置 + Shared Secret 查看</td><td className="mono">10:02(当前)</td></tr>
-                    <tr><td><b>吴昊</b><span className="sub mono">wu.hao</span></td>
-                      <td><span className="badge bg-muted">策略管理员</span></td>
-                      <td><span className="truncate" title="策略 / 设备 / 用户管理,可强制下线,不可改系统参数">策略 / 设备 / 用户管理,可强制下线,不可改系统参数</span></td><td className="mono">09:31</td></tr>
-                    <tr><td><b>赵敏</b><span className="sub mono">zhao.min</span></td>
-                      <td><span className="badge bg-muted">只读审计</span></td>
-                      <td>仪表盘 / 会话 / 日志 / 报表,仅查看与导出</td><td className="mono">昨天 17:44</td></tr>
-                  </tbody>
-                </table>
-              </div>
-              <div style={{ marginTop: 12, fontSize: 12, color: 'var(--muted)' }}>角色为预设三种,权限粒度不可自定义;敏感操作(强制下线、吊销、改策略)全部记录审计日志。</div>
-            </div>
-          </section>
+          <AdminSection />
 
           {/* 告警通知 */}
           <section className="card set-card" id="set-alert" data-od-id="set-alert" style={{ gridColumn: '1 / -1' }}>
@@ -298,5 +287,149 @@ export default function Settings() {
         • 操作记录审计,建议在低峰时段执行。
       </Modal>
     </Shell>
+  );
+}
+
+/* ── 管理员与权限(内嵌组件) ─────────────────────────────────── */
+
+function AdminSection() {
+  const toast = useToast();
+  const me = getAdmin();
+  const [admins, setAdmins] = useState<AdminRow[]>([]);
+  const [showGrant, setShowGrant] = useState(false);
+
+  useEffect(() => {
+    if (MODE !== 'http') {
+      setAdmins([{ id: 1, username: 'admin', display_name: '管理员', role: 'admin', status: 'active', created_at: '' }]);
+      return;
+    }
+    fetchApi('/api/auth/admins').then((body: any) => setAdmins(body ?? [])).catch(() => {});
+  }, []);
+
+  async function changeRole(id: number, role: string) {
+    try {
+      await fetchApi(`/api/auth/admins/${id}`, { method: 'PATCH', body: JSON.stringify({ role }) });
+      setAdmins((prev) => prev.map((a) => (a.id === id ? { ...a, role } : a)));
+      toast('角色已更新');
+    } catch (e: any) { toast(e.message); }
+  }
+
+  async function revoke(id: number, name: string) {
+    if (!confirm(`确认撤销 ${name} 的后台权限？`)) return;
+    try {
+      await fetchApi(`/api/auth/admins/${id}`, { method: 'DELETE' });
+      setAdmins((prev) => prev.filter((a) => a.id !== id));
+      toast('已撤销后台权限');
+    } catch (e: any) { toast(e.message); }
+  }
+
+  return (
+    <section className="card set-card" id="set-rbac" data-od-id="set-rbac">
+      <div className="card-head">
+        <div className="card-title">管理员与权限</div>
+        <div className="card-extra">
+          <button type="button" className="btn btn-outline btn-sm" onClick={() => setShowGrant(true)}>授权用户</button>
+        </div>
+      </div>
+      <div className="card-body" style={{ paddingTop: 6 }}>
+        <div className="tbl-wrap">
+          <table className="tbl">
+            <thead><tr><th>账号</th><th>角色</th><th>权限范围</th><th>操作</th></tr></thead>
+            <tbody>
+              {admins.map((a) => {
+                const isSelf = me?.username === a.username;
+                return (
+                  <tr key={a.id}>
+                    <td><b>{a.username}</b>{isSelf ? ' (当前)' : ''}<br /><span className="sub mono">{a.display_name || '-'}</span></td>
+                    <td>
+                      {isSelf ? (
+                        <span className="badge bg-info">{ROLE_LABELS[a.role] || a.role}</span>
+                      ) : (
+                        <select
+                          className="sel sel-sm"
+                          value={a.role}
+                          onChange={(e) => changeRole(a.id, e.target.value)}
+                        >
+                          <option value="admin">管理员</option>
+                          <option value="operator">运维</option>
+                          <option value="auditor">审计</option>
+                        </select>
+                      )}
+                    </td>
+                    <td className="truncate" title={ROLE_SCOPES[a.role] || ''}>{ROLE_SCOPES[a.role] || a.role}</td>
+                    <td>
+                      {!isSelf && (
+                        <button type="button" className="btn btn-sm btn-danger" onClick={() => revoke(a.id, a.username)}>撤销</button>
+                      )}
+                      {isSelf && <span className="sub">—</span>}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+        <div style={{ marginTop: 12, fontSize: 12, color: 'var(--muted)' }}>
+          内置超级管理员不可被降级或删除;敏感操作全部记录审计日志。
+        </div>
+      </div>
+
+      {showGrant && <GrantAccessModal onClose={() => setShowGrant(false)} onGranted={() => {
+        setShowGrant(false);
+        fetchApi('/api/auth/admins').then((body: any) => setAdmins(body ?? [])).catch(() => {});
+      }} />}
+    </section>
+  );
+}
+
+/* ── 授权用户弹窗 ───────────────────────────────────────── */
+
+function GrantAccessModal({ onClose, onGranted }: { onClose: () => void; onGranted: () => void }) {
+  const toast = useToast();
+  const [username, setUsername] = useState('');
+  const [displayName, setDisplayName] = useState('');
+  const [password, setPassword] = useState('');
+  const [role, setRole] = useState('operator');
+  const [busy, setBusy] = useState(false);
+
+  async function grant() {
+    if (!username.trim()) return toast('请输入用户名');
+    if (password.length < 10) return toast('密码至少 10 位');
+    setBusy(true);
+    try {
+      await fetchApi('/api/auth/admins', {
+        method: 'POST',
+        body: JSON.stringify({ username: username.trim(), display_name: displayName.trim() || undefined, password, role }),
+      });
+      toast('已授权');
+      onGranted();
+    } catch (e: any) { toast(e.message); } finally { setBusy(false); }
+  }
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 420 }}>
+        <div className="modal-hd"><b>授权用户访问后台</b></div>
+        <div className="modal-bd">
+          <p style={{ marginBottom: 12, color: 'var(--muted)', fontSize: 13 }}>
+            为已有用户授予控制台访问权限。用户后续可使用此账号和密码登录。
+          </p>
+          <label><span>用户名</span><input value={username} onChange={(e) => setUsername(e.target.value)} autoFocus placeholder="与 AD sAMAccountName 一致" /></label>
+          <label><span>显示名(可选)</span><input value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="如:王工" /></label>
+          <label><span>登录密码</span><input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="至少 10 位" /></label>
+          <label><span>角色</span>
+            <select className="sel" value={role} onChange={(e) => setRole(e.target.value)}>
+              <option value="admin">管理员 — 全部功能</option>
+              <option value="operator">运维 — 读+强制下线+用户管理+AD同步</option>
+              <option value="auditor">审计 — 只读</option>
+            </select>
+          </label>
+        </div>
+        <div className="modal-act">
+          <button type="button" className="btn" onClick={onClose} disabled={busy}>取消</button>
+          <button type="button" className="btn btn-primary" onClick={grant} disabled={busy}>{busy ? '授权中…' : '授权'}</button>
+        </div>
+      </div>
+    </div>
   );
 }
