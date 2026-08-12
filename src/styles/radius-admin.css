@@ -1,91 +1,29 @@
 /* ─────────────────────────────────────────────────────────────────────────
- * RADIUS 802.1X 准入认证管理后台 — 精简版样式
- * Ant Design 5 迁移后仅保留:剩余自定义 CSS 类(图表降级 SVG / 抽屉子表等)
+ * RADIUS 802.1X 准入认证管理后台 — 最小自定义样式
+ * Ant Design 6 迁移后仅保留 antd 无对应组件的两类场景:
+ *   1. 图表 SVG 降级(测试环境无 Canvas API)
+ *   2. 端口接入网格(设备抽屉, 无 antd 对应组件)
+ * 颜色对齐 antd 6 默认语义色(主色 #1677ff / 错误 #ff4d4f / 灰阶 rgba)。
  * ─────────────────────────────────────────────────────────────────── */
 
-/* ─── 基础重置(antd 未覆盖) ──────────────────────────── */
 * { box-sizing: border-box; }
 body { margin: 0; padding: 0; }
 
-/* ─── KV 键值对 ─────────────────────────────────────── */
-.kv { display: grid; grid-template-columns: 190px 1fr; row-gap: 8px; column-gap: 16px; font-size: 13px; margin: 0; }
-.kv dt { color: #6e6e73; }
-.kv dd { margin: 0; font-family: "SF Mono", ui-monospace, Consolas, monospace; font-size: 12.5px; word-break: break-all; }
-.kv.plain dd { font-family: "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 13px; }
-
-/* ─── 等宽文本 ──────────────────────────────────────── */
-.mono { font-family: "SF Mono", ui-monospace, Consolas, monospace; font-size: 12.5px; letter-spacing: -0.01em; }
-
-/* ─── 内联表格(抽屉内子表,非 antd Table) ────────────── */
-.tbl { width: 100%; border-collapse: collapse; font-size: 13.5px; }
-.tbl th { text-align: left; font-size: 12px; font-weight: 500; color: #6e6e73; padding: 10px 14px; border-bottom: 1px solid #d2d2d7; white-space: nowrap; background: #fff; }
-.tbl td { padding: 11px 14px; border-bottom: 1px solid #e8e8ed; vertical-align: middle; }
-.tbl tbody tr:hover td { background: rgba(0, 0, 0, 0.022); }
-.tbl tr:last-child td { border-bottom: none; }
-.map-tbl td, .map-tbl th { padding: 8px 12px; }
-
-/* ─── 加载骨架(className 引用) ──────────────────────── */
-.tbl-skel { }
-
-/* ─── 抽屉分区 ──────────────────────────────────────── */
-.d-sec { margin-top: 22px; }
-.d-sec-t { font-size: 12px; font-weight: 600; color: #6e6e73; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 10px; }
-
-/* ─── 端口网格(设备管理抽屉) ────────────────────────── */
-.port-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 8px; }
-.port { border: 1px solid #e8e8ed; border-radius: 8px; padding: 8px 10px; font-size: 11.5px; line-height: 1.4; }
-.port .p-name { font-family: "SF Mono", ui-monospace, Consolas, monospace; font-size: 11.5px; font-weight: 600; display: block; }
-.port .p-sub { color: #6e6e73; }
-.port.busy { border-color: rgba(0, 113, 227, 0.45); background: rgba(0, 113, 227, 0.05); }
-.port.busy .p-sub { color: #0071e3; }
-.port.idle .p-sub { color: #86868b; }
-
-/* ─── 趋势图 SVG 降级样式 ───────────────────────────── */
+/* ─── 图表 SVG 降级(测试环境) ──────────────────────── */
 .chart-svg { width: 100%; height: auto; display: block; }
-.chart-svg .grid-l { stroke: #e8e8ed; stroke-width: 1; }
-.chart-svg .axis-t { fill: #86868b; font-size: 10.5px; font-family: "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif; }
-.chart-svg .line-ok { stroke: #0071e3; stroke-width: 2; fill: none; }
-.chart-svg .line-fail { stroke: #dc2626; stroke-width: 2; fill: none; }
-.chart-svg .area-ok { fill: #0071e3; opacity: 0.07; }
-.chart-svg .donut-total { fill: #1d1d1f; font-family: "SF Pro Display", "Helvetica Neue", Helvetica, Arial, sans-serif; font-weight: 600; }
-.chart-svg .donut-unit { fill: #6e6e73; }
+.chart-svg .grid-l { stroke: #f0f0f0; stroke-width: 1; }
+.chart-svg .axis-t { fill: rgba(0, 0, 0, 0.45); font-size: 10.5px; font-family: -apple-system, sans-serif; }
+.chart-svg .line-ok { stroke: #1677ff; stroke-width: 2; fill: none; }
+.chart-svg .line-fail { stroke: #ff4d4f; stroke-width: 2; fill: none; }
+.chart-svg .area-ok { fill: #1677ff; opacity: 0.07; }
+.chart-svg .donut-total { fill: rgba(0, 0, 0, 0.88); font-weight: 600; }
+.chart-svg .donut-unit { fill: rgba(0, 0, 0, 0.45); }
 
-/* ─── 失败原因标签(AuthLogs) ────────────────────────── */
-.rtag { display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px 3px 8px; border-radius: 6px; font-size: 12px; font-weight: 500; border: 1px solid #d2d2d7; background: #fff; white-space: nowrap; color: #424245; }
-.rtag::before { content: ""; width: 4px; height: 14px; border-radius: 2px; background: #424245; flex: none; }
-.rt-warn { color: #ca8a04; border-color: #eab308; background: #fefce8; }
-.rt-warn::before { background: #eab308; }
-.rt-danger { color: #dc2626; border-color: #dc2626; background: #fef2f2; }
-.rt-danger::before { background: #dc2626; }
-.rt-info { color: #0071e3; border-color: #0071e3; background: #eff6ff; }
-.rt-info::before { background: #0071e3; }
-.rt-muted { color: #6e6e73; }
-.rt-muted::before { background: #86868b; }
-
-/* ─── 副标题 / 移动按钮 ─────────────────────────────── */
-.sub { display: block; font-size: 11.5px; color: #6e6e73; margin-top: 1px; }
-.mv { display: inline-block; min-width: 20px; text-align: center; padding: 2px 1px; margin-left: 2px; border-radius: 5px; font-size: 11px; line-height: 1.2; color: #86868b; vertical-align: 1px; }
-.mv:hover { color: #0071e3; background: rgba(0, 113, 227, 0.09); text-decoration: none; }
-
-/* ─── 高级筛选带(认证日志) ──────────────────────────── */
-.filters.adv { border-top: 1px dashed #d2d2d7; background: #fbfbfd; }
-
-/* ─── 文本截断 ──────────────────────────────────────── */
-.truncate { max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block; vertical-align: bottom; }
-td .truncate { max-width: 220px; }
-
-/* ─── 设备负载排行 ──────────────────────────────────── */
-.rank-row { display: grid; grid-template-columns: 24px 1fr auto; gap: 10px; align-items: center; padding: 9px 0; font-size: 13px; }
-.rank-row + .rank-row { border-top: 1px solid #e8e8ed; }
-.rank-no { font-family: "SF Mono", ui-monospace, Consolas, monospace; font-size: 12px; color: #86868b; }
-.rank-name { min-width: 0; }
-.rank-name .mono { color: #6e6e73; font-size: 11.5px; }
-.rank-bar { display: flex; align-items: center; gap: 10px; }
-.rank-bar .bar-track { width: 110px; height: 6px; }
-.bar-track { background: #f5f5f7; border-radius: 4px; overflow: hidden; }
-.bar-fill { height: 100%; border-radius: 4px; background: #0071e3; }
-.bar-fill.fill-fg { background: rgba(29, 29, 31, 0.55); }
-.bar-fill.fill-danger { background: #dc2626; }
-.bar-val { text-align: right; color: #424245; font-variant-numeric: tabular-nums; font-size: 12.5px; }
-.bar-row { display: grid; grid-template-columns: 118px 1fr 64px; align-items: center; gap: 12px; padding: 8px 0; font-size: 13px; }
-.bar-row + .bar-row { border-top: 1px solid #e8e8ed; }
+/* ─── 端口接入网格(设备抽屉) ──────────────────────── */
+.port-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 8px; }
+.port { border: 1px solid #f0f0f0; border-radius: 8px; padding: 8px 10px; font-size: 11.5px; line-height: 1.4; }
+.port .p-name { font-family: ui-monospace, monospace; font-size: 11.5px; font-weight: 600; display: block; }
+.port .p-sub { color: rgba(0, 0, 0, 0.45); }
+.port.busy { border-color: rgba(22, 119, 255, 0.45); background: rgba(22, 119, 255, 0.05); }
+.port.busy .p-sub { color: #1677ff; }
+.port.idle .p-sub { color: rgba(0, 0, 0, 0.25); }

@@ -401,7 +401,7 @@ export default function Sessions() {
 
         {/* 表格区域 */}
         {view === 'loading' && (
-          <div className="tbl-skel" style={{ padding: 40 }}>
+          <div style={{ padding: 40 }}>
             <Skeleton active paragraph={{ rows: 6 }} />
           </div>
         )}

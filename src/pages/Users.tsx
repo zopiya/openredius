@@ -274,7 +274,7 @@ export default function UsersPage() {
         )}
 
         {/* 表格 */}
-        {view === 'loading' && <div className="tbl-skel" style={{ padding: 40 }}><Skeleton active paragraph={{ rows: 8 }} /></div>}
+        {view === 'loading' && <div style={{ padding: 40 }}><Skeleton active paragraph={{ rows: 8 }} /></div>}
         {view === 'ready' && visible.length > 0 && (
           <Table
             className="tbl"

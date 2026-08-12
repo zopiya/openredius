@@ -52,7 +52,7 @@ test('Dashboard:KPI / 趋势图粒度切换 / 告警深链', async () => {
 /* ── 在线会话 ───────────────────────────────────────── */
 test('Sessions:骨架→数据、筛选、列自定义', async () => {
   const { container, getByText, getByLabelText } = ui(<Sessions />);
-  expect(container.querySelector('.tbl-skel')).not.toBeNull();
+  expect(container.querySelector('.ant-skeleton')).not.toBeNull();
   await waitFor(() => expect(container.querySelectorAll('.ant-table-row').length).toBeGreaterThanOrEqual(10), WAIT);
 
   // 筛选控件存在
