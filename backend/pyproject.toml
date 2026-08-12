@@ -56,6 +56,9 @@ extend-immutable-calls = [
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+# Unit/API suites run everywhere; stack integration needs the compose stack
+# (docs/09): `uv run pytest -m integration` overrides this filter.
+addopts = "-m 'not integration'"
 markers = [
     "integration: stack integration tests (require docker compose dev stack)",
 ]
