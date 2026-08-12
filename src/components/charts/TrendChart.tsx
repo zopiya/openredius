@@ -71,8 +71,9 @@ function TrendChartAntd({ series }: { series: TrendSeries }) {
     lineStyle: { lineWidth: 2 },
     area: {
       style: (datum: { type: string }) => ({
-        fill: datum.type === '成功' ? '#0071e3' : '#dc2626',
-        fillOpacity: 0.07,
+        fill: datum.type === '成功'
+          ? 'linear-gradient(-90deg, rgba(0,113,227,0.20) 0%, rgba(0,113,227,0.01) 100%)'
+          : 'linear-gradient(-90deg, rgba(220,38,38,0.20) 0%, rgba(220,38,38,0.01) 100%)',
       }),
     },
     animation: false,

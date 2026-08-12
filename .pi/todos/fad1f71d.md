@@ -2,7 +2,7 @@
   "id": "fad1f71d",
   "title": "阶段B: Pro 设计模式落地",
   "tags": [],
-  "status": "open",
+  "status": "completed",
   "created_at": "2026-08-12T15:17:35.951Z",
   "assigned_to_session": "019ff651-79a1-7dea-8c19-2fcc913bafb7"
 }

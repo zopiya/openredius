@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Card, Row, Col, Segmented, Button, Typography, Table } from 'antd';
+import { Card, Row, Col, Segmented, Button, Typography, Table, Tabs } from 'antd';
 import type { ColumnsType } from 'antd/es/table/interface';
 import Shell from '../components/Shell';
 import PageHeader from '../components/PageHeader';
 import Donut, { DonutLegend } from '../components/charts/Donut';
+import DeptBarChart from '../components/charts/DeptBarChart';
 import { useToast } from '../components/Toast';
 import { DEPT_ROWS, ETYPE_ROWS, fetchDepartments, fetchEndpointTypes, fetchSummary, LOAD_TOP, REPORT_PERIODS } from '../api/resources/reports';
 
@@ -44,6 +45,12 @@ export default function Reports() {
     { title: '认证失败', dataIndex: 'fail', key: 'fail', render: (v) => <span style={{ fontFamily: '"SF Mono", monospace', fontSize: '12.5px' }}>{v}</span> },
     { title: '成功率', dataIndex: 'rate', key: 'rate', render: (v) => <span style={{ fontFamily: '"SF Mono", monospace', fontSize: '12.5px' }}>{v}</span> },
   ];
+
+  const deptStats = deptRows.map((r) => ({
+    dept: r.dept,
+    ok: parseInt(r.ok.replace(/,/g, ''), 10),
+    fail: parseInt(r.fail.replace(/,/g, ''), 10),
+  }));
 
   return (
     <Shell page="报表统计">
@@ -88,7 +95,13 @@ export default function Reports() {
       <Row gutter={16} style={{ marginTop: 0 }}>
         <Col xs={24} lg={12}>
           <Card data-od-id="dept-stat" title="部门准入情况" extra={<Link to="/auth-logs" style={{ fontSize: 12 }}>对应日志 →</Link>} style={{ borderRadius: 18, marginBottom: 16 }}>
-            <Table className="tbl" rowKey="dept" dataSource={deptRows} columns={deptCols} pagination={false} size="small" />
+            <Tabs
+              size="small"
+              items={[
+                { key: 'chart', label: '图表', children: <DeptBarChart rows={deptStats} ariaLabel="部门认证成功与失败对比柱状图" /> },
+                { key: 'table', label: '明细', children: <Table className="tbl" rowKey="dept" dataSource={deptRows} columns={deptCols} pagination={false} size="small" /> },
+              ]}
+            />
           </Card>
         </Col>
         <Col xs={24} lg={12}>
