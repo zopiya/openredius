@@ -429,6 +429,13 @@ async def seed() -> None:
 
     if dialect_name == "postgresql":
         await seed_radius_schema(session_factory)
+        from openredius.services.history import generate_history
+
+        history = await generate_history(session_factory, days=7, rng_seed=7)
+        print(
+            f"radius history: {history['postauth']} auth rows, "
+            f"{history['radacct']} sessions (7 days)"
+        )
 
     print(
         f"seeded: {len(USERS)} users, {len(POLICIES)} policies, "
