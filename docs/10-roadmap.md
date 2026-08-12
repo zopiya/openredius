@@ -9,7 +9,7 @@
 |---|---|---|---|
 | M0 | 仓库基线与工程脚手架 | ✅ | 2026-08-06 |
 | M1 | 后端骨架与基础设施 | ✅ | 2026-08-12 |
-| M2 | 领域模型与 CRUD API | ⬜ | — |
+| M2 | 领域模型与 CRUD API | ✅ | 2026-08-12 |
 | M3 | FreeRADIUS 集成 | ⬜ | — |
 | M4 | 会话/日志/报表/仪表盘数据面 | ⬜ | — |
 | M5 | 前端接入真实 API | ⬜ | — |
@@ -68,6 +68,8 @@ git status          # 干净
 - [x] `scripts/create_admin.py`、bootstrap 管理员逻辑(2026-08-12 完成)
 - [x] pytest 骨架:health/login/refresh/角色守卫用例(2026-08-12 完成,31 用例)
 - [x] CI backend job 生效(uv sync + ruff + pytest)(2026-08-12 完成)
+- [x] 迁移 2668af2e944a CHECK 约束修正:M2 引入 enum_column(持久化 value)后同步改为
+      小写枚举值;仅影响全新库,dev 库重建即可(2026-08-12,M2 期间)
 
 **验收**:
 
@@ -88,15 +90,19 @@ bun run verify   # 前端不回归
 
 **任务**:
 
-- [ ] 模型+迁移:access_user、policy_group、vlan、acl_profile、nas_device、endpoint、
-      ad_sync_job、alert_rule、alert_event、audit_log、system_setting
-- [ ] 视图 `v_user_policy_flags` + 函数 `norm_mac`(06)
-- [ ] 各资源 CRUD/批量 API(03):users/policies/devices(nas+endpoints)/settings/audit
-- [ ] 策略保存即触发"编译占位"(真实编译在 M3;此处写 audit)
-- [ ] `scripts/seed_demo.py`:原型数据集(10 用户/5 策略/8 NAS/8 终端/字典)
-- [ ] 服务端筛选/分页/排序(03 约定)
-- [ ] RBAC 全覆盖;写操作审计全覆盖
-- [ ] pytest:每资源 CRUD + 边界(重名、删除约束、MAC 规范化)
+- [x] 模型+迁移:access_user、policy_group、vlan、acl_profile、nas_device、endpoint、
+      ad_sync_job、alert_rule、alert_event、audit_log、system_setting(迁移 cf9a9b67326d;
+      枚举列统一持久化 value 而非 SQLAlchemy 默认的 name,与 02/06 的字面值一致——
+      models/base.enum_column;M1 迁移的 CHECK 约束同步修正,仅影响全新库)
+- [x] 视图 `v_user_policy_flags` + 函数 `norm_mac`(06;仅 postgresql 方言创建,04 明示)
+- [x] 各资源 CRUD/批量 API(03):users/policies/devices(nas+endpoints)/settings/audit
+      + 管理员账户 CRUD(admins);延后项:users/sync-ad、sync-records(M5)、
+      nas/{id}/ports|ssids(M6 会话域)
+- [x] 策略保存即触发“编译占位”(policy.compile 审计行,detail.status=placeholder;真编译 M3)
+- [x] `scripts/seed_demo.py`:原型数据集(10 用户/5 策略/8 NAS/8 终端/字典+告警规则+设置)
+- [x] 服务端筛选/分页/排序(03 约定;core/listing 通用层)
+- [x] RBAC 全覆盖;写操作审计全覆盖(08 必记事件均落库,secret 明文不入审计)
+- [x] pytest:每资源 CRUD + 边界(重名、删除约束、MAC 规范化);共 89 用例
 
 **验收**:
 
