@@ -125,33 +125,36 @@ test('AuthLogs:深链预填筛选(result=失败&nas=SW-5F-02)', async () => {
 
 /* ── 用户管理 ───────────────────────────────────────── */
 test('Users:骨架→10 行、批量停用二次确认', async () => {
-  const { container, getByLabelText, getByText } = ui(<UsersPage />);
-  await waitFor(() => expect(container.querySelectorAll('table.tbl:not(.tbl-skel) tbody tr').length).toBe(10), WAIT);
-  const disableBtn = getByText('批量停用') as HTMLButtonElement;
+  const { container, getByText } = ui(<UsersPage />);
+  await waitFor(() => expect(container.querySelectorAll('.ant-table-row').length).toBe(10), WAIT);
+  const disableBtn = container.querySelector('button.ant-btn-dangerous') as HTMLButtonElement;
+  expect(disableBtn).toBeTruthy();
   expect(disableBtn.disabled).toBe(true);
-  fireEvent.click(getByLabelText('全选'));
-  expect((getByText('批量停用') as HTMLButtonElement).disabled).toBe(false);
+  // 全选 via antd table header checkbox
+  const selAll = container.querySelector('.ant-table-thead input[type="checkbox"]') as HTMLInputElement;
+  fireEvent.click(selAll);
+  expect((getByText('批量停用') as HTMLButtonElement).closest('button')?.disabled).toBe(false);
   fireEvent.click(getByText('批量停用'));
-  expect(document.querySelector('.modal-head')?.textContent).toBe('确认批量停用');
-  expect(document.querySelector('.modal-body')?.textContent).toContain('停用后这些账号将立即无法通过 802.1X 认证');
+  expect(document.querySelector('.ant-modal-header')?.textContent).toBe('确认批量停用');
+  expect(document.querySelector('.ant-modal-body')?.textContent).toContain('停用后这些账号将立即无法通过 802.1X 认证');
   fireEvent.click(getByText('确认停用'));
   expect(toastText(container)).toContain('已对 10 个账号执行「停用」');
 });
 
 test('Users:AD 同步状态流转(成功→同步中)', async () => {
   const { container, getByText } = ui(<UsersPage />);
-  expect(container.querySelector('.notice')?.textContent).toContain('成功');
+  expect(container.querySelector('[data-od-id="ad-sync-status"]')?.textContent).toContain('成功');
   fireEvent.click(getByText('立即同步 AD'));
   expect(getByText('同步中…')).not.toBeNull();
-  expect(container.querySelector('.notice .badge')?.textContent).toBe('同步中');
-  expect(container.querySelector('.notice')?.textContent).toContain('正在拉取 AD 增量变更');
+  expect(container.querySelector('[data-od-id="ad-sync-status"] .ant-tag')?.textContent).toBe('同步中');
+  expect(container.querySelector('[data-od-id="ad-sync-status"]')?.textContent).toContain('正在拉取 AD 增量变更');
 });
 
 test('Users:深链 #user=wang.lei 打开详情抽屉', async () => {
   const { container } = ui(<UsersPage />, '/users#user=wang.lei');
-  await waitFor(() => expect(document.body.classList.contains('drawer-open')).toBe(true), WAIT);
-  expect(container.querySelector('.drawer-title')?.textContent).toBe('王磊 · wang.lei');
-  expect(container.querySelector('.drawer-body')?.textContent).toContain('研发准入组');
+  await waitFor(() => expect(document.querySelector('.ant-drawer')).not.toBeNull(), WAIT);
+  const drawerBody = document.querySelector('.ant-drawer-body');
+  expect(drawerBody?.textContent).toContain('研发准入组');
 });
 
 /* ── 策略管理 ───────────────────────────────────────── */
