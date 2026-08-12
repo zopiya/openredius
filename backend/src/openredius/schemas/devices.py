@@ -31,6 +31,11 @@ class NasOut(NasBase):
     id: int
     secret_masked: str
     radius_nas_id: int | None
+    # Derived (docs/02 NAS 在线状态): online / offline / high-load.
+    status: str = "offline"
+    active_sessions: int = 0
+    load_pct: float | None = None
+    last_seen: datetime | None = None
     created_at: datetime
     updated_at: datetime
 

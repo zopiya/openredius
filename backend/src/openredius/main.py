@@ -22,6 +22,7 @@ from openredius.core.ratelimit import (
     LOGIN_RATE_WINDOW_SECONDS,
     SlidingWindowRateLimiter,
 )
+from openredius.jobs.scheduler import build_scheduler
 from openredius.models import AdminUser
 from openredius.services.bootstrap import bootstrap_admin
 
@@ -45,9 +46,17 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         if settings.is_prod:
             raise RuntimeError(message)
         logger.warning(message)
+    scheduler = build_scheduler(settings)
+    if scheduler is not None:
+        scheduler.start()
+        logger.info("background jobs started")
     logger.info("openredius backend started env=%s", settings.env)
-    yield
-    await close_db()
+    try:
+        yield
+    finally:
+        if scheduler is not None:
+            scheduler.shutdown(wait=False)
+        await close_db()
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:

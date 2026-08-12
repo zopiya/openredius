@@ -70,6 +70,32 @@ bash deploy/scripts/smoke_freeradius.sh    # radiusd -CX 配置语法校验
 - **schema 变更后**:radius schema 由 compose 首启初始化,结构变更(如新增
   `radpostauth.class`)需 `docker compose … down -v && up -d --build` 重建卷。
 
+## 数据面工具(M4)
+
+```bash
+cd backend
+export OPENRADIUS_DATABASE_URL='postgresql+asyncpg://openredius:dev-only-openredius-password@localhost:5432/openredius'
+
+# 30 天合成历史(幂等:SYNTH 标记行先删后插;不碰真实 radtest 数据)
+uv run python scripts/generate_history.py --days 30 --rng-seed 42
+
+# 持续合成流量(仪表盘可见;--once 单发,--reset 清理)
+uv run python ../deploy/scripts/demo_traffic.py --interval 30
+
+# 卷重建后需重新初始化:迁移 + seed + 管理员
+uv run alembic upgrade head && uv run python scripts/seed_demo.py \
+  && uv run python scripts/create_admin.py admin --password '<pw>' --role admin --force
+```
+
+注意:
+
+- `schema.sql` 或 queries.conf 补丁变更后必须 `down -v && up -d --build` 重建卷;
+  卷重建会清掉管理员与全部数据(按上面顺序恢复)。
+- seed_demo 在 PG 下自带最近 7 天合成历史(rng 固定);`generate_history.py`
+  可再叠加 30 天(两者同用 SYNTH 标记,重跑互不污染)。
+- CoA 联调:`deploy/scripts/coa_sink.py`(假 NAS,回 ACK/NAK,`--log` 落 JSONL),
+  集成测试 `tests/integration/test_accounting_coa.py` 场景 13 即用例。
+
 ## 说明
 
 - 本地开发全程零容器:后端默认 SQLite,前端 mock/http 代理(见 07「本地开发流」)。

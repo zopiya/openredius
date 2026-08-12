@@ -14,7 +14,7 @@ dependencies = [
     "pydantic-settings>=2.9",
     "pyrad==2.5.4",
     "ldap3==2.9.1",
-    "apscheduler>=3.11,<4",
+    "apscheduler>=3.10,<4",
     "argon2-cffi>=25.1",
     "pyjwt>=2.10",
     "httpx>=0.28,<0.29",

@@ -95,6 +95,7 @@ stateDiagram-v2
 | 归一类(前端文案) | 识别规则(优先级从高到低) |
 |---|---|
 | 账号锁定 | radpostauth.reply=Reject 且 Class 含 `reason=account-locked`,或命中锁定窗口 |
+| 账号已停用 | Class 含 `reason=account-disabled`(编译器为停用账号下发) |
 | 证书过期 | Reply-Message 匹配 `Certificate expired` / Class `reason=cert-expired` |
 | 证书临期(仅 warn,不算失败) | — |
 | MAC 未绑定 | Reply-Message 匹配 `MAC not bound` / Class `reason=mac-unbound` |
@@ -104,7 +105,9 @@ stateDiagram-v2
 | 其他 | 兜底 |
 
 约定:FreeRADIUS unlang 在拒绝路径统一写入 `Class = "reason=<key>"`(见 06),
-后端归类器先看 Class,再回退 Reply-Message 正则,保证报表口径稳定。
+后端归类器以 Class 为运行时唯一来源(radpostauth 不落 Reply-Message 列);
+归类器保留 Reply-Message 正则回退,待未来扩展 postauth 采集后启用——在那之前
+无 Class 的原生拒绝(如 EAP 层失败)计入"其他"。
 
 ## 命名与约定
 

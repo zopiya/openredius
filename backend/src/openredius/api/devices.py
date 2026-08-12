@@ -13,8 +13,9 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from openredius.core.config import Settings
 from openredius.core.db import get_db
-from openredius.core.deps import current_admin, require_role
+from openredius.core.deps import current_admin, get_app_settings, require_role
 from openredius.core.errors import ApiError
 from openredius.core.listing import PageParams, apply_sort, page_envelope
 from openredius.core.mac import normalize_mac
@@ -41,7 +42,7 @@ from openredius.schemas.devices import (
     NasUpdate,
     NasWriteResult,
 )
-from openredius.services import audit
+from openredius.services import audit, sessions
 
 router = APIRouter()
 
@@ -59,7 +60,13 @@ def mask_secret(secret: str) -> str:
     return f"{secret[:4]}…{secret[-4:]}"
 
 
-def _nas_out(device: NasDevice) -> NasOut:
+def _nas_out(
+    device: NasDevice,
+    status: str = "offline",
+    active_sessions: int = 0,
+    load_pct: float | None = None,
+    last_seen: datetime | None = None,
+) -> NasOut:
     return NasOut(
         id=device.id,
         name=device.name,
@@ -71,6 +78,10 @@ def _nas_out(device: NasDevice) -> NasOut:
         notes=device.notes,
         secret_masked=mask_secret(device.secret_enc),
         radius_nas_id=device.radius_nas_id,
+        status=status,
+        active_sessions=active_sessions,
+        load_pct=load_pct,
+        last_seen=last_seen,
         created_at=device.created_at,
         updated_at=device.updated_at,
     )
@@ -97,20 +108,43 @@ async def list_nas(
     area: str | None = None,
     status: str | None = Query(
         default=None,
-        description="online/offline; derived from radpostauth/radacct in M6, inert in M2",
+        description="online/offline/high-load; derived from radpostauth/radacct (docs/02)",
     ),
     db: AsyncSession = Depends(get_db),
     _admin: AdminUser = Depends(current_admin),
+    settings: Settings = Depends(get_app_settings),
 ) -> dict:
+    if status is not None and status not in {"online", "offline", "high-load"}:
+        raise ApiError("invalid_status", f"unsupported status filter: {status}", 422)
     stmt = select(NasDevice)
     if type is not None:
         stmt = stmt.where(NasDevice.type == type)
     if area:
         stmt = stmt.where(NasDevice.area == area)
-    total = len((await db.execute(stmt)).scalars().all())
     stmt = apply_sort(stmt, None, _NAS_SORT, "name")
     devices = (await db.execute(stmt)).scalars().all()
-    return page_envelope([_nas_out(d) for d in devices], total, PageParams(1, max(total, 1)))
+    activity = await sessions.nas_activity(db)
+    items: list[NasOut] = []
+    for device in devices:
+        act = activity.get(device.nasname)
+        st = sessions.nas_status(act, settings.nas_online_window, device.capacity)
+        if status is not None and st != status:
+            continue
+        load_pct = (
+            round(act.active_sessions / device.capacity * 100, 1)
+            if act and device.capacity
+            else None
+        )
+        items.append(
+            _nas_out(
+                device,
+                status=st,
+                active_sessions=act.active_sessions if act else 0,
+                load_pct=load_pct,
+                last_seen=act.last_seen if act else None,
+            )
+        )
+    return page_envelope(items, len(items), PageParams(1, max(len(items), 1)))
 
 
 @router.post("/nas", status_code=201)

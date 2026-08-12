@@ -62,7 +62,12 @@ backend/
 | `OPENRADIUS_JWT_SECRET` / `OPENRADIUS_JWT_ACCESS_TTL` / `_REFRESH_TTL` | dev 默认 / 15m / 7d | |
 | `OPENRADIUS_RADIUS_COA_PORT` | 3799 | NAS 侧 CoA 端口 |
 | `OPENRADIUS_RADIUS_COA_TIMEOUT` | 3.0s | |
+| `OPENRADIUS_RADIUS_COA_CLOSE_POLL_S` | 10.0s | Disconnect-ACK 后轮询 radacct 等待 NAS 关账;超时兜底关账 |
 | `OPENRADIUS_RADIUS_RELOAD_COMMAND` | 空(=手动模式) | `POST /api/ops/reload-radius` 执行的命令;dev 配 `docker compose -f deploy/docker-compose.dev.yml restart freeradius` |
+| `OPENRADIUS_JOBS_ENABLED` | true | APScheduler 开关(API/集成测试置 false) |
+| `OPENRADIUS_JOBS_*_INTERVAL_S` | 60/60/3600/86400 | lockout/nas_watchdog/cert_scan/alert_gc 周期 |
+| `OPENRADIUS_ALERTS_DEDUP_WINDOW_S` | 600 | 同 (rule_key, 主体) 告警去重窗口 |
+| `OPENRADIUS_ALERTS_RETENTION_DAYS` | 90 | 已读告警保留天数(alert_gc) |
 | `OPENRADIUS_NAS_ONLINE_WINDOW` | 300s | NAS 在线判定窗口 |
 | `OPENRADIUS_AD_URL/_BIND_DN/_BIND_PW/_BASE_DN/_FILTER` | 空=禁用 AD | ldap://… |
 | `OPENRADIUS_AD_SYNC_CRON` | `*/15 * * * *` | |

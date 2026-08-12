@@ -116,16 +116,46 @@ post-auth 各阶段加入 `sql`,authenticate 启用 eap。
   覆盖为空客户端列表(NAS 表单一来源,避免与内置 localhost 客户端冲突);
   挂载 certs 目录遮蔽上游证书时,entrypoint 自签兜底。
 
+### M4 实测修正记录(数据面)
+
+- **postauth 增补两列**:官方 3.2.10 `postauth_query` 只写
+  username/pass/reply/authdate(+class)。日志列表需要 NAS 与 MAC,故 sed 扩为
+  `callingstationid, nasipaddress`,schema.sql 的 radpostauth 增
+  `nasipaddress varchar(64) NOT NULL DEFAULT ''`。radtest 不带这两属性 → 落空串,
+  归类/展示须容忍。
+- **class 子段须同时开 `packet_xlat`**:只开 `column_name/reply_xlat` 会让
+  accounting INSERT 带 `class` 列却无值 → `UNDEFINED COLUMN`/值不匹配而静默丢
+  计费。修法:`packet_xlat = ", '%{Class}'"` 且 radacct 增
+  `class varchar(64) NOT NULL DEFAULT ''`(官方 ≥3.0.22 语义)。
+- **radacct 约束对齐官方 INSERT**:官方计费查询用 `ON CONFLICT (AcctUniqueId)`
+  与 `NULLIF(...)`/字面 NULL,故 `acctuniqueid` 需 UNIQUE(非普通索引)、
+  `acctstoptime/acctterminatecause/framedipaddress/framedipv6*/framedipv6prefix/
+  delegatedipv6prefix` 须可空——否则 Start/Stop 记录报 NOT NULL 冲突。
+- **`CAST(inet AS varchar)` 返回 CIDR**(`127.0.0.2/32`),与 nas_device.nasname
+  等值连接失配;后端统一用 `host()`(PG)/原样(SQLite)取纯 IP(`ip_text()`)。
+- **pyrad 2.5.4 wheel 不携带字典文件**:自带最小 `radius.dict`
+  (User-Name/NAS-IP-Address/Acct-Session-Id/Calling-Station-Id/Error-Cause)。
+  Disconnect 三路径(ACK/NAK+Error-Cause/timeout)对 `coa_sink.py` 实测通过。
+- **`coa_sink.py` 回包须设 reply.source/fd**:`SendReplyPacket` 用回包自身的
+  `.source` 寻址,`CreateReply()` 不拷贝,漏设则进程在首个请求后崩溃。
+- **Disconnect ACK 丢失边角(RFC 5176 固有)**:首发包已被 NAS 执行但 ACK 丢失
+  时,重试包会收到 NAK 405(session-context-not-found),API 记为 failed;会话
+  实际已断,radacct 由后续 Accounting-Stop 收敛。客户端共发 2 包(pyrad
+  retries=1 为单次尝试 + 外层 1 次)。
+
 ## 失败原因 Class 约定(与 02 归类一致)
 
 | 场景 | Class 来源 |
 |---|---|
 | 账号锁定 | 编译器写 radreply:`Class = "reason=account-locked"`, `Reply-Message = "Account locked (…)"` |
 | MAC 未绑定 / 时间策略 / 不合规 / 证书过期 | unlang 拒绝路径设置 |
-| 密码错误 | FreeRADIUS 原生拒绝;后端按 Reply-Message 正则归类 |
+| 密码错误 | FreeRADIUS 原生拒绝(EAP 层),无 Class → 归类"其他"(见下注) |
 | Accept | Class 可携带策略快照(可选) |
 
-radpostauth 的 `class` 列默认记录 `%{reply:Class}`(v3.2 post-auth 查询已含),无需改表。
+radpostauth 的 `class` 列记录 `%{reply:OpenRedius-Deny-Reason}`(M3 sed 补丁);
+M4 起 postauth_query 扩采 callingstationid/nasipaddress(schema 补列)。
+注:radpostauth 不落 Reply-Message 列,归类器运行时仅以 Class 为来源——无
+Class 的原生拒绝计入"其他";归类器的 Reply-Message 正则回退为未来扩展保留。
 
 ## EAP 与证书(dev)
 

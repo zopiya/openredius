@@ -135,3 +135,19 @@ async def test_batch_status_validation(client, domain, admin_headers, action):
         "/api/users/status", json={"accounts": [], "action": action}, headers=admin_headers
     )
     assert resp.status_code == 422
+
+
+async def test_user_detail_recent_auth(client: AsyncClient, domain, admin_headers):
+    from tests.radius_helpers import create_radius_tables, insert_postauth
+
+    await create_radius_tables()
+    await insert_postauth(
+        username="wang.lei", reply="Access-Reject", class_value="reason=bad-password"
+    )
+    await insert_postauth(username="wang.lei", reply="Access-Accept", minutes_ago=10)
+    resp = await client.get("/api/users/wang.lei", headers=admin_headers)
+    assert resp.status_code == 200
+    recent = resp.json()["recent_auth"]
+    assert len(recent) == 2
+    assert recent[0]["reason"] == "密码错误"  # newest: the reject
+    assert recent[1]["reason"] is None

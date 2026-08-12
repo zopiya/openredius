@@ -29,6 +29,7 @@ def settings() -> Settings:
         jwt_refresh_ttl="7d",
         bootstrap_admin_user=BOOTSTRAP_USER,
         bootstrap_admin_password=BOOTSTRAP_PASSWORD,
+        jobs_enabled=False,
         _env_file=None,
     )
 
