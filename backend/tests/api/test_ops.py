@@ -48,7 +48,7 @@ async def test_health_radius_config_reflects_setting(settings: Settings):
 
     # Separate app with a reload command configured.
     configured = settings.model_copy(
-        update={"radius_reload_command": "docker compose restart freeradius"}
+        update={"radius_reload_command": "docker compose restart freeradius", "jobs_enabled": False}
     )
     init_db(configured.database_url)
     async with get_engine().begin() as conn:

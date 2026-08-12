@@ -98,6 +98,7 @@ def settings() -> Settings:
         bootstrap_admin_user=ADMIN_USER,
         bootstrap_admin_password=ADMIN_PASSWORD,
         radius_reload_command="",
+        jobs_enabled=False,
         _env_file=None,
     )
 
@@ -199,3 +200,54 @@ async def last_postauth_class(account: str) -> str | None:
             return row.scalar()
     finally:
         await engine.dispose()
+
+
+async def pg_rows(sql: str, params: dict | None = None) -> list:
+    """Run a raw query against the stack DB (throwaway engine)."""
+    from sqlalchemy import text
+    from sqlalchemy.ext.asyncio import create_async_engine
+
+    engine = create_async_engine(PG_URL)
+    try:
+        async with engine.connect() as conn:
+            return (await conn.execute(text(sql), params or {})).all()
+    finally:
+        await engine.dispose()
+
+
+async def pg_execute(sql: str, params: dict | None = None) -> None:
+    from sqlalchemy import text
+    from sqlalchemy.ext.asyncio import create_async_engine
+
+    engine = create_async_engine(PG_URL)
+    try:
+        async with engine.begin() as conn:
+            await conn.execute(text(sql), params or {})
+    finally:
+        await engine.dispose()
+
+
+def acctclient(attributes: dict[str, str]) -> str:
+    """Send an accounting packet (attribute file on stdin) to the stack."""
+    lines = "\n".join(f"{k}={v}" for k, v in attributes.items())
+    out = subprocess.run(
+        [
+            "docker",
+            "compose",
+            "-f",
+            str(COMPOSE_FILE),
+            "exec",
+            "-T",
+            "freeradius",
+            "radclient",
+            "-x",
+            "127.0.0.1:1813",
+            "acct",
+            RADIUS_SECRET,
+        ],
+        input=lines,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    return out.stdout + out.stderr
