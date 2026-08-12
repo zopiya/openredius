@@ -2,15 +2,15 @@
 
 ## 前置条件与环境策略
 
-- **开发环境:GitHub Codespaces**(`.devcontainer/`,ADR-0007)。容器内含
-  Python 3.13 + uv(backend feature)与 docker-in-docker(栈集成);bun/uv 由
-  `.devcontainer/post-create.sh` 安装。一键创建 Codespace 即得到完整环境,不再需要
-  连接一台额外的远程服务器。
+- **开发环境:GitHub Codespaces**,日常经 `gh`/SSH 直连使用(ADR-0007)。声明式
+  `.devcontainer/` 配置实测有问题、已回退(ADR-0007「更新」)——当前手工在
+  Codespace 内装 Python 3.13 + uv、bun、docker 依赖;不再需要连接一台额外的
+  远程服务器这个核心判断不变。
 - **M0–M2(后端默认 SQLite,见 04;前端 mock/http 代理)不依赖任何容器**,Codespace
   内或本机(无 Docker 也可)均可直接跑通。
 - **栈集成(Postgres + FreeRADIUS + radtest/CoA,M3 起)在 Codespace 终端内直接执行**
-  `docker compose -f deploy/docker-compose.dev.yml up -d`,docker-in-docker 提供
-  运行时,无需 SSH、无需额外服务器(见下「栈集成环境」)。
+  `docker compose -f deploy/docker-compose.dev.yml up -d`(手工装好 docker 依赖后),
+  无需 SSH、无需额外服务器(见下「栈集成环境」)。
 - 生产部署(M7)仍面向独立的生产 Linux 服务器,流程见下「生产运行」,不受本节影响。
 
 ## 目录布局
@@ -112,8 +112,8 @@ cd backend && OPENRADIUS_DATABASE_URL='postgresql+asyncpg://…' \
   uv run pytest -m integration -q
 ```
 
-- Codespaces 按 `.devcontainer/devcontainer.json` 自动转发 5173(前端)/8000(后端)/
-  5432(postgres)端口,浏览器直接打开转发地址即可,无需手工端口转发。
+- Codespaces 默认对已监听端口自动转发,手工确认 5173(前端)/8000(后端)/
+  5432(postgres)转发状态即可,浏览器直接打开转发地址,无需手工端口转发命令。
 - 若发布前需要在真实生产型服务器上复现,仍可 `ssh <server>` 后执行同样的 compose
   命令;此路径为可选的最后验证,不再是 M3 起步的必经步骤。
 

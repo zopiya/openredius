@@ -6,8 +6,9 @@
 
 ## 开发环境与 AI 协作
 
-- 开发环境:GitHub Codespaces(`.devcontainer/`),容器内含 bun / uv /
-  docker-in-docker,详见 [`docs/07-deployment.md`](./docs/07-deployment.md)。
+- 开发环境:GitHub Codespaces,经 `gh`/SSH 直连使用;`.devcontainer/` 声明式配置
+  暂时回退(实测有问题,ADR-0007「更新」),手工在 Codespace 内装 bun / uv,
+  详见 [`docs/07-deployment.md`](./docs/07-deployment.md)。
 - Coding agent:[pi](https://pi.dev),配置见根目录 [`AGENTS.md`](./AGENTS.md)(自动加载,
   路由/协作规则)与 [`.pi/`](./.pi/)(skills/agents/prompts)。这一层只回答"agent 怎么干活",
   "要做什么"仍然只看 [`docs/`](./docs/README.md)(`docs/10-roadmap.md` 是里程碑权威来源)。

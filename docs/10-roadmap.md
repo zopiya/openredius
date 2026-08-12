@@ -32,8 +32,9 @@
 - [x] `.gitignore` 增补:`.env`、`backend/.venv`、`backend/.pytest_cache`、`deploy/backups`、`*.pyc`(2026-08-06 完成)
 - [x] 根目录 `.env.example`(键见 04/07,值全为 dev 默认)(2026-08-06 完成)
 - [x] CI:frontend job(`bun run verify`);backend job 占位(M1 起生效)(2026-08-06 完成)
-- [x] `.devcontainer/`:GitHub Codespaces 开发环境(python:3.13 + docker-in-docker
-      features,post-create.sh 装 bun/uv)(2026-08-12 完成,ADR-0007)
+- [x] ~~`.devcontainer/`:GitHub Codespaces 开发环境~~(2026-08-12 引入后当天回退,
+      实测影响 `gh`/SSH 直连 Codespace 的日常使用方式;核心决定不变,见
+      ADR-0007「更新」;重新设计后再引入)
 
 **验收**:
 

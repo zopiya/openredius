@@ -44,3 +44,14 @@
   docker-in-docker 在部分网络受限环境下镜像拉取可能变慢,需要预热或缓存镜像层。
 - 受影响文档(同批次修订):07-deployment.md、09-testing-quality.md、10-roadmap.md、
   docs/README.md、deploy/README.md、backend/README.md、04-backend-design.md。
+
+## 更新(2026-08-12)
+
+`.devcontainer/`(devcontainer.json + post-create.sh)实测有问题——具体表现为
+影响了日常经 `gh`/SSH 直连 Codespace 的使用方式,已移除,配置暂时回退到
+Codespaces 默认镜像,手工在 Codespace 内 SSH 会话中按需装 bun/uv/pi。
+
+本节不推翻上面的决定:**Codespaces 取代远程 SSH 服务器**这个核心判断不变,
+只是"用 `.devcontainer/` 声明式定义环境"这一具体实现方式回退,待重新设计后
+再引入(需排查是哪个 feature 或安装步骤导致的问题,而不是简单重试同一份配置)。
+在此之前,文档中"容器内已含 XXX"一类表述均改写为"需手工在 Codespace 内配置"。

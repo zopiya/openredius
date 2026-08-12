@@ -45,7 +45,8 @@
 
 - 前端原型:8 页高保真移植完成,21 个交互测试 + 冒烟 + 保真度审计全部通过(见根目录 README)。
 - 后端 / 部署 / 集成:未开始,按 roadmap M1 起步。
-- 开发环境:GitHub Codespaces(`.devcontainer/`,ADR-0007)——容器内含 Python 3.13 +
-  uv、docker-in-docker,bun/uv 由 `post-create.sh` 安装。M0–M2(SQLite + mock)零容器
-  即可跑;M3 起的栈集成(Postgres + FreeRADIUS)直接在 Codespace 终端起
-  `deploy/docker-compose.dev.yml`,不再需要远程服务器 + SSH(见 07)。
+- 开发环境:GitHub Codespaces,经 `gh`/SSH 直连(ADR-0007)——`.devcontainer/`
+  声明式配置实测有问题、已回退(ADR-0007「更新」),当前手工在 Codespace 内装
+  Python 3.13 + uv、bun。M0–M2(SQLite + mock)零容器即可跑;M3 起的栈集成
+  (Postgres + FreeRADIUS)手工装好 docker 依赖后在 Codespace 终端起
+  `deploy/docker-compose.dev.yml`,不再需要远程服务器 + SSH 到独立服务器(见 07)。
