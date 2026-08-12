@@ -66,6 +66,9 @@ class RecentAuth(BaseModel):
 class UserDetail(UserOut):
     endpoints: list[EndpointBrief]
     recent_auth: list[RecentAuth] = Field(default_factory=list)
+    policy_rules: list[str] = Field(
+        default_factory=list, description="编译后的 FreeRADIUS 属性清单"
+    )
 
 
 class StatusAction(StrEnum):

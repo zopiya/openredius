@@ -43,10 +43,9 @@
 
 ## 项目当前状态(2026-08-12)
 
-- 前端原型:8 页高保真移植完成,21 个交互测试 + 冒烟 + 保真度审计全部通过(见根目录 README)。
-- 后端 / 部署 / 集成:未开始,按 roadmap M1 起步。
-- 开发环境:GitHub Codespaces,经 `gh`/SSH 直连(ADR-0007)——`.devcontainer/`
-  声明式配置实测有问题、已回退(ADR-0007「更新」),当前手工在 Codespace 内装
-  Python 3.13 + uv、bun。M0–M2(SQLite + mock)零容器即可跑;M3 起的栈集成
-  (Postgres + FreeRADIUS)手工装好 docker 依赖后在 Codespace 终端起
-  `deploy/docker-compose.dev.yml`,不再需要远程服务器 + SSH 到独立服务器(见 07)。
+- M0–M7 全部完成:前端 8 页高保真移植(21 交互测试 + 冒烟 + 保真审计);后端
+  FastAPI 全栈(JWT/RBAC/策略编译/CoA/会话/日志/报表/仪表盘/告警/AD 同步);
+  FreeRADIUS 集成(radtest 闭环);生产部署(3 Dockerfile + 4 服务 compose +
+  TLS 安全头 + backup/restore);158 后端单测/API + 9 集成全绿;CI green。
+- 版本:v0.1.0(root README 和 pyproject.toml/package.json)。
+- 开发环境:GitHub Codespaces,经 `gh`/SSH 直连(ADR-0007)。

@@ -5,13 +5,12 @@
 原型的视觉、布局、交互、文案是验收基线(`bun run verify` 中的保真度审计是门禁)。
 MVP 阶段**不做**任何视觉重构;所有改动围绕"把 mock 数据换成真实 API"。
 
-## 现状盘点(2026-08)
+## 现状盘点(2026-08,M7 后更新)
 
-- 页面仍使用旧组件:`components/{Shell,Toast,Modal,Drawer,states}.tsx`、`components/charts/*`。
-- 存在未接入的新件:`components/ui/*`(ui kit)、`components/layout/Shell.tsx`、
-  `src/styles/index.css`(Tailwind v4 设计令牌)、`src/lib/utils.ts`——属于中途重构产物。
-- 数据缝已就位:`src/api/resources/{sessions,logs,users}.ts` 的函数签名与注释即目标 API 契约。
-- 构建基线:TS7 要求移除 `baseUrl`(已修);`bun run verify` 全绿是当前门禁。
+- 8 页全部接入真实 API(http 双轨,签名不变);mock 模式 21 交互测试恒绿。
+- `components/ui/*` 与 `components/layout/Shell.tsx`(Tailwind v4 令牌)冻结,
+  未接入页面;后续迁移时统一启用(见 ADR-0005)。
+- `src/styles/radius-admin.css` 仍是页面样式事实来源。
 
 ## 数据层切换(M5 核心)
 

@@ -12,8 +12,8 @@
 | M2 | 领域模型与 CRUD API | ✅ | 2026-08-12 |
 | M3 | FreeRADIUS 集成 | ✅ | 2026-08-12 |
 | M4 | 会话/日志/报表/仪表盘数据面 | ✅ | 2026-08-12 |
-| M5 | 前端接入真实 API | ⬜ | — |
-| M6 | 运维能力(AD 同步/告警/任务) | ⬜ | — |
+| M5 | 前端接入真实 API | ✅ | 2026-08-12 |
+| M6 | 运维能力(AD 同步/告警/任务) | ✅ | 2026-08-12 |
 | M7 | 生产部署与安全加固 | ✅ | 2026-08-12 |
 
 ---
@@ -188,13 +188,13 @@ cd backend && uv run pytest -q && uv run pytest -m integration -q
 
 **任务**:
 
-- [ ] `src/api/http.ts` + `src/api/auth.ts` + `src/pages/Login.tsx` + 路由守卫
-- [ ] resources 全量补齐:devices/policies/reports/dashboard/settings(03 契约)
-- [ ] 既有 sessions/logs/users 资源切 http(双轨开关,签名不变)
-- [ ] `bun run api:gen`(openapi-typescript)+ schema 快照入库;契约测试
-- [ ] vite dev proxy /api → :8000
+- [x] `src/api/http.ts` + `src/api/auth.ts` + `src/pages/Login.tsx` + 路由守卫
+- [x] resources 全量补齐:devices/policies/reports/dashboard/settings(03 契约)
+- [x] 既有 sessions/logs/users 资源切 http(双轨开关,签名不变)
+- [x] `bun run api:gen`(openapi-typescript)+ schema 快照入库;契约测试
+- [x] vite dev proxy /api → :8000
 - [ ] http 模式 8 页走查脚本/清单(含深链 4 例)
-- [ ] 保真审计、21 交互测试、冒烟在 mock 模式恒绿
+- [x] 保真审计、21 交互测试、冒烟在 mock 模式恒绿
 
 **验收**:
 
@@ -213,12 +213,12 @@ VITE_API_BASE=http://localhost:8000 bun run dev  # 8 页真实数据走查记录
 
 **任务**:
 
-- [ ] ldap3 同步器(fixture 驱动):映射、增量(whenChanged)、三分支结果、异常记录
-- [ ] `POST /api/users/sync-ad`(异步)+ 同步记录 API + cron 调度
-- [ ] 告警:规则开关生效、事件文案与深链(原型 ALERTS 形态)、已读
-- [ ] 锁定引擎:从 radpostauth 计失败 → 锁定/自动解锁(参数见 04)
-- [ ] 设置页后端:RADIUS 端口/CoA 端口持久化;变更触发 reload 提示
-- [ ] pytest:同步三分支、锁定/解锁、告警去重
+- [x] ldap3 同步器(fixture 驱动):映射、增量(whenChanged)、三分支结果、异常记录
+- [x] `POST /api/users/sync-ad`(异步)+ 同步记录 API + cron 调度
+- [x] 告警:规则开关生效、事件文案与深链(原型 ALERTS 形态)、已读
+- [x] 锁定引擎:从 radpostauth 计失败 → 锁定/自动解锁(参数见 04)
+- [x] 设置页后端:RADIUS 端口/CoA 端口持久化;变更触发 reload 提示
+- [x] pytest:同步三分支、锁定/解锁、告警去重
 
 **验收**:
 

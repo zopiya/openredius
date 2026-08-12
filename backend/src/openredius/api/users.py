@@ -21,6 +21,7 @@ from openredius.models import (
     SyncTrigger,
     UserStatus,
 )
+from openredius.radius.compiler import user_compiled_rules
 from openredius.schemas.common import Affected
 from openredius.schemas.users import (
     AdSyncJobOut,
@@ -139,6 +140,7 @@ async def get_user(
             )
             for e in endpoints
         ],
+        policy_rules=await user_compiled_rules(db, user.account),
     )
 
 

@@ -312,3 +312,71 @@ def nas_status(activity: NasActivity | None, window_s: int, capacity: int | None
     if capacity and capacity > 0 and activity.active_sessions / capacity >= 0.9:
         return "high-load"
     return "online"
+
+
+async def nas_ports(db: AsyncSession, nasname: str) -> list[dict]:
+    """Active session detail per NAS port (docs/03 ports drawer)."""
+    if not await radius_readable(db):
+        return []
+    radacct = _radacct(db)
+    nas_ip_col = ip_text(db, radacct.c.nasipaddress)
+    stmt = (
+        select(
+            radacct.c.nasportid,
+            radacct.c.callingstationid,
+            radacct.c.username,
+            Vlan.vid,
+            AccessUser.name,
+        )
+        .select_from(radacct)
+        .join(AccessUser, AccessUser.account == radacct.c.username, isouter=True)
+        .join(PolicyGroup, PolicyGroup.id == AccessUser.policy_group_id, isouter=True)
+        .join(Vlan, Vlan.id == PolicyGroup.vlan_id, isouter=True)
+        .where(radacct.c.acctstoptime.is_(None), nas_ip_col == nasname)
+        .order_by(radacct.c.nasportid)
+    )
+    rows = (await db.execute(stmt)).all()
+    return [
+        {
+            "port": row.nasportid or "",
+            "mac": row.callingstationid or "",
+            "user": row.name or row.username or "",
+            "vlan": str(row.vid) if row.vid else "",
+        }
+        for row in rows
+    ]
+
+
+async def nas_ssids(db: AsyncSession, nasname: str) -> list[dict]:
+    """SSID-level aggregation for wireless NAS (docs/03 ssids drawer)."""
+    if not await radius_readable(db):
+        return []
+    radacct = _radacct(db)
+    nas_ip_col = ip_text(db, radacct.c.nasipaddress)
+    stmt = (
+        select(
+            radacct.c.calledstationid,
+            func.count().label("count"),
+            PolicyGroup.eap_method,
+            Vlan.vid,
+        )
+        .select_from(radacct)
+        .join(AccessUser, AccessUser.account == radacct.c.username, isouter=True)
+        .join(PolicyGroup, PolicyGroup.id == AccessUser.policy_group_id, isouter=True)
+        .join(Vlan, Vlan.id == PolicyGroup.vlan_id, isouter=True)
+        .where(radacct.c.acctstoptime.is_(None), nas_ip_col == nasname)
+        .group_by(
+            radacct.c.calledstationid, PolicyGroup.eap_method, Vlan.vid,
+        )
+        .order_by(func.count().desc())
+    )
+    rows = (await db.execute(stmt)).all()
+    return [
+        {
+            "ssid": row.calledstationid or "(unknown)",
+            "auth": _EAP_LABELS.get(row.eap_method, row.eap_method or "-"),
+            "count": str(row.count),
+            "vlan": str(row.vid) if row.vid else "-",
+        }
+        for row in rows
+    ]

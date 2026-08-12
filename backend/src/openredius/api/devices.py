@@ -241,7 +241,6 @@ async def reveal_nas_secret(
     device = await db.get(NasDevice, device_id)
     if device is None:
         raise ApiError("not_found", f"NAS {device_id} not found", 404)
-    # Forced audit per docs/08; the plaintext itself never enters the audit row.
     await audit.record_audit(
         db,
         actor=admin.username,
@@ -252,6 +251,30 @@ async def reveal_nas_secret(
     )
     await db.commit()
     return NasSecret(secret=device.secret_enc)
+
+
+@router.get("/nas/{device_id}/ports")
+async def nas_ports(
+    device_id: int,
+    db: AsyncSession = Depends(get_db),
+    _admin: AdminUser = Depends(current_admin),
+) -> list[dict]:
+    device = await db.get(NasDevice, device_id)
+    if device is None:
+        raise ApiError("not_found", f"NAS {device_id} not found", 404)
+    return await sessions.nas_ports(db, device.nasname)
+
+
+@router.get("/nas/{device_id}/ssids")
+async def nas_ssids(
+    device_id: int,
+    db: AsyncSession = Depends(get_db),
+    _admin: AdminUser = Depends(current_admin),
+) -> list[dict]:
+    device = await db.get(NasDevice, device_id)
+    if device is None:
+        raise ApiError("not_found", f"NAS {device_id} not found", 404)
+    return await sessions.nas_ssids(db, device.nasname)
 
 
 # ----------------------------------------------------------- endpoints ----
