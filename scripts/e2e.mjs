@@ -199,7 +199,7 @@ async function main() {
     await page.click('.ant-select:has-text("全部部门")');
     await page.waitForSelector('.ant-select-dropdown:visible', { timeout: 5000 });
     await page.click('.ant-select-item-option:has-text("财务部")');
-    await page.click('button:has-text("筛选")');
+    await page.click('button:has-text("筛 选")');
     await page.waitForTimeout(500);
     const rows = await page.locator('.ant-table-row').count();
     log(rows >= 1 && rows < 10, `Sessions: 部门筛选「财务部」→ ${rows} 行(应少于10)`);

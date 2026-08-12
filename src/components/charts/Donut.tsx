@@ -10,7 +10,7 @@ export interface DonutRow {
   value: number;
 }
 
-const COLORS = ['#dc2626', '#eab308', '#0071e3', '#86868b', '#6e6e73', '#424245'];
+const COLORS = ['#ff4d4f', '#faad14', '#1677ff', '#52c41a', '#722ed1', '#13c2c2'];
 
 export function donutTotal(rows: DonutRow[]) {
   return rows.reduce((a, r) => a + r.value, 0);

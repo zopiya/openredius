@@ -11,8 +11,8 @@ export interface DeptStat {
   fail: number;
 }
 
-const OK_COLOR = '#0071e3';
-const FAIL_COLOR = '#dc2626';
+const OK_COLOR = '#1677ff';
+const FAIL_COLOR = '#ff4d4f';
 
 function hasCanvas(): boolean {
   try {
