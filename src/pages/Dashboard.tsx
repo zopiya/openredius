@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { Row, Col, Card, Statistic, Segmented, Typography, Space, Tag } from 'antd';
+import { Row, Col, Card, Statistic, Segmented, Typography, Space, Tag, Progress, theme } from 'antd';
 import {
   TeamOutlined,
   CheckCircleOutlined,
@@ -32,11 +32,10 @@ const ALERTS_FALLBACK: { time: string; color: string; level: string; to: string;
 const LEVEL_COLOR: Record<string, string> = { 严重: 'red', 警告: 'orange', 提示: 'default' };
 
 function KpiCard({
-  icon, iconBg, iconColor, title, value, suffix, valueColor, footer, dataOdId,
+  icon, tone, title, value, suffix, valueColor, footer, dataOdId,
 }: {
   icon: ReactNode;
-  iconBg: string;
-  iconColor: string;
+  tone: 'primary' | 'success' | 'error' | 'warning';
   title: string;
   value: number | string;
   suffix?: ReactNode;
@@ -44,25 +43,34 @@ function KpiCard({
   footer: ReactNode;
   dataOdId: string;
 }) {
+  const { token } = theme.useToken();
+  const toneMap = {
+    primary: { bg: token.colorPrimaryBg, color: token.colorPrimary },
+    success: { bg: token.colorSuccessBg, color: token.colorSuccess },
+    error: { bg: token.colorErrorBg, color: token.colorError },
+    warning: { bg: token.colorWarningBg, color: token.colorWarning },
+  } as const;
+  const toneToken = toneMap[tone];
   return (
-    <Card className="kpi" data-od-id={dataOdId} size="small" style={{ borderRadius: 18 }}>
+    <Card data-od-id={dataOdId} size="small">
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-        <div style={{ width: 38, height: 38, borderRadius: 10, background: iconBg, color: iconColor, display: 'grid', placeItems: 'center', fontSize: 18, flexShrink: 0 }}>
+        <div style={{ width: 38, height: 38, borderRadius: 10, background: toneToken.bg, color: toneToken.color, display: 'grid', placeItems: 'center', fontSize: 18, flexShrink: 0 }}>
           {icon}
         </div>
-        <span style={{ fontSize: 13, color: '#6e6e73' }}>{title}</span>
+        <Typography.Text type="secondary">{title}</Typography.Text>
       </div>
       <Statistic
         value={value}
         suffix={suffix}
-        styles={{ content: { fontSize: 30, fontWeight: 600, fontFamily: '"SF Pro Display", sans-serif', lineHeight: 1.2, color: valueColor } }}
+        styles={{ content: { fontSize: 30, fontWeight: 600, lineHeight: 1.2, color: valueColor } }}
       />
-      <div style={{ marginTop: 10, fontSize: 12, color: '#6e6e73' }}>{footer}</div>
+      <Typography.Text type="secondary" style={{ display: 'block', marginTop: 10, fontSize: 12 }}>{footer}</Typography.Text>
     </Card>
   );
 }
 
 export default function Dashboard() {
+  const { token } = theme.useToken();
   const [mode, setMode] = useState<'today' | '7d'>('today');
   const [kpis, setKpis] = useState<KpiSnapshot>(DEFAULT_KPIS);
   const [trend, setTrend] = useState<TrendSeries>(TREND_TODAY);
@@ -99,24 +107,22 @@ export default function Dashboard() {
       />
 
       {/* KPI 卡片 */}
-      <Row gutter={16} className="grid-kpi" style={{ marginBottom: 16 }} data-od-id="kpi-row">
+      <Row gutter={16} style={{ marginBottom: 16 }} data-od-id="kpi-row">
         <Col xs={24} sm={12} lg={6}>
           <KpiCard
             dataOdId="kpi-online"
             icon={<TeamOutlined />}
-            iconBg="#e6f4ff"
-            iconColor="#0071e3"
+            tone="primary"
             title="当前在线终端"
             value={kpis.online_sessions}
-            footer={<>实时 · 较昨日同时段 <span style={{ color: '#16a34a' }}>↑ 3.2%</span></>}
+            footer={<>实时 · 较昨日同时段 <Typography.Text type="success">↑ 3.2%</Typography.Text></>}
           />
         </Col>
         <Col xs={24} sm={12} lg={6}>
           <KpiCard
             dataOdId="kpi-rate"
             icon={<CheckCircleOutlined />}
-            iconBg="#ecfdf5"
-            iconColor="#16a34a"
+            tone="success"
             title="今日认证成功率"
             value={rateVal}
             suffix="%"
@@ -127,11 +133,10 @@ export default function Dashboard() {
           <KpiCard
             dataOdId="kpi-fail"
             icon={<CloseCircleOutlined />}
-            iconBg="#fef2f2"
-            iconColor="#dc2626"
+            tone="error"
             title="今日认证失败"
             value={failCount}
-            valueColor={failCount > 20 ? '#dc2626' : undefined}
+            valueColor={failCount > 20 ? token.colorError : undefined}
             footer="峰值时段 09:00–10:00 · 需关注"
           />
         </Col>
@@ -139,12 +144,11 @@ export default function Dashboard() {
           <KpiCard
             dataOdId="kpi-alert"
             icon={<WarningOutlined />}
-            iconBg="#fffbeb"
-            iconColor="#ca8a04"
+            tone="warning"
             title="准入设备离线告警"
             value={kpis.nas_online}
-            suffix={<span style={{ fontSize: 14, color: '#6e6e73' }}>/ {kpis.nas_total}</span>}
-            valueColor={kpis.nas_total - kpis.nas_online > 0 ? '#dc2626' : undefined}
+            suffix={<Typography.Text type="secondary" style={{ fontSize: 14 }}>/ {kpis.nas_total}</Typography.Text>}
+            valueColor={kpis.nas_total - kpis.nas_online > 0 ? token.colorError : undefined}
             footer={<>{kpis.nas_total - kpis.nas_online} 台离线</>}
           />
         </Col>
@@ -167,13 +171,12 @@ export default function Dashboard() {
                   onChange={(v) => setMode(v as 'today' | '7d')}
                   size="small"
                 />
-                <span style={{ fontSize: 12, color: '#6e6e73' }}>
-                  <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: 2, background: '#0071e3', marginRight: 6 }} />成功
-                  <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: 2, background: '#dc2626', margin: '0 6px 0 12px' }} />失败
-                </span>
+                <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                  <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: 2, background: token.colorPrimary, marginRight: 6 }} />成功
+                  <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: 2, background: token.colorError, margin: '0 6px 0 12px' }} />失败
+                </Typography.Text>
               </Space>
             }
-            style={{ borderRadius: 18 }}
           >
             <TrendChart series={trend} />
           </Card>
@@ -183,27 +186,22 @@ export default function Dashboard() {
             data-od-id="access-dist"
             title="接入方式分布"
             extra={<Text type="secondary" style={{ fontSize: 12 }}>当前在线</Text>}
-            style={{ borderRadius: 18 }}
           >
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 13 }}>
+            <Space orientation="vertical" size={16} style={{ width: '100%' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <span style={{ width: 118, flexShrink: 0 }}>有线 802.1X</span>
-                <div style={{ flex: 1, height: 8, borderRadius: 4, background: '#f5f5f7', overflow: 'hidden' }}>
-                  <div style={{ width: '62%', height: '100%', borderRadius: 4, background: '#0071e3' }} />
-                </div>
-                <span style={{ width: 64, textAlign: 'right', color: '#424245', fontVariantNumeric: 'tabular-nums', fontSize: '12.5px' }}>798 · 62%</span>
+                <Progress percent={62} size="small" style={{ flex: 1, margin: 0 }} />
+                <span style={{ width: 64, textAlign: 'right', color: token.colorTextSecondary, fontVariantNumeric: 'tabular-nums', fontSize: '12.5px' }}>798 · 62%</span>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 13 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <span style={{ width: 118, flexShrink: 0 }}>办公 WiFi</span>
-                <div style={{ flex: 1, height: 8, borderRadius: 4, background: '#f5f5f7', overflow: 'hidden' }}>
-                  <div style={{ width: '38%', height: '100%', borderRadius: 4, background: '#1d1d1f', opacity: 0.55 }} />
-                </div>
-                <span style={{ width: 64, textAlign: 'right', color: '#424245', fontVariantNumeric: 'tabular-nums', fontSize: '12.5px' }}>488 · 38%</span>
+                <Progress percent={38} size="small" strokeColor={token.colorText} style={{ flex: 1, margin: 0 }} />
+                <span style={{ width: 64, textAlign: 'right', color: token.colorTextSecondary, fontVariantNumeric: 'tabular-nums', fontSize: '12.5px' }}>488 · 38%</span>
               </div>
-            </div>
-            <div style={{ marginTop: 18, borderTop: '1px solid #e8e8ed', paddingTop: 14, fontSize: '12.5px', color: '#6e6e73', lineHeight: 1.7 }}>
+            </Space>
+            <Typography.Text type="secondary" style={{ display: 'block', marginTop: 18, paddingTop: 14, borderTop: `1px solid ${token.colorBorderSecondary}`, lineHeight: 1.7 }}>
               有线接入以办公位网口为主,WiFi 覆盖会议室与移动办公区;访客统一走 VLAN 30 隔离,不占用员工带宽。
-            </div>
+            </Typography.Text>
           </Card>
         </Col>
       </Row>
@@ -213,15 +211,15 @@ export default function Dashboard() {
         data-od-id="alert-list"
         title="最近告警 / 异常 · TOP 5"
         extra={<Link to="/auth-logs">全部认证日志 →</Link>}
-        style={{ borderRadius: 18, marginTop: 16 }}
+        style={{ marginTop: 16 }}
       >
         <div>
           {alertItems.map((a: any, i: number) => (
-            <div key={i} style={{ padding: '11px 0', borderBottom: i < alertItems.length - 1 ? '1px solid #e8e8ed' : 'none' }}>
-              <Link className="alert-item" to={a.to} style={{ display: 'flex', alignItems: 'baseline', gap: 12, width: '100%', color: 'inherit', textDecoration: 'none', fontSize: 13 }}>
-                <Text type="secondary" style={{ fontFamily: '"SF Mono", monospace', fontSize: 12, width: 44, flexShrink: 0 }}>{a.time}</Text>
+            <div key={i} style={{ padding: '11px 0', borderBottom: i < alertItems.length - 1 ? `1px solid ${token.colorBorderSecondary}` : 'none' }}>
+              <Link className="alert-item" to={a.to} style={{ display: 'flex', alignItems: 'baseline', gap: 12, width: '100%', color: 'inherit', textDecoration: 'none' }}>
+                <Text type="secondary" style={{ fontFamily: 'monospace', fontSize: 12, width: 44, flexShrink: 0 }}>{a.time}</Text>
                 <Tag color={LEVEL_COLOR[a.level] ?? 'default'} style={{ flexShrink: 0 }}>{a.level}</Tag>
-                <span style={{ color: '#424245' }}>{(a as any).msg}</span>
+                <span style={{ color: token.colorTextSecondary }}>{(a as any).msg}</span>
               </Link>
             </div>
           ))}

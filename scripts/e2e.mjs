@@ -102,7 +102,7 @@ async function main() {
   // Dashboard: KPI 4 卡 + 告警列表
   try {
     await page.goto(BASE + '/dashboard', { waitUntil: 'networkidle' });
-    const kpi = await page.locator('.kpi').count();
+    const kpi = await page.locator('[data-od-id="kpi-row"] .ant-card').count();
     log(kpi === 4, `Dashboard: 4 个 KPI 卡片(实际 ${kpi})`);
     const alerts = await page.locator('[data-od-id="alert-list"] .alert-item').count();
     log(alerts === 5, `Dashboard: 5 条告警(实际 ${alerts})`);

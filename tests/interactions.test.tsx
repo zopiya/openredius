@@ -38,7 +38,7 @@ const WAIT = { timeout: 2500 };
 /* ── 仪表盘 ─────────────────────────────────────────── */
 test('Dashboard:KPI / 趋势图粒度切换 / 告警深链', async () => {
   const { container, getByText } = ui(<Dashboard />);
-  expect(container.querySelectorAll('.grid-kpi .kpi').length).toBe(4);
+  expect(container.querySelectorAll('[data-od-id="kpi-row"] .ant-card').length).toBe(4);
   const svg = container.querySelector('svg.chart-svg')!;
   expect(svg.getAttribute('aria-label')).toContain('24 小时认证趋势');
   fireEvent.click(getByText('近 7 天'));
