@@ -151,11 +151,7 @@ async def _process_users(
 
     # Index existing AD-origin users -------------------------------------------------
     existing = (
-        (
-            await db.execute(
-                select(AccessUser).where(AccessUser.source == UserSource.AD)
-            )
-        )
+        (await db.execute(select(AccessUser).where(AccessUser.source == UserSource.AD)))
         .scalars()
         .all()
     )

@@ -46,6 +46,7 @@ def build_scheduler(settings: Settings) -> AsyncIOScheduler | None:
     try:
         if settings.ad_url:
             from apscheduler.triggers.cron import CronTrigger
+
             scheduler.add_job(
                 _run_ad_sync_cron,
                 CronTrigger.from_crontab(settings.ad_sync_cron),

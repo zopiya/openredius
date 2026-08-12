@@ -182,15 +182,20 @@ async def trigger_ad_sync(
         async with db.bind.connect() as conn:
             async with conn.begin():
                 from sqlalchemy.ext.asyncio import AsyncSession as AS
+
                 _bg_db = AS(conn)
                 from openredius.ldap_sync.ldap3_ import Ldap3Connector
+
                 connector = Ldap3Connector(
                     settings.ad_url, settings.ad_bind_dn, settings.ad_bind_pw
                 )
                 try:
                     from openredius.ldap_sync import run_ad_sync as _do_sync
+
                     await _do_sync(
-                        _bg_db, settings, connector,
+                        _bg_db,
+                        settings,
+                        connector,
                         triggered_by=SyncTrigger.MANUAL,
                         actor=admin.username,
                     )
@@ -199,6 +204,7 @@ async def trigger_ad_sync(
 
     # Fire and forget; the job record is created synchronously first.
     import asyncio
+
     asyncio.ensure_future(_run_in_background())
 
     await audit.record_audit(
@@ -226,9 +232,7 @@ async def list_sync_records(
     """List AD sync job history (latest first)."""
     from openredius.core.listing import PageParams, page_envelope
 
-    total = await db.scalar(
-        select(func.count()).select_from(AdSyncJob)
-    )
+    total = await db.scalar(select(func.count()).select_from(AdSyncJob))
     stmt = (
         select(AdSyncJob)
         .order_by(AdSyncJob.started_at.desc())

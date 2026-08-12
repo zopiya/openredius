@@ -67,18 +67,20 @@ def _entry(
 @pytest.mark.asyncio
 async def test_sync_new_user_created(db, settings):
     """Branch ADDED: new AD accounts become local ACTIVE users."""
-    connector = _MockConnector([
-        _entry(account="new.user", name="New User", dept="IT"),
-    ])
+    connector = _MockConnector(
+        [
+            _entry(account="new.user", name="New User", dept="IT"),
+        ]
+    )
     job = await run_ad_sync(db, settings, connector, triggered_by=SyncTrigger.MANUAL)
     assert job.status is SyncStatus.SUCCESS
     assert job.added == 1
     assert job.updated == 0
     assert job.disabled == 0
 
-    user = (await db.execute(
-        select(AccessUser).where(AccessUser.account == "new.user")
-    )).scalar_one_or_none()
+    user = (
+        await db.execute(select(AccessUser).where(AccessUser.account == "new.user"))
+    ).scalar_one_or_none()
     assert user is not None
     assert user.name == "New User"
     assert user.dept == "IT"
@@ -101,9 +103,11 @@ async def test_sync_existing_user_updated(db, settings):
     db.add(user)
     await db.flush()
 
-    connector = _MockConnector([
-        _entry(account="sync.test", name="New Name", dept="New Dept"),
-    ])
+    connector = _MockConnector(
+        [
+            _entry(account="sync.test", name="New Name", dept="New Dept"),
+        ]
+    )
     job = await run_ad_sync(db, settings, connector, triggered_by=SyncTrigger.MANUAL)
     assert job.status is SyncStatus.SUCCESS
     assert job.added == 0
@@ -173,9 +177,11 @@ async def test_sync_disabled_in_ad(db, settings):
     db.add(user)
     await db.flush()
 
-    connector = _MockConnector([
-        _entry(account="fired.user", name="Fired", disabled=True),
-    ])
+    connector = _MockConnector(
+        [
+            _entry(account="fired.user", name="Fired", disabled=True),
+        ]
+    )
     job = await run_ad_sync(db, settings, connector, triggered_by=SyncTrigger.CRON)
     assert job.status is SyncStatus.SUCCESS
     # Already disabled? counted as disabled
@@ -201,10 +207,17 @@ async def test_sync_no_change_is_noop(db, settings):
     db.add(user)
     await db.flush()
 
-    connector = _MockConnector([
-        _entry(account="stable.user", name="Stable", dept="Ops", title="Engineer",
-               dn="CN=stable.user,OU=Users,DC=contoso,DC=com"),
-    ])
+    connector = _MockConnector(
+        [
+            _entry(
+                account="stable.user",
+                name="Stable",
+                dept="Ops",
+                title="Engineer",
+                dn="CN=stable.user,OU=Users,DC=contoso,DC=com",
+            ),
+        ]
+    )
     job = await run_ad_sync(db, settings, connector, triggered_by=SyncTrigger.CRON)
     assert job.status is SyncStatus.SUCCESS
     assert job.added == 0
@@ -235,10 +248,12 @@ async def test_sync_connector_error_fails_job(db, settings):
 @pytest.mark.asyncio
 async def test_sync_creates_job_record(db, settings):
     """Every sync run creates an AdSyncJob with correct counts."""
-    connector = _MockConnector([
-        _entry(account="a1", name="A1"),
-        _entry(account="a2", name="A2"),
-    ])
+    connector = _MockConnector(
+        [
+            _entry(account="a1", name="A1"),
+            _entry(account="a2", name="A2"),
+        ]
+    )
     job = await run_ad_sync(db, settings, connector, triggered_by=SyncTrigger.CRON)
     assert job.id is not None
     assert job.triggered_by is SyncTrigger.CRON

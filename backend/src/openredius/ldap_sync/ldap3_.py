@@ -50,6 +50,7 @@ class Ldap3Connector(AdConnector):
 
     async def fetch(self, base_dn: str, search_filter: str) -> list[AdUserEntry]:
         import anyio
+
         return await anyio.to_thread.run_sync(self._fetch_sync, base_dn, search_filter)
 
     def _fetch_sync(self, base_dn: str, search_filter: str) -> list[AdUserEntry]:
@@ -92,6 +93,7 @@ class Ldap3Connector(AdConnector):
     async def close(self) -> None:
         if self._conn:
             import anyio
+
             await anyio.to_thread.run_sync(self._conn.unbind)
             self._conn = None
 
