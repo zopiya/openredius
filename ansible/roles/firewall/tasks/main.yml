@@ -1,0 +1,7 @@
+---
+# firewall role —— 白名单防火墙(默认拒绝)(P2 实现)
+# 职责:ufw 安装、只开 80/443(管理网段)+ 1812/1813 udp(限 NAS 网段),
+#       5432/8000/3799 永不对外。详见 DESIGN.md §6-F / §12。
+- name: firewall | 占位(P0 骨架,待 P2 实现)
+  ansible.builtin.debug:
+    msg: "firewall role 尚未实现(ufw 白名单)"

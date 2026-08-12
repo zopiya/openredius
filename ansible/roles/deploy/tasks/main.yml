@@ -1,0 +1,8 @@
+---
+# deploy role —— 部署核心(P3 实现)
+# 职责:同步资产(deploy/ 只读引用)→ 渲染 .env(600)与 compose 模板
+#       → docker_compose_v2 起栈 → 可选 alembic 迁移。
+# 详见 DESIGN.md §8(镜像占位双策略)/ §10。
+- name: deploy | 占位(P0 骨架,待 P3 实现)
+  ansible.builtin.debug:
+    msg: "deploy role 尚未实现(资产同步/.env/compose 渲染/起栈)"

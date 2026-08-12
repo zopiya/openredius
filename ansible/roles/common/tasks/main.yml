@@ -1,0 +1,7 @@
+---
+# common role —— 目标机基线(P2 实现)
+# 职责:部署用户/组、时区、时间同步(chrony)、内核参数(ip_forward)、基础包。
+# 详见 DESIGN.md §10。
+- name: common | 占位(P0 骨架,待 P2 实现)
+  ansible.builtin.debug:
+    msg: "common role 尚未实现(时区/时间同步/内核参数)"

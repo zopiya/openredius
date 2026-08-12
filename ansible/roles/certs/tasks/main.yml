@@ -1,0 +1,7 @@
+---
+# certs role —— TLS 证书分发/自签门禁(P3 实现)
+# 职责:真实证书分发到 /opt/openredius/certs/;prod 默认拒绝自签
+#       (openredius_tls_allow_self_signed=false)。详见 DESIGN.md §6-G4 / §12。
+- name: certs | 占位(P0 骨架,待 P3 实现)
+  ansible.builtin.debug:
+    msg: "certs role 尚未实现(TLS 证书分发/自签门禁)"

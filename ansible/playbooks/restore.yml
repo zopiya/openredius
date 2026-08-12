@@ -1,0 +1,18 @@
+---
+# 从备份恢复
+# 用法:
+#   ansible-playbook playbooks/restore.yml \
+#     --extra-vars "openredius_restore_dump=/path/on/controller/openredius-xxx.dump.gz"
+- name: OpenRedius 恢复
+  hosts: openredius
+  gather_facts: true
+  vars:
+    openredius_restore_dump: "{{ openredius_restore_dump | default('') }}"
+  pre_tasks:
+    - name: 校验备份文件参数
+      ansible.builtin.assert:
+        that: openredius_restore_dump | length > 0
+        fail_msg: "必须传 --extra-vars openredius_restore_dump=<备份文件路径>"
+  roles:
+    - role: backup
+      tasks_from: restore

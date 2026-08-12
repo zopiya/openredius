@@ -1,0 +1,7 @@
+---
+# post_deploy role —— 部署后健康检查(P5 实现)
+# 职责:compose ps 全 healthy、/api/health、TLS 握手+安全头、
+#       端口暴露面复核、初始管理员引导。详见 DESIGN.md §13。
+- name: post_deploy | 占位(P0 骨架,待 P5 实现)
+  ansible.builtin.debug:
+    msg: "post_deploy role 尚未实现(健康检查/安全头断言)"

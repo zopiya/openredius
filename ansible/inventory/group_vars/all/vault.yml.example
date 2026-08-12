@@ -1,0 +1,32 @@
+# OpenRedius 密钥变量模板(切勿把真实密钥放这里!)
+# 用法:
+#   1. cp vault.yml.example vault.yml
+#   2. 编辑填写真实密钥(或用 ansible/scripts/gen-secrets.sh 自动生成)
+#   3. ansible-vault encrypt vault.yml
+# 加密后此文件即被 vault 保护,仓库内不再出现明文密钥。
+# 详见 DESIGN.md §7。
+
+# PostgreSQL 超级角色口令
+vault_postgres_password: ""
+
+# 应用库角色(openredius)口令
+vault_openredius_db_password: ""
+
+# FreeRADIUS SQL 角色(radius)口令
+vault_radius_sql_password: ""
+
+# JWT 签名密钥(prod 强制长度 >= 32)
+vault_jwt_secret: ""
+
+# 首次启动自动创建的管理员
+vault_bootstrap_admin_user: "admin"
+vault_bootstrap_admin_password: ""
+
+# RADIUS CoA(强制下线)共享密钥(与 NAS 端一致)
+vault_radius_coa_secret: ""
+
+# AD/LDAP(可选;全部留空 = 禁用 AD 同步)
+vault_ad_url: ""
+vault_ad_bind_dn: ""
+vault_ad_bind_pw: ""
+vault_ad_base_dn: ""

@@ -1,0 +1,6 @@
+---
+# docker role —— 安装/配置 Docker Engine + compose 插件(P2 实现)
+# 详见 DESIGN.md §10。
+- name: docker | 占位(P0 骨架,待 P2 实现)
+  ansible.builtin.debug:
+    msg: "docker role 尚未实现(Docker Engine + compose v2 插件安装)"

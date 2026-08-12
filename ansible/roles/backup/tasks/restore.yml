@@ -1,0 +1,5 @@
+---
+# backup role · restore —— 从备份恢复(P4 实现)
+- name: backup.restore | 占位(P0 骨架,待 P4 实现)
+  ansible.builtin.debug:
+    msg: "backup.restore 尚未实现(停栈 → pg_restore → 重启)"

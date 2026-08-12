@@ -1,0 +1,7 @@
+---
+# 即时备份 + 安装每日 cron
+- name: OpenRedius 备份
+  hosts: openredius
+  gather_facts: true
+  roles:
+    - role: backup

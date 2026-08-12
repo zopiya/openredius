@@ -1,0 +1,8 @@
+---
+# backup role —— 备份/恢复(P4 实现)
+# main.yml:即时备份 + 每日 cron + 保留策略
+# restore.yml:从备份恢复(tasks_from: restore)
+# 详见 DESIGN.md §10。
+- name: backup | 占位(P0 骨架,待 P4 实现)
+  ansible.builtin.debug:
+    msg: "backup role 尚未实现(备份/cron/保留策略)"
