@@ -164,7 +164,7 @@ test('Policies:优先级上移重排', () => {
   expect(rows.length).toBe(5);
   expect(rows[0].textContent).toContain('P1');
   // P2(研发准入策略)上移
-  const up = rows[1].querySelector('.mv.up') as HTMLElement;
+  const up = rows[1].querySelector('button[title="上移"]') as HTMLElement;
   fireEvent.click(up);
   const rows2 = container.querySelectorAll('.ant-table-row');
   expect(rows2[0].textContent).toContain('研发准入策略');

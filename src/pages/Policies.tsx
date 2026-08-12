@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { CircleAlert } from 'lucide-react';
-import { Table, Button, Space, Modal, Drawer, Input, Select, Switch, Radio, Checkbox, Typography, Steps, Form } from 'antd';
+import { Table, Button, Space, Modal, Drawer, Input, Select, Switch, Radio, Checkbox, Typography, Steps, Form, Card, theme, Alert } from 'antd';
 import type { ColumnsType } from 'antd/es/table/interface';
 import Shell from '../components/Shell';
 import PageHeader from '../components/PageHeader';
@@ -23,6 +22,7 @@ const EAP_OPTIONS = [
 
 export default function Policies() {
   const toast = useToast();
+  const { token } = theme.useToken();
   const [rows, setRows] = useState<PolicyRow[]>(POLICY_ROWS);
   const [order, setOrder] = useState<string[]>(POLICY_ROWS.map((r) => r.id));
   const [enabled, setEnabled] = useState<Record<string, boolean>>(
@@ -110,9 +110,9 @@ export default function Policies() {
       width: 110,
       render: (_v, _r, i) => (
         <span>
-          <span style={{ fontFamily: '"SF Mono", monospace', fontWeight: 600 }}>P{i + 1}</span>
-          <a href="#" className="mv up" title="上移" style={{ marginLeft: 4 }} onClick={(e) => { e.preventDefault(); move(order[i], -1); }}>↑</a>
-          <a href="#" className="mv down" title="下移" onClick={(e) => { e.preventDefault(); move(order[i], 1); }}>↓</a>
+          <Typography.Text strong style={{ fontFamily: 'monospace' }}>P{i + 1}</Typography.Text>
+          <Button type="text" size="small" title="上移" style={{ padding: '0 4px' }} onClick={(e) => { e.preventDefault(); move(order[i], -1); }}>↑</Button>
+          <Button type="text" size="small" title="下移" style={{ padding: '0 4px' }} onClick={(e) => { e.preventDefault(); move(order[i], 1); }}>↓</Button>
         </span>
       ),
     },
@@ -122,13 +122,13 @@ export default function Policies() {
       render: (_v, r) => (
         <>
           <b>{r.name}</b>
-          <div className="sub" style={{ fontSize: '11.5px', color: '#6e6e73' }}>{r.sub}</div>
+          <Typography.Text type="secondary" style={{ display: 'block', fontSize: 12 }}>{r.sub}</Typography.Text>
         </>
       ),
     },
     { title: '适用部门 / 用户组', dataIndex: 'scope', key: 'scope' },
     { title: '认证方式', dataIndex: 'eap', key: 'eap' },
-    { title: '下发 VLAN', dataIndex: 'vlan', key: 'vlan', render: (v) => <span style={{ fontFamily: '"SF Mono", monospace', fontSize: '12.5px' }}>{v}</span> },
+    { title: '下发 VLAN', dataIndex: 'vlan', key: 'vlan', render: (v) => <Typography.Text code>{v}</Typography.Text> },
     { title: '终端合规要求', dataIndex: 'compliance', key: 'compliance' },
     {
       title: '生效状态',
@@ -161,18 +161,18 @@ export default function Policies() {
       />
 
       {/* 策略冲突提示 */}
-      <div data-od-id="policy-conflict" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '13px 16px', marginBottom: 16, border: '1px solid #eab308', borderRadius: 12, background: '#fefce8', fontSize: 13, color: '#424245' }}>
-        <CircleAlert style={{ width: 16, height: 16, color: '#ca8a04', flexShrink: 0 }} />
-        <div style={{ flex: 1 }}>
-          <b>策略匹配提示:</b>「办公默认策略」以<b>全体员工(兜底)</b>为适用范围,与「研发 / 财务 / 运维」策略在用户组上存在重叠。当前按优先级自上而下先匹配先生效,兜底策略排在 P4 不影响高优先级规则;调整顺序前请核查重叠用户组的预期 VLAN 是否一致。
-        </div>
-        <a href="#" onClick={(e) => { e.preventDefault(); toast('共 412 名研发 + 64 名财务 + 18 名运维用户与「办公默认」策略重叠,已按优先级生效专项策略'); }}>查看影响范围</a>
-      </div>
+      <Alert
+        type="warning"
+        showIcon
+        data-od-id="policy-conflict"
+        title={<>策略匹配提示:「办公默认策略」以<b>全体员工(兜底)</b>为适用范围,与「研发 / 财务 / 运维」策略在用户组上存在重叠。当前按优先级自上而下先匹配先生效,兜底策略排在 P4 不影响高优先级规则;调整顺序前请核查重叠用户组的预期 VLAN 是否一致。</>}
+        action={<a href="#" onClick={(e) => { e.preventDefault(); toast('共 412 名研发 + 64 名财务 + 18 名运维用户与「办公默认」策略重叠,已按优先级生效专项策略'); }}>查看影响范围</a>}
+        style={{ marginBottom: 16 }}
+      />
 
       {/* 主卡片 */}
-      <div data-od-id="policy-card" style={{ background: '#fff', border: '1px solid #e8e8ed', borderRadius: 18 }}>
+      <Card data-od-id="policy-card" styles={{ body: { padding: 0 } }}>
         <Table
-          className="tbl"
           rowKey="id"
           dataSource={sortedRows}
           columns={columns}
@@ -180,10 +180,10 @@ export default function Policies() {
           pagination={false}
           size="middle"
         />
-        <div style={{ display: 'flex', gap: 26, padding: '12px 20px', borderTop: '1px solid #e8e8ed', fontSize: '12.5px', color: '#6e6e73' }}>
-          <span>共 <b style={{ color: '#1d1d1f', fontWeight: 600 }}>5</b> 条策略 · 停用的策略不参与匹配,仅作为配置存档</span>
+        <div style={{ display: 'flex', gap: 26, padding: '12px 20px', borderTop: `1px solid ${token.colorBorderSecondary}`, color: token.colorTextTertiary }}>
+          <span>共 <b style={{ color: token.colorText }}>5</b> 条策略 · 停用的策略不参与匹配,仅作为配置存档</span>
         </div>
-      </div>
+      </Card>
 
       {/* 编辑/新建抽屉 */}
       <Drawer
@@ -198,8 +198,8 @@ export default function Policies() {
           </Space>
         }
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: '12.5px', color: '#6e6e73', marginBottom: 16 }}>
-          <Link to="/policies">策略管理</Link><span>/</span><span style={{ color: '#1d1d1f', fontWeight: 500 }}>{editingId ? '策略编辑' : '新建策略'}</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 7, color: token.colorTextTertiary, marginBottom: 16 }}>
+          <Link to="/policies">策略管理</Link><span>/</span><span style={{ color: token.colorText, fontWeight: 500 }}>{editingId ? '策略编辑' : '新建策略'}</span>
         </div>
 
         <Steps
@@ -212,7 +212,7 @@ export default function Policies() {
 
         <Form form={antForm} layout="vertical" initialValues={form}>
           <div style={{ display: stepIdx === 0 ? 'block' : 'none' }}>
-            <Typography.Text strong style={{ display: 'block', marginBottom: 12, fontSize: 12, color: '#6e6e73', textTransform: 'uppercase' }}>基本信息</Typography.Text>
+            <Typography.Text strong style={{ display: 'block', marginBottom: 12 }}>基本信息</Typography.Text>
             <Form.Item label="策略名称" required rules={[{ required: true, message: '请填写策略名称' }]} name="name">
               <Input id="f-name" value={form.name} onChange={(e) => { setForm((f) => ({ ...f, name: e.target.value })); antForm.setFieldsValue({ name: e.target.value }); }} />
             </Form.Item>
@@ -222,7 +222,7 @@ export default function Policies() {
           </div>
 
           <div style={{ display: stepIdx === 1 ? 'block' : 'none' }}>
-            <Typography.Text strong style={{ display: 'block', marginBottom: 12, fontSize: 12, color: '#6e6e73', textTransform: 'uppercase' }}>认证协议</Typography.Text>
+            <Typography.Text strong style={{ display: 'block', marginBottom: 12 }}>认证协议</Typography.Text>
             <Radio.Group
               data-od-id="eap-select"
               value={form.eap}
@@ -231,7 +231,7 @@ export default function Policies() {
               <Space orientation="vertical">
                 {EAP_OPTIONS.map((o) => (
                   <Radio key={o.value} value={o.value}>
-                    <b>{o.label}</b> <small style={{ color: '#6e6e73' }}>{o.desc}</small>
+                    <b>{o.label}</b> <Typography.Text type="secondary">{o.desc}</Typography.Text>
                   </Radio>
                 ))}
               </Space>
@@ -239,7 +239,7 @@ export default function Policies() {
           </div>
 
           <div style={{ display: stepIdx === 2 ? 'block' : 'none' }}>
-            <Typography.Text strong style={{ display: 'block', marginBottom: 12, fontSize: 12, color: '#6e6e73', textTransform: 'uppercase' }}>VLAN 下发规则</Typography.Text>
+            <Typography.Text strong style={{ display: 'block', marginBottom: 12 }}>VLAN 下发规则</Typography.Text>
             <Form.Item label="默认下发 VLAN" name="vlan">
               <Select value={form.vlan} onChange={(v) => { setForm((f) => ({ ...f, vlan: v })); antForm.setFieldsValue({ vlan: v }); }} options={POLICY_FORM_OPTIONS.vlan.map((o) => ({ label: o, value: o }))} />
             </Form.Item>
@@ -247,7 +247,7 @@ export default function Policies() {
               <Select value={form.acl} onChange={(v) => { setForm((f) => ({ ...f, acl: v })); antForm.setFieldsValue({ acl: v }); }} options={POLICY_FORM_OPTIONS.acl.map((o) => ({ label: o, value: o }))} />
             </Form.Item>
 
-            <Typography.Text strong style={{ display: 'block', marginTop: 16, marginBottom: 12, fontSize: 12, color: '#6e6e73', textTransform: 'uppercase' }}>终端合规校验</Typography.Text>
+            <Typography.Text strong style={{ display: 'block', marginTop: 16, marginBottom: 12 }}>终端合规校验</Typography.Text>
             <Checkbox checked={form.cert} onChange={(e) => { setForm((f) => ({ ...f, cert: e.target.checked })); antForm.setFieldsValue({ cert: e.target.checked }); }}>要求安装企业 CA 颁发的终端证书</Checkbox>
             <br />
             <Checkbox checked={form.mac} onChange={(e) => { setForm((f) => ({ ...f, mac: e.target.checked })); antForm.setFieldsValue({ mac: e.target.checked }); }}>要求 MAC 预先绑定</Checkbox>
@@ -256,7 +256,7 @@ export default function Policies() {
           </div>
 
           <div style={{ display: stepIdx === 3 ? 'block' : 'none' }}>
-            <Typography.Text strong style={{ display: 'block', marginBottom: 12, fontSize: 12, color: '#6e6e73', textTransform: 'uppercase' }}>生效时间段(可选)</Typography.Text>
+            <Typography.Text strong style={{ display: 'block', marginBottom: 12 }}>生效时间段(可选)</Typography.Text>
             <Space>
               <Checkbox checked={form.time} onChange={(e) => { setForm((f) => ({ ...f, time: e.target.checked })); antForm.setFieldsValue({ time: e.target.checked }); }}>限制准入时间</Checkbox>
               <Input type="time" value={form.timeFrom} style={{ width: 110 }} onChange={(e) => { setForm((f) => ({ ...f, timeFrom: e.target.value })); antForm.setFieldsValue({ timeFrom: e.target.value }); }} />
@@ -264,7 +264,7 @@ export default function Policies() {
               <Input type="time" value={form.timeTo} style={{ width: 110 }} onChange={(e) => { setForm((f) => ({ ...f, timeTo: e.target.value })); antForm.setFieldsValue({ timeTo: e.target.value }); }} />
             </Space>
 
-            <Typography.Text strong style={{ display: 'block', marginTop: 16, marginBottom: 12, fontSize: 12, color: '#6e6e73', textTransform: 'uppercase' }}>限速下发(可选)</Typography.Text>
+            <Typography.Text strong style={{ display: 'block', marginTop: 16, marginBottom: 12 }}>限速下发(可选)</Typography.Text>
             <Form.Item label="上下行速率上限" name="rate">
               <Select value={form.rate} onChange={(v) => { setForm((f) => ({ ...f, rate: v })); antForm.setFieldsValue({ rate: v }); }} options={POLICY_FORM_OPTIONS.rate.map((o) => ({ label: o, value: o }))} />
             </Form.Item>
@@ -283,7 +283,7 @@ export default function Policies() {
         onOk={confirmPush}
       >
         <p>即将{editingId ? '修改' : '新建'}策略并即时下发至全部 NAS,匹配该策略的在线终端将收到 CoA 重新授权:</p>
-        <div style={{ background: '#f5f5f7', borderRadius: 8, padding: '10px 12px', marginTop: 10, fontFamily: '"SF Mono", monospace', fontSize: 12 }}>
+        <div style={{ background: token.colorBgLayout, borderRadius: 8, padding: '10px 12px', marginTop: 10, fontFamily: 'monospace', fontSize: 12 }}>
           {form.name}<br />
           协议 {form.eap} · {form.vlan}<br />
           合规:{compSummary}<br />

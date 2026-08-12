@@ -201,7 +201,7 @@ export default function Devices() {
             <div style={{ display: 'flex', gap: 7, color: token.colorTextTertiary, marginBottom: 16 }}><a href="#" onClick={(e) => e.preventDefault()}>设备管理</a><span>/</span><span style={{ color: token.colorText, fontWeight: 500 }}>{drawerDevice.name}</span></div>
             {drawerDevice.type === 'switch' ? (
               <div>
-                {drawerDevice.status === 'offline' && <Alert type="warning" showIcon message={<>设备当前<b>离线</b>,以下为最后已知端口快照(10:12 前)· 32 个在线会话已中断。</>} style={{ marginBottom: 14 }} />}
+                {drawerDevice.status === 'offline' && <Alert type="warning" showIcon title={<>设备当前<b>离线</b>,以下为最后已知端口快照(10:12 前)· 32 个在线会话已中断。</>} style={{ marginBottom: 14 }} />}
                 <Divider titlePlacement="start" plain>端口接入状态(蓝 = 有终端接入)</Divider>
                 <div className="port-grid" style={{ marginTop: 10 }}>
                   {Array.from({ length: 24 }, (_, i) => i + 1).map((p) => {
