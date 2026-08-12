@@ -1,8 +1,33 @@
 ---
-# backup role —— 备份/恢复(P4 实现)
-# main.yml:即时备份 + 每日 cron + 保留策略
-# restore.yml:从备份恢复(tasks_from: restore)
-# 详见 DESIGN.md §10。
-- name: backup | 占位(P0 骨架,待 P4 实现)
-  ansible.builtin.debug:
-    msg: "backup role 尚未实现(备份/cron/保留策略)"
+# backup role —— 备份/恢复(P4)
+# main.yml:渲染脚本 + 立即备份 + 每日 cron + 保留策略
+
+- name: 确保备份目录(700)
+  ansible.builtin.file:
+    path: "{{ openredius_deploy_root }}/backups"
+    state: directory
+    mode: "0700"
+
+- name: 渲染备份脚本
+  ansible.builtin.template:
+    src: backup.sh.j2
+    dest: "{{ openredius_deploy_root }}/backup.sh"
+    mode: "0700"
+
+- name: 立即执行一次备份
+  ansible.builtin.command: "{{ openredius_deploy_root }}/backup.sh"
+  changed_when: false
+  when: openredius_backup_now | default(true) | bool
+  tags: [backup]
+
+- name: 安装每日备份 cron
+  ansible.builtin.cron:
+    name: openredius-daily-backup
+    user: root
+    job: "{{ openredius_deploy_root }}/backup.sh >> /var/log/openredius-backup.log 2>&1"
+    minute: "{{ openredius_backup_cron.split()[0] }}"
+    hour: "{{ openredius_backup_cron.split()[1] }}"
+    day: "{{ openredius_backup_cron.split()[2] }}"
+    month: "{{ openredius_backup_cron.split()[3] }}"
+    weekday: "{{ openredius_backup_cron.split()[4] }}"
+  tags: [cron]

@@ -1,6 +1,53 @@
 ---
-# docker role —— 安装/配置 Docker Engine + compose 插件(P2 实现)
-# 详见 DESIGN.md §10。
-- name: docker | 占位(P0 骨架,待 P2 实现)
-  ansible.builtin.debug:
-    msg: "docker role 尚未实现(Docker Engine + compose v2 插件安装)"
+# docker role —— 安装 Docker Engine + compose v2 插件(P2)
+# 官方 apt 仓库(Debian/Ubuntu 家族,与 DESIGN.md §5.1 一致)。
+
+- name: 架构映射(x86_64→amd64, aarch64→arm64)
+  ansible.builtin.set_fact:
+    _docker_arch: "{{ 'amd64' if ansible_architecture == 'x86_64' else 'arm64' }}"
+    _docker_repo_distro: "{{ ansible_distribution | lower }}"
+
+- name: 添加 Docker 官方 GPG key
+  ansible.builtin.get_url:
+    url: "https://download.docker.com/linux/{{ _docker_repo_distro }}/gpg"
+    dest: /etc/apt/keyrings/docker.asc
+    mode: "0644"
+
+- name: 添加 Docker apt 仓库
+  ansible.builtin.apt_repository:
+    repo: >-
+      deb [arch={{ _docker_arch }} signed-by=/etc/apt/keyrings/docker.asc]
+      https://download.docker.com/linux/{{ _docker_repo_distro }}
+      {{ ansible_distribution_release }} stable
+    state: present
+    filename: docker
+    update_cache: true
+
+- name: 安装 Docker Engine + compose 插件
+  ansible.builtin.apt:
+    name:
+      - docker-ce
+      - docker-ce-cli
+      - containerd.io
+      - docker-buildx-plugin
+      - docker-compose-plugin
+    state: present
+
+- name: 启用并启动 dockerd
+  ansible.builtin.systemd:
+    name: docker
+    state: started
+    enabled: true
+
+- name: 开启 net.ipv4.ip_forward(docker 依赖)
+  ansible.posix.sysctl:
+    name: net.ipv4.ip_forward
+    value: "1"
+    sysctl_set: true
+    reload: true
+
+- name: 部署用户加入 docker 组(便于交互操作)
+  ansible.builtin.user:
+    name: "{{ ansible_user }}"
+    groups: docker
+    append: true

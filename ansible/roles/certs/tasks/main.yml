@@ -1,7 +1,54 @@
 ---
-# certs role —— TLS 证书分发/自签门禁(P3 实现)
-# 职责:真实证书分发到 /opt/openredius/certs/;prod 默认拒绝自签
-#       (openredius_tls_allow_self_signed=false)。详见 DESIGN.md §6-G4 / §12。
-- name: certs | 占位(P0 骨架,待 P3 实现)
-  ansible.builtin.debug:
-    msg: "certs role 尚未实现(TLS 证书分发/自签门禁)"
+# certs role —— TLS 证书分发/自签门禁(P3)
+# prod 默认拒绝自签;提供真实证书或显式 openredius_tls_allow_self_signed=true。
+
+- name: TLS 门禁(真实证书 或 显式允许自签)
+  ansible.builtin.assert:
+    that:
+      - (openredius_tls_cert_src | length > 0 and openredius_tls_key_src | length > 0)
+        or (openredius_tls_allow_self_signed | bool)
+    fail_msg: "prod 未提供证书且不允许自签;设置 openredius_tls_cert_src/_key_src,或(仅内网)openredius_tls_allow_self_signed=true"
+
+- name: 确保证书目录
+  ansible.builtin.file:
+    path: "{{ openredius_deploy_root }}/nginx/certs"
+    state: directory
+    mode: "0750"
+
+- name: 分发证书链(cert.pem)
+  ansible.builtin.copy:
+    src: "{{ openredius_tls_cert_src }}"
+    dest: "{{ openredius_deploy_root }}/nginx/certs/cert.pem"
+    mode: "0640"
+  when: openredius_tls_cert_src | length > 0
+
+- name: 分发私钥(key.pem,600)
+  ansible.builtin.copy:
+    src: "{{ openredius_tls_key_src }}"
+    dest: "{{ openredius_deploy_root }}/nginx/certs/key.pem"
+    mode: "0600"
+  no_log: true
+  when: openredius_tls_key_src | length > 0
+
+- name: 自签证书(仅当允许自签且未提供证书)
+  ansible.builtin.command:
+    argv:
+      - openssl
+      - req
+      - -x509
+      - -newkey
+      - rsa:2048
+      - -nodes
+      - -keyout
+      - "{{ openredius_deploy_root }}/nginx/certs/key.pem"
+      - -out
+      - "{{ openredius_deploy_root }}/nginx/certs/cert.pem"
+      - -days
+      - "365"
+      - -subj
+      - /CN=OpenRedius
+      - -addext
+      - subjectAltName=DNS:localhost,IP:127.0.0.1
+  args:
+    creates: "{{ openredius_deploy_root }}/nginx/certs/cert.pem"
+  when: openredius_tls_allow_self_signed | bool and openredius_tls_cert_src | length == 0

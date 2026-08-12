@@ -10,7 +10,7 @@ openredius_deploy_strategy: build        # build(占位期) | pull(正式镜像�
 openredius_images:
   postgres: "postgres:17-alpine"
   freeradius_base: "freeradius/freeradius-server:3.2"   # 构建基底,暂占位
-  freeradius: "openredius/freeradius:0.1.0"             # 占位
+  freeradius: "ghcr.io/openredius/freeradius:0.1.0"    # 占位
   backend: "ghcr.io/openredius/backend:0.1.0"           # 占位
   frontend: "ghcr.io/openredius/frontend:0.1.0"         # 占位
 

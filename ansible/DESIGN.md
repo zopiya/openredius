@@ -223,7 +223,7 @@ preflight role 是零信任的落地载体。分七组断言,顺序执行,失败
 openredius_images:
   postgres:       "postgres:17-alpine"
   freeradius_base: "freeradius/freeradius-server:3.2"   # 构建基底(暂占位)
-  freeradius:     "openredius/freeradius:0.1.0"          # 占位:正式镜像未发布
+  freeradius:     "ghcr.io/openredius/freeradius:0.1.0"   # 占位:正式镜像未发布
   backend:        "ghcr.io/openredius/backend:0.1.0"     # 占位
   frontend:       "ghcr.io/openredius/frontend:0.1.0"    # 占位
 openredius_deploy_strategy: build    # build(占位期) | pull(正式镜像发布后)
@@ -350,10 +350,11 @@ preflight(零信任门禁,fail-fast)
 | RADIUS 端口仅 NAS 网段,但 compose 绑 0.0.0.0 | 暴露面依赖防火墙 | preflight F3 断言 + 防火墙规则双保险;文档警示 |
 | 时间不同步导致 JWT/审计漂移 | 认证失败难排查 | preflight C4 强制 chrony,不满足即 fail |
 
-## 16. 待评审问题(open questions)
+## 16. 已评审决定(2026-08-12)
 
-1. 目标机 OS 是否可锁定 Debian 12 / Ubuntu LTS 家族?(首版明确拒绝 RHEL 系)
-2. 生产 TLS 证书分发方式:控制器本地文件分发 / 外部 CA 签发 / Let's Encrypt(acme)?
-   首版按"本地文件分发 + 可选自签",是否够?
-3. 镜像 registry 目标:GHCR(ghcr.io/openredius/…)还是私有 Harbor?决定 `openredius_images` 占位前缀。
-4. 备份是否需要 offsite(rsync/rclone 到对象存储)?首版仅本地 + cron,offsite 留作扩展。
+| # | 问题 | 决定 |
+|---|---|---|
+| 1 | 目标机 OS | **锁定 Debian 12 + Ubuntu LTS**(preflight 显式拒绝 RHEL 系;apt + ufw 统一实现) |
+| 2 | TLS 证书分发 | **控制器本地文件分发 + 可选自签**(`openredius_tls_allow_self_signed` 默认 false) |
+| 3 | 镜像 registry | **GHCR** `ghcr.io/openredius/*`(构建基底 `freeradius/freeradius-server` 仍走 Docker Hub) |
+| 4 | 备份 offsite | **首版仅本地 + 每日 cron**,offsite 留作扩展 |

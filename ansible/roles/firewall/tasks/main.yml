@@ -1,7 +1,51 @@
 ---
-# firewall role —— 白名单防火墙(默认拒绝)(P2 实现)
-# 职责:ufw 安装、只开 80/443(管理网段)+ 1812/1813 udp(限 NAS 网段),
-#       5432/8000/3799 永不对外。详见 DESIGN.md §6-F / §12。
-- name: firewall | 占位(P0 骨架,待 P2 实现)
-  ansible.builtin.debug:
-    msg: "firewall role 尚未实现(ufw 白名单)"
+# firewall role —— 白名单防火墙(默认拒绝)(P2)
+# 只开 22(SSH,防锁死)+ 80/443(管理网段)+ 1812/1813 udp(限 NAS 网段)。
+
+- name: 断言管理/NAS 网段已配置(零信任:默认拒绝)
+  ansible.builtin.assert:
+    that:
+      - openredius_admin_cidr | length > 0
+      - openredius_nas_cidr | length > 0
+    fail_msg: "必须配置 openredius_admin_cidr 与 openredius_nas_cidr(见 group_vars/all/main.yml)"
+
+- name: 安装 ufw
+  ansible.builtin.apt:
+    name: ufw
+    state: present
+
+- name: 默认拒绝入站
+  community.general.ufw:
+    policy: deny
+    direction: incoming
+
+- name: 默认放行出站
+  community.general.ufw:
+    policy: allow
+    direction: outgoing
+
+- name: 放行 SSH(22,防锁死)
+  community.general.ufw:
+    rule: allow
+    port: "22"
+    proto: tcp
+
+- name: 放行 80/443(仅管理网段)
+  community.general.ufw:
+    rule: allow
+    port: "{{ item.1 }}"
+    proto: tcp
+    src: "{{ item.0 }}"
+  loop: "{{ openredius_admin_cidr | product([80, 443]) | list }}"
+
+- name: 放行 1812/1813 udp(仅 NAS 网段)
+  community.general.ufw:
+    rule: allow
+    port: "1812,1813"
+    proto: udp
+    src: "{{ item }}"
+  loop: "{{ openredius_nas_cidr }}"
+
+- name: 启用 ufw
+  community.general.ufw:
+    state: enabled

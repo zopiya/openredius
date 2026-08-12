@@ -1,7 +1,53 @@
 ---
-# post_deploy role —— 部署后健康检查(P5 实现)
-# 职责:compose ps 全 healthy、/api/health、TLS 握手+安全头、
-#       端口暴露面复核、初始管理员引导。详见 DESIGN.md §13。
-- name: post_deploy | 占位(P0 骨架,待 P5 实现)
-  ansible.builtin.debug:
-    msg: "post_deploy role 尚未实现(健康检查/安全头断言)"
+# post_deploy role —— 部署后健康检查(P5)
+# 详见 DESIGN.md §13。
+
+- name: 采集容器状态
+  ansible.builtin.command:
+    cmd: docker compose -f "{{ openredius_deploy_root }}/docker-compose.yml" ps --format json
+  changed_when: false
+  register: _ps
+
+- name: 断言四服务全部 healthy
+  ansible.builtin.assert:
+    that:
+      - '"unhealthy" not in _ps.stdout'
+      - '"exited" not in _ps.stdout'
+      - '_ps.stdout.count("healthy") >= 4'
+    fail_msg: "存在 unhealthy/exited 容器,运行 docker compose ps 排查"
+
+- name: 检查 /api/health
+  ansible.builtin.uri:
+    url: "https://localhost/api/health"
+    validate_certs: false
+    status_code: 200
+    return_content: true
+  register: _health
+
+- name: 断言 API 状态 ok
+  ansible.builtin.assert:
+    that: _health.json.status == 'ok'
+    fail_msg: "/api/health 未返回 ok:{{ _health.content }}"
+
+- name: 采集 TLS 响应头
+  ansible.builtin.command: curl -skI https://localhost/
+  changed_when: false
+  register: _resp
+
+- name: 断言关键安全头存在
+  ansible.builtin.assert:
+    that:
+      - "'strict-transport-security' in (_resp.stdout | lower)"
+      - "'x-frame-options' in (_resp.stdout | lower)"
+      - "'content-security-policy' in (_resp.stdout | lower)"
+    fail_msg: "缺失安全头(HSTS/X-Frame-Options/CSP)"
+
+- name: 复核端口暴露面(5432/8000/3799 不得对外)
+  ansible.builtin.shell: "ss -lnt | grep -E ':(5432|8000|3799)\\b' || true"
+  changed_when: false
+  register: _exposed
+
+- name: 断言内部端口未暴露
+  ansible.builtin.assert:
+    that: _exposed.stdout | length == 0
+    fail_msg: "5432/8000/3799 被暴露到主机,违反零信任(应仅 compose 内网)"

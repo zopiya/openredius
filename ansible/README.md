@@ -12,9 +12,13 @@ cd ansible
 ansible-galaxy install -r requirements.yml
 
 # 2. 准备密钥(加密)
-cp inventory/group_vars/all/vault.yml.example inventory/group_vars/all/vault.yml
-$EDITOR inventory/group_vars/all/vault.yml          # 填真实口令
+#    自动生成随机口令(推荐):
+bash scripts/gen-secrets.sh
 ansible-vault encrypt inventory/group_vars/all/vault.yml
+#    或手工:
+#    cp inventory/group_vars/all/vault.yml.example inventory/group_vars/all/vault.yml
+#    $EDITOR inventory/group_vars/all/vault.yml
+#    ansible-vault encrypt inventory/group_vars/all/vault.yml
 
 # 3. 填目标机
 $EDITOR inventory/hosts.yml                          # prod01 的 IP/用户
@@ -42,8 +46,17 @@ ansible-playbook playbooks/site.yml --ask-vault-pass
 
 ## 状态
 
-- [x] P0 骨架(目录/配置/inventory/playbook 骨架/preflight 断言)
-- [ ] P1–P5 各角色实现(见 DESIGN.md §14)
+- [x] P0 骨架
+- [x] P1 preflight(七组零信任断言)
+- [x] P2 common / docker / firewall
+- [x] P3 deploy / certs(模板化 compose/.env、build/pull 双策略、TLS 门禁)
+- [x] P4 backup / restore(每日 cron + 保留策略)
+- [x] P5 post_deploy / verify(健康检查 + 安全头断言)
+
+## 前置条件
+
+- **控制器**:ansible-core ≥ 2.16 + 对应 collections;`git`(build 策略用于 `git archive` 导出源码)。
+- **目标机**:Debian 12 / Ubuntu LTS、x86_64/arm64、≥2C/2G/10G 磁盘、SSH 公钥 + sudo 免密;其余(Docker/ufw/chrony)由 playbook 自动装。
 
 ## 约定
 

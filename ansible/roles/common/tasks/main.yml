@@ -1,7 +1,31 @@
 ---
-# common role —— 目标机基线(P2 实现)
-# 职责:部署用户/组、时区、时间同步(chrony)、内核参数(ip_forward)、基础包。
-# 详见 DESIGN.md §10。
-- name: common | 占位(P0 骨架,待 P2 实现)
-  ansible.builtin.debug:
-    msg: "common role 尚未实现(时区/时间同步/内核参数)"
+# common role —— 目标机基线(P2)
+# 基础包 + 时区 + 时间同步(chrony)。
+
+- name: 安装基础包(rsync 供 synchronize、openssl 供自签证书)
+  ansible.builtin.apt:
+    name:
+      - rsync
+      - ca-certificates
+      - curl
+      - gnupg
+      - openssl
+      - apt-transport-https
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: 设置时区(默认 UTC)
+  community.general.timezone:
+    name: "{{ openredius_timezone | default('UTC') }}"
+
+- name: 安装 chrony(时间同步)
+  ansible.builtin.apt:
+    name: chrony
+    state: present
+
+- name: 启用并启动 chrony
+  ansible.builtin.systemd:
+    name: chrony
+    state: started
+    enabled: true
