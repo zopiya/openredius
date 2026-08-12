@@ -3,7 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import Shell from '../components/Shell';
 import Donut, { DonutLegend } from '../components/charts/Donut';
 import { useToast } from '../components/Toast';
-import { DEPT_ROWS, ETYPE_ROWS, LOAD_TOP, REPORT_PERIODS } from '../data/reports';
+import { DEPT_ROWS, ETYPE_ROWS, fetchDepartments, fetchEndpointTypes, fetchSummary, LOAD_TOP, REPORT_PERIODS } from '../api/resources/reports';
 
 type Period = '今日' | '本周' | '本月';
 
@@ -23,7 +23,21 @@ export default function Reports() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const data = REPORT_PERIODS[period];
+  /* http 模式:从 API 拉取数据 */
+  const [data, setData] = useState(REPORT_PERIODS[period]);
+  const [etypeRows, setEtypeRows] = useState(ETYPE_ROWS);
+  const [deptRows, setDeptRows] = useState(DEPT_ROWS);
+  useEffect(() => {
+    let cancelled = false;
+    Promise.all([
+      fetchSummary(period),
+      fetchEndpointTypes(),
+      fetchDepartments(period),
+    ]).then(([s, e, d]) => {
+      if (!cancelled) { setData(s); setEtypeRows(e); setDeptRows(d); }
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [period]);
 
   return (
     <Shell page="报表统计">
@@ -61,8 +75,8 @@ export default function Reports() {
             <div className="card-extra">在线 1,286 台</div>
           </div>
           <div className="card-body" style={{ display: 'flex', gap: 18, alignItems: 'center' }}>
-            <Donut rows={ETYPE_ROWS} ariaLabel="在线终端类型占比环图" />
-            <DonutLegend rows={ETYPE_ROWS} />
+            <Donut rows={etypeRows} ariaLabel="在线终端类型占比环图" />
+            <DonutLegend rows={etypeRows} />
           </div>
           <div className="card-body" style={{ paddingTop: 0 }}>
             <div style={{ fontSize: 12, color: 'var(--muted)' }}>哑终端走 MAC 白名单准入,不校验证书;其余均按策略校验。</div>
@@ -81,7 +95,7 @@ export default function Reports() {
               <table className="tbl">
                 <thead><tr><th>部门</th><th className="num">在线 / 账号</th><th className="num">认证成功</th><th className="num">认证失败</th><th className="num">成功率</th></tr></thead>
                 <tbody>
-                  {DEPT_ROWS.map((r) => (
+                  {deptRows.map((r) => (
                     <tr key={r.dept}>
                       <td>{r.dept}</td><td className="num mono">{r.online}</td><td className="num mono">{r.ok}</td><td className="num mono">{r.fail}</td><td className="num mono">{r.rate}</td>
                     </tr>

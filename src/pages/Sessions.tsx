@@ -5,7 +5,13 @@ import Shell from '../components/Shell';
 import Modal from '../components/Modal';
 import { SkeletonTable, EmptyState, ErrorState } from '../components/states';
 import { useToast } from '../components/Toast';
-import { SESSION_FILTER_OPTIONS, SESSION_ROWS, type SessionRow } from '../data/sessions';
+import {
+  disconnectSessions,
+  fetchSessions,
+  SESSION_FILTER_OPTIONS,
+  SESSION_ROWS,
+  type SessionRow,
+} from '../api/resources/sessions';
 
 type ColKey = 'mac' | 'nas' | 'vlan' | 'auth' | 'duration';
 
@@ -52,11 +58,14 @@ export default function Sessions() {
   });
   const [kickTarget, setKickTarget] = useState<SessionRow[] | null>(null);
 
-  /* 骨架 → 数据(与原型一致:550ms) */
+  /* 数据拉取(与原型一致:先展示骨架片刻) */
   useEffect(() => {
     if (view !== 'loading') return;
-    const t = window.setTimeout(() => setView('ready'), 550);
-    return () => window.clearTimeout(t);
+    let cancelled = false;
+    fetchSessions()
+      .then((data) => { if (!cancelled) { setRows(data); setView('ready'); } })
+      .catch(() => { if (!cancelled) setView('error'); });
+    return () => { cancelled = true; };
   }, [view]);
 
   /* 列选择面板:点击外部关闭 */
@@ -92,10 +101,20 @@ export default function Sessions() {
     });
   }
 
-  function confirmKick() {
+  async function confirmKick() {
     if (!kickTarget) return;
     const n = kickTarget.length;
     const ids = new Set(kickTarget.map((r) => r.session));
+    try {
+      const result = await disconnectSessions(kickTarget.map((r) => r.session));
+      if (result.failed.length) {
+        toast(`${n} 个会话已处理,${result.failed.length} 个失败`);
+      } else {
+        toast(`已向 NAS 发送 Disconnect-Request,${n} 个会话已强制下线`);
+      }
+    } catch {
+      toast('强制下线请求失败');
+    }
     setRows((prev) => prev.filter((r) => !ids.has(r.session)));
     setSelected((prev) => {
       const next = new Set(prev);
@@ -104,7 +123,6 @@ export default function Sessions() {
     });
     setDetailId((d) => (d && ids.has(d) ? null : d));
     setKickTarget(null);
-    toast(`已向 NAS 发送 Disconnect-Request,${n} 个会话已强制下线`);
   }
 
   function retry() {

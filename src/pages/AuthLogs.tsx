@@ -5,7 +5,7 @@ import Shell from '../components/Shell';
 import Modal from '../components/Modal';
 import { SkeletonTable, EmptyState, ErrorState } from '../components/states';
 import { useToast } from '../components/Toast';
-import { LOG_FILTER_OPTIONS, LOG_ROWS, type LogRow } from '../data/logs';
+import { fetchAuthLogs, LOG_FILTER_OPTIONS, type LogRow } from '../api/resources/logs';
 
 interface Filters {
   user: string;
@@ -38,6 +38,7 @@ export default function AuthLogs() {
   const toast = useToast();
   const location = useLocation();
   const [view, setView] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [rows, setRows] = useState<LogRow[]>([]);
   const [timeRange, setTimeRange] = useState('今日(00:00 至今)');
   const [form, setForm] = useState<Filters>(DEFAULT_FILTERS);
   const [applied, setApplied] = useState<Filters>(DEFAULT_FILTERS);
@@ -46,11 +47,14 @@ export default function AuthLogs() {
   const [prefillNote, setPrefillNote] = useState('');
   const deepLinked = useRef(false);
 
-  /* 骨架 → 数据(与原型一致:500ms) */
+  /* 数据拉取 */
   useEffect(() => {
     if (view !== 'loading') return;
-    const t = window.setTimeout(() => setView('ready'), 500);
-    return () => window.clearTimeout(t);
+    let cancelled = false;
+    fetchAuthLogs()
+      .then((data) => { if (!cancelled) { setRows(data); setView('ready'); } })
+      .catch(() => { if (!cancelled) setView('error'); });
+    return () => { cancelled = true; };
   }, [view]);
 
   /* 深链预填筛选(仪表盘告警 / 用户详情 / 报表跳转):#result=失败&nas=SW-5F-01 */
@@ -86,7 +90,7 @@ export default function AuthLogs() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const visible = useMemo(() => LOG_ROWS.filter((r) => matches(r, applied)), [applied]);
+  const visible = useMemo(() => rows.filter((r) => matches(r, applied)), [rows, applied]);
 
   function resetFilters(silent = false) {
     setTimeRange('今日(00:00 至今)');

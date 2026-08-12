@@ -6,7 +6,7 @@ import Modal from '../components/Modal';
 import Drawer from '../components/Drawer';
 import { SkeletonTable, EmptyState, ErrorState } from '../components/states';
 import { useToast } from '../components/Toast';
-import { POLICY_RULES, USER_FILTER_OPTIONS, USER_ROWS, type UserRow } from '../data/users';
+import { fetchUsers, POLICY_RULES, USER_FILTER_OPTIONS, USER_ROWS, type UserRow } from '../api/resources/users';
 
 interface Filters {
   dept: string;
@@ -44,6 +44,7 @@ export default function UsersPage() {
   const toast = useToast();
   const location = useLocation();
   const [view, setView] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [rows, setRows] = useState<UserRow[]>(USER_ROWS);
   const [form, setForm] = useState<Filters>(DEFAULT_FILTERS);
   const [applied, setApplied] = useState<Filters>(DEFAULT_FILTERS);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -63,20 +64,21 @@ export default function UsersPage() {
     return () => window.clearTimeout(t);
   }, [view]);
 
-  /* 深链:#user=wang.lei → 打开对应用户详情抽屉 */
+  /* 深链:#user=wang.lei → 打开对应用户详情抽屉(等待数据就绪后执行) */
   useEffect(() => {
+    if (rows.length === 0) return;
     if (deepLinked.current) return;
     deepLinked.current = true;
     const h = decodeURIComponent(location.hash.replace('#', ''));
     const m = h.match(/user=(.+)/);
     if (!m) return;
-    const row = USER_ROWS.find((r) => r.account === m[1]);
+    const row = rows.find((r) => r.account === m[1]);
     if (row) setDrawerUser(row);
     else toast('用户 ' + m[1] + ' 不在当前页,请通过关键词搜索定位');
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [rows]);
 
-  const visible = useMemo(() => USER_ROWS.filter((r) => matches(r, applied)), [applied]);
+  const visible = useMemo(() => rows.filter((r) => matches(r, applied)), [rows, applied]);
   const selectedVisible = visible.filter((r) => selected.has(r.account));
 
   function resetFilters(silent = false) {
@@ -130,10 +132,9 @@ export default function UsersPage() {
 
   function retry() {
     setView('loading');
-    window.setTimeout(() => {
-      setView('ready');
-      toast('已重新连接,用户目录已刷新');
-    }, 450);
+    fetchUsers()
+      .then((data) => { setRows(data); setView('ready'); toast('已重新连接,用户目录已刷新'); })
+      .catch(() => setView('error'));
   }
 
   const allChecked = visible.length > 0 && visible.every((r) => selected.has(r.account));

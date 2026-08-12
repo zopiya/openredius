@@ -1,11 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { CircleAlert } from 'lucide-react';
 import Shell from '../components/Shell';
 import Modal from '../components/Modal';
 import Drawer from '../components/Drawer';
 import { useToast } from '../components/Toast';
-import { NEW_POLICY_FORM, POLICY_FORMS, POLICY_FORM_OPTIONS, POLICY_ROWS, type PolicyForm } from '../data/policies';
+import { fetchPolicies, NEW_POLICY_FORM, POLICY_FORMS, POLICY_FORM_OPTIONS, POLICY_ROWS, type PolicyForm, type PolicyRow } from '../api/resources/policies';
 
 const STEPS = [
   { key: 's-basic', label: '基本信息' },
@@ -22,9 +22,10 @@ const EAP_OPTIONS = [
 
 export default function Policies() {
   const toast = useToast();
-  const [order, setOrder] = useState(() => POLICY_ROWS.map((r) => r.id));
+  const [rows, setRows] = useState<PolicyRow[]>(POLICY_ROWS);
+  const [order, setOrder] = useState<string[]>(POLICY_ROWS.map((r) => r.id));
   const [enabled, setEnabled] = useState<Record<string, boolean>>(
-    () => Object.fromEntries(POLICY_ROWS.map((r) => [r.id, r.on]))
+    Object.fromEntries(POLICY_ROWS.map((r) => [r.id, r.on]))
   );
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -33,7 +34,18 @@ export default function Policies() {
   const [nameInvalid, setNameInvalid] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
 
-  const rowById = (id: string) => POLICY_ROWS.find((r) => r.id === id)!;
+  useEffect(() => {
+    let cancelled = false;
+    fetchPolicies().then((data) => {
+      if (!cancelled) {
+        setRows(data);
+        setOrder(data.map((r) => r.id));
+        setEnabled(Object.fromEntries(data.map((r) => [r.id, r.on])));
+      }
+    });
+    return () => { cancelled = true; };
+  }, []);
+  const rowById = (id: string) => rows.find((r) => r.id === id)!;
 
   function move(id: string, dir: -1 | 1) {
     setOrder((prev) => {

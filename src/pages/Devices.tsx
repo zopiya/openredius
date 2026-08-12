@@ -8,14 +8,14 @@ import { SkeletonTable, EmptyState, ErrorState } from '../components/states';
 import { useToast } from '../components/Toast';
 import {
   DEVICE_FILTER_OPTIONS,
-  ENDPOINT_ROWS,
-  NAS_ROWS,
+  fetchEndpoints,
+  fetchNas,
   SSID_ROWS,
   SWITCH_BUSY_PORTS,
   SWITCH_PORT_DETAIL,
   type EndpointRow,
   type NasRow,
-} from '../data/devices';
+} from '../api/resources/devices';
 
 interface NasFilters { type: string; area: string; status: string; }
 interface EpFilters { type: string; comp: string; kw: string; }
@@ -60,7 +60,8 @@ export default function Devices() {
   const [nasApplied, setNasApplied] = useState<NasFilters>(DEFAULT_NAS_FILTERS);
   const [epForm, setEpForm] = useState<EpFilters>(DEFAULT_EP_FILTERS);
   const [epApplied, setEpApplied] = useState<EpFilters>(DEFAULT_EP_FILTERS);
-  const [epRows, setEpRows] = useState<EndpointRow[]>(ENDPOINT_ROWS);
+  const [nasRows, setNasRows] = useState<NasRow[]>([]);
+  const [epRows, setEpRows] = useState<EndpointRow[]>([]);
   const [drawerDevice, setDrawerDevice] = useState<NasRow | null>(null);
   const [modal, setModal] = useState<DeviceModal>(null);
   const [secretShown, setSecretShown] = useState<Set<string>>(new Set());
@@ -77,19 +78,32 @@ export default function Devices() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  /* 骨架 → 数据(与原型一致:500ms) */
+  /* 数据拉取 — NAS */
   useEffect(() => {
     if (nasView !== 'loading') return;
-    const t = window.setTimeout(() => setNasView('ready'), 500);
-    return () => window.clearTimeout(t);
+    let cancelled = false;
+    fetchNas()
+      .then((data) => { if (!cancelled) { setNasRows(data); setNasView('ready'); } })
+      .catch(() => { if (!cancelled) setNasView('error'); });
+    return () => { cancelled = true; };
   }, [nasView]);
+
+  /* 数据拉取 — endpoints(on tab switch) */
+  useEffect(() => {
+    if (tab !== 'ep') return;
+    let cancelled = false;
+    fetchEndpoints()
+      .then((data) => { if (!cancelled) setEpRows(data); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [tab]);
 
   function switchTab(name: 'nas' | 'ep') {
     setTab(name);
     navigate(location.pathname + '#tab=' + name, { replace: true });
   }
 
-  const nasVisible = useMemo(() => NAS_ROWS.filter((r) => matchNas(r, nasApplied)), [nasApplied]);
+  const nasVisible = useMemo(() => nasRows.filter((r) => matchNas(r, nasApplied)), [nasRows, nasApplied]);
   const epVisible = useMemo(() => epRows.filter((r) => matchEp(r, epApplied)), [epRows, epApplied]);
 
   function resetNasFilters(silent = false) {
@@ -106,10 +120,9 @@ export default function Devices() {
 
   function nasRetry() {
     setNasView('loading');
-    window.setTimeout(() => {
-      setNasView('ready');
-      toast('已重新连接,设备清单已刷新');
-    }, 450);
+    fetchNas()
+      .then((data) => { setNasRows(data); setNasView('ready'); toast('已重新连接,设备清单已刷新'); })
+      .catch(() => setNasView('error'));
   }
 
   function toggleSecret(name: string, shown: boolean) {

@@ -51,7 +51,7 @@ test('Dashboard:KPI / 趋势图粒度切换 / 告警深链', async () => {
   const svg = container.querySelector('svg.chart-svg')!;
   expect(svg.getAttribute('aria-label')).toContain('24 小时认证趋势');
   fireEvent.click(getByText('近 7 天'));
-  expect(svg.getAttribute('aria-label')).toContain('近 7 天认证趋势');
+  await waitFor(() => expect(svg.getAttribute('aria-label')).toContain('近 7 天认证趋势'), WAIT);
   const alerts = container.querySelectorAll('.alert-item');
   expect(alerts.length).toBe(5);
   expect(alerts[0].getAttribute('href')).toContain('/auth-logs#result=失败');
@@ -247,12 +247,12 @@ test('Devices:吊销证书二次确认 + 端口抽屉', async () => {
 });
 
 /* ── 报表统计 ───────────────────────────────────────── */
-test('Reports:周期切换联动环图合计', () => {
+test('Reports:周期切换联动环图合计', async () => {
   const { container, getByText } = ui(<Reports />);
   expect(getByText('共 166 次失败')).not.toBeNull();
   expect(container.querySelector('.donut-total')?.textContent).toBe('166');
   fireEvent.click(getByText('本周'));
-  expect(getByText('共 1,084 次失败')).not.toBeNull();
+  await waitFor(() => expect(getByText('共 1,084 次失败')).not.toBeNull(), WAIT);
   expect(container.querySelector('.donut-total')?.textContent).toBe('1,084');
   expect(container.querySelector('.page-sub')?.textContent).toContain('2026-07-21 至 2026-07-27');
   expect(container.querySelector('.toast')?.textContent).toContain('已切换至「本周」统计口径');

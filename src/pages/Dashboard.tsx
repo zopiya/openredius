@@ -1,43 +1,46 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Shell from '../components/Shell';
-import TrendChart, { TREND_TODAY, TREND_WEEK } from '../components/charts/TrendChart';
+import TrendChart, { TREND_TODAY } from '../components/charts/TrendChart';
+import type { TrendSeries } from '../components/charts/TrendChart';
+import { fetchAlerts, fetchKpis, fetchTrend } from '../api/resources/dashboard';
+import type { AlertItem, KpiSnapshot } from '../api/resources/dashboard';
 
-const ALERTS = [
-  {
-    time: '10:12', badge: 'bg-danger', level: '严重',
-    to: '/auth-logs#result=失败&nas=SW-5F-01',
-    title: '跳转至认证日志:SW-5F-01 相关失败记录',
-    msg: (<><b>SW-5F-01</b> 设备离线,5F 办公区 32 个在线会话中断,等待终端重认证</>),
-  },
-  {
-    time: '09:48', badge: 'bg-warn', level: '警告',
-    to: '/auth-logs#result=失败&reason=账号锁定',
-    title: '跳转至认证日志:账号锁定记录',
-    msg: (<><span>账号 <b>zhang.wei</b> 连续 5 次密码错误,已按策略锁定 30 分钟</span></>),
-  },
-  {
-    time: '09:15', badge: 'bg-warn', level: '警告',
-    to: '/auth-logs#result=失败&reason=MAC 未绑定',
-    title: '跳转至认证日志:MAC 未绑定记录',
-    msg: (<>财务隔离 <b>VLAN 40</b> 出现未绑定 MAC(3C:52:82:9F:1C:44)接入尝试,已拒绝</>),
-  },
-  {
-    time: '08:57', badge: 'bg-muted', level: '提示',
-    to: '/devices#tab=ep',
-    title: '跳转至设备管理:终端准入清单',
-    msg: (<><b>AP-4F-007</b> 接入负载达 92%(46/50),建议扩容或分流</>),
-  },
-  {
-    time: '08:31', badge: 'bg-muted', level: '提示',
-    to: '/devices#tab=ep',
-    title: '跳转至设备管理:证书临期终端',
-    msg: (<><b>12 张</b>终端证书将于 7 日内到期,可在设备管理中批量换发</>),
-  },
-];
+const DEFAULT_KPIS: KpiSnapshot = {
+  online_sessions: 1286, auth_today: 12713, auth_success_rate_today: 98.7,
+  nas_online: 6, nas_total: 8, locked_users: 1,
+};
+
+const ALERTS_FALLBACK = [
+  { time: '10:12', badge: 'bg-danger', level: '严重', to: '/auth-logs#result=失败&nas=SW-5F-01', title: 'SW-5F-01 离线', msg: (<><b>SW-5F-01</b> 设备离线,5F 办公区 32 个在线会话中断</>) },
+  { time: '09:48', badge: 'bg-warn', level: '警告', to: '/auth-logs#result=失败&reason=账号锁定', title: '账号锁定', msg: (<><span>账号 <b>zhang.wei</b> 连续 5 次密码错误,已锁定 30 分钟</span></>) },
+  { time: '09:15', badge: 'bg-warn', level: '警告', to: '/auth-logs#result=失败&reason=MAC 未绑定', title: 'MAC 未绑定', msg: (<>财务隔离 <b>VLAN 40</b> 出现未绑定 MAC 接入尝试,已拒绝</>) },
+  { time: '08:57', badge: 'bg-muted', level: '提示', to: '/devices#tab=ep', title: 'AP 高负载', msg: (<><b>AP-4F-007</b> 接入负载达 92%(46/50),建议扩容</>) },
+  { time: '08:31', badge: 'bg-muted', level: '提示', to: '/devices#tab=ep', title: '证书临期', msg: (<><b>12 张</b>终端证书将于 7 日内到期,可批量换发</>) },
+] as const;
+
+const LEVEL_BADGE: Record<string, string> = { 严重: 'bg-danger', 警告: 'bg-warn', 提示: 'bg-muted' };
 
 export default function Dashboard() {
   const [mode, setMode] = useState<'today' | '7d'>('today');
+  const [kpis, setKpis] = useState<KpiSnapshot>(DEFAULT_KPIS);
+  const [trend, setTrend] = useState<TrendSeries>(TREND_TODAY);
+  const [alerts, setAlerts] = useState<AlertItem[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    Promise.all([fetchKpis(), fetchTrend(mode), fetchAlerts(20)]).then(([k, t, a]) => {
+      if (cancelled) return;
+      setKpis(k);
+      setTrend(t);
+      if (a.length) setAlerts(a);
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [mode]);
+
+  const rateVal = kpis.auth_success_rate_today?.toFixed(1) ?? '0.0';
+  const failCount = Math.round(kpis.auth_today * (1 - kpis.auth_success_rate_today / 100));
+
   return (
     <Shell page="仪表盘">
       <div className="page-head">
@@ -54,26 +57,26 @@ export default function Dashboard() {
       <div className="grid-kpi" data-od-id="kpi-row">
         <div className="kpi" data-od-id="kpi-online">
           <div className="kpi-label">当前在线终端</div>
-          <div className="kpi-value">1,286</div>
-          <div className="kpi-delta"><b className="up">▲ 3.2%</b> 较昨日同时段</div>
+          <div className="kpi-value">{kpis.online_sessions.toLocaleString()}</div>
+          <div className="kpi-delta"><b className="up">实时</b> 较昨日同时段</div>
         </div>
         <div className="kpi" data-od-id="kpi-rate">
           <div className="kpi-label">今日认证成功率</div>
-          <div className="kpi-value">98.7%</div>
-          <div className="kpi-delta"><b className="up">▲ 0.4pp</b> 较昨日(98.3%)</div>
-          <div className="kpi-meta">成功 12,547 / 共 12,713 次</div>
+          <div className="kpi-value">{rateVal}%</div>
+          <div className="kpi-delta"><b className="up">实时</b> 较昨日(98.3%)</div>
+          <div className="kpi-meta">成功 {(kpis.auth_today - failCount).toLocaleString()} / 共 {kpis.auth_today.toLocaleString()} 次</div>
         </div>
         <div className="kpi" data-od-id="kpi-fail">
           <div className="kpi-label">今日认证失败</div>
-          <div className="kpi-value">166</div>
-          <div className="kpi-delta"><b className="up">▼ 18.2%</b> 较昨日(203 次)</div>
-          <div className="kpi-meta">峰值时段 09:00–10:00 · 27 次</div>
+          <div className="kpi-value">{failCount}</div>
+          <div className="kpi-delta"><b className="up">实时</b> 今日截止当前</div>
+          <div className="kpi-meta">峰值时段 09:00–10:00 · —</div>
         </div>
         <div className="kpi" data-od-id="kpi-alert">
           <div className="kpi-label">准入设备离线告警</div>
-          <div className="kpi-value">3</div>
-          <div className="kpi-delta"><b className="down">▲ 2</b> 较昨日(1 台)</div>
-          <div className="kpi-meta">SW-5F-01 等 · 最近离线 10:12</div>
+          <div className="kpi-value">{kpis.nas_online}</div>
+          <div className="kpi-delta"><b className="down">共 {kpis.nas_total}</b> 台 NAS 纳管</div>
+          <div className="kpi-meta">{kpis.nas_total - kpis.nas_online} 台离线</div>
         </div>
       </div>
 
@@ -90,7 +93,7 @@ export default function Dashboard() {
             </div>
           </div>
           <div className="card-body">
-            <TrendChart series={mode === 'today' ? TREND_TODAY : TREND_WEEK} />
+            <TrendChart series={trend} />
           </div>
         </section>
 
@@ -123,13 +126,19 @@ export default function Dashboard() {
           <div className="card-extra"><Link to="/auth-logs">全部认证日志 →</Link></div>
         </div>
         <div className="card-body">
-          {ALERTS.map((a) => (
+          {(alerts.length ? alerts.map((a) => (
+            <Link key={a.id} className="alert-item" to={a.link} style={{ textDecoration: 'none', color: 'inherit' }} title={a.title}>
+              <span className="alert-time">{a.created_at.slice(11, 16)}</span>
+              <span className={`badge ${LEVEL_BADGE[a.level] ?? 'bg-muted'}`}>{a.level}</span>
+              <span className="alert-msg">{a.message}</span>
+            </Link>
+          )) : ALERTS_FALLBACK.map((a) => (
             <Link key={a.time} className="alert-item" to={a.to} style={{ textDecoration: 'none', color: 'inherit' }} title={a.title}>
               <span className="alert-time">{a.time}</span>
               <span className={`badge ${a.badge}`}>{a.level}</span>
               <span className="alert-msg">{a.msg}</span>
             </Link>
-          ))}
+          )))}
         </div>
       </section>
     </Shell>
