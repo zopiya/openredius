@@ -8,6 +8,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
+from sqlalchemy import func, select
 from starlette.middleware.cors import CORSMiddleware
 
 from openredius import __version__
@@ -21,6 +22,7 @@ from openredius.core.ratelimit import (
     LOGIN_RATE_WINDOW_SECONDS,
     SlidingWindowRateLimiter,
 )
+from openredius.models import AdminUser
 from openredius.services.bootstrap import bootstrap_admin
 
 logger = logging.getLogger("openredius")
@@ -34,6 +36,15 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     init_db(settings.database_url)
     async with get_session_factory()() as session:
         await bootstrap_admin(session, settings)
+        admin_count = await session.scalar(select(func.count()).select_from(AdminUser))
+    if admin_count == 0:
+        message = (
+            "no admin accounts exist; set OPENRADIUS_BOOTSTRAP_ADMIN_USER/_PASSWORD "
+            "or run scripts/create_admin.py"
+        )
+        if settings.is_prod:
+            raise RuntimeError(message)
+        logger.warning(message)
     logger.info("openredius backend started env=%s", settings.env)
     yield
     await close_db()

@@ -10,6 +10,7 @@ from openredius.core.db import get_db
 from openredius.core.deps import current_admin, get_app_settings
 from openredius.core.errors import ApiError
 from openredius.core.ratelimit import SlidingWindowRateLimiter
+from openredius.core.security import parse_admin_id
 from openredius.models import AdminStatus, AdminUser
 from openredius.schemas.auth import (
     AdminProfile,
@@ -69,7 +70,7 @@ async def refresh(
     settings: Settings = Depends(get_app_settings),
 ) -> TokenResponse:
     payload = await auth_service.validate_refresh_token(db, settings, body.refresh_token)
-    admin = await db.get(AdminUser, int(payload["sub"]))
+    admin = await db.get(AdminUser, parse_admin_id(payload))
     if admin is None:
         raise ApiError("unauthorized", "admin not found", 401)
     if admin.status is not AdminStatus.ACTIVE:
@@ -82,13 +83,12 @@ async def refresh(
 
 @router.post("/logout")
 async def logout(
-    body: LogoutRequest | None = None,
+    body: LogoutRequest,
     admin: AdminUser = Depends(current_admin),
     db: AsyncSession = Depends(get_db),
     settings: Settings = Depends(get_app_settings),
 ) -> dict[str, str]:
-    if body is not None and body.refresh_token:
-        await auth_service.revoke_refresh_token(db, settings, body.refresh_token)
+    await auth_service.revoke_refresh_token(db, settings, body.refresh_token)
     await audit.record_audit(
         db,
         actor=admin.username,

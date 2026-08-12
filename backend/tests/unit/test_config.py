@@ -67,5 +67,17 @@ def test_prod_validation_accepts_good_config():
     settings.validate_for_env()
 
 
+def test_prod_validation_allows_missing_bootstrap_credentials():
+    # Bootstrap is a first-start mechanism; the "no admin at all" case fails
+    # at startup instead (main.lifespan), not here.
+    settings = Settings(
+        env="prod",
+        jwt_secret="a-strong-secret-that-is-long-enough-32",
+        database_url="postgresql+asyncpg://u:p@localhost/openredius",
+        _env_file=None,
+    )
+    settings.validate_for_env()
+
+
 def test_dev_mode_skips_strict_validation():
     Settings(env="dev", _env_file=None).validate_for_env()

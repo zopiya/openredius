@@ -81,3 +81,10 @@ def decode_token(settings: Settings, token: str, *, expected_type: str) -> dict[
     if payload.get("type") != expected_type:
         raise ApiError("token_invalid", f"expected a {expected_type} token", 401)
     return payload
+
+
+def parse_admin_id(payload: dict[str, Any]) -> int:
+    try:
+        return int(payload["sub"])
+    except (KeyError, TypeError, ValueError):
+        raise ApiError("token_invalid", "token subject is invalid", 401) from None

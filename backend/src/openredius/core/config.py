@@ -15,7 +15,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 _TTL_RE = re.compile(r"^(\d+)\s*([smhd])$")
 _TTL_UNITS_SECONDS = {"s": 1, "m": 60, "h": 3600, "d": 86400}
 
-_DEV_JWT_SECRET = "dev-only-jwt-secret-change-me"
+_DEV_JWT_SECRET = "dev-only-jwt-secret-change-me-000"
 _MIN_PROD_JWT_SECRET_LEN = 32
 
 
@@ -92,8 +92,9 @@ class Settings(BaseSettings):
             )
         if self.database_url.startswith("sqlite"):
             problems.append("OPENRADIUS_DATABASE_URL must be PostgreSQL in prod")
-        if not self.bootstrap_admin_user or not self.bootstrap_admin_password:
-            problems.append("OPENRADIUS_BOOTSTRAP_ADMIN_USER/_PASSWORD required in prod")
+        # Bootstrap credentials are intentionally not required here: they are a
+        # first-start mechanism (docs/08). Startup fails instead when the DB has
+        # no admin at all (see main.lifespan).
         if problems:
             raise ValueError("prod configuration invalid: " + "; ".join(problems))
 

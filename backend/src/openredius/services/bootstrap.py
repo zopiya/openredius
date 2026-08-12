@@ -25,11 +25,9 @@ async def bootstrap_admin(db: AsyncSession, settings: Settings) -> None:
     if count:
         return
     if len(settings.bootstrap_admin_password) < _MIN_BOOTSTRAP_PASSWORD_LEN:
-        logger.warning(
-            "bootstrap admin skipped: password shorter than %d chars",
-            _MIN_BOOTSTRAP_PASSWORD_LEN,
+        raise RuntimeError(
+            f"bootstrap admin password must be at least {_MIN_BOOTSTRAP_PASSWORD_LEN} chars"
         )
-        return
     admin = AdminUser(
         username=settings.bootstrap_admin_user,
         display_name=settings.bootstrap_admin_user,

@@ -119,6 +119,15 @@ async def test_logout_revokes_refresh_token(client, admin_tokens):
     assert replay.json()["error"]["code"] == "token_revoked"
 
 
+async def test_logout_requires_refresh_token(client, admin_tokens):
+    resp = await client.post(
+        "/api/auth/logout",
+        headers={"Authorization": f"Bearer {admin_tokens['access']}"},
+    )
+    assert resp.status_code == 422
+    assert resp.json()["error"]["code"] == "validation_error"
+
+
 async def test_me(client, admin_headers):
     resp = await client.get("/api/auth/me", headers=admin_headers)
     assert resp.status_code == 200

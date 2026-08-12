@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from openredius.core.config import Settings
 from openredius.core.db import get_db
 from openredius.core.errors import ApiError
-from openredius.core.security import TOKEN_TYPE_ACCESS, decode_token
+from openredius.core.security import TOKEN_TYPE_ACCESS, decode_token, parse_admin_id
 from openredius.models import AdminRole, AdminStatus, AdminUser
 
 _bearer = HTTPBearer(auto_error=False)
@@ -30,7 +30,7 @@ async def current_admin(
     if credentials is None:
         raise ApiError("unauthorized", "missing bearer token", 401)
     payload = decode_token(settings, credentials.credentials, expected_type=TOKEN_TYPE_ACCESS)
-    admin = await db.get(AdminUser, int(payload["sub"]))
+    admin = await db.get(AdminUser, parse_admin_id(payload))
     if admin is None:
         raise ApiError("unauthorized", "admin not found", 401)
     # Role/status are re-checked from the DB on every request (docs/08).

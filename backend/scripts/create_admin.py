@@ -21,6 +21,7 @@ from openredius.core.config import get_settings
 from openredius.core.db import close_db, get_session_factory, init_db
 from openredius.core.security import hash_password
 from openredius.models import AdminRole, AdminUser
+from openredius.services import audit
 
 _MIN_PASSWORD_LEN = 10  # docs/08
 
@@ -50,6 +51,14 @@ async def create_admin(
             )
             session.add(admin)
             action = "created"
+        await audit.record_audit(
+            session,
+            actor="script",
+            action="admin.create" if action == "created" else "admin.password_reset",
+            target_type="admin_user",
+            target_id=username,
+            detail={"role": role.value},
+        )
         await session.commit()
     await close_db()
     print(f"admin '{username}' {action} (role={role.value})")

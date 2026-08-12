@@ -15,7 +15,8 @@ class RefreshRequest(BaseModel):
 
 
 class LogoutRequest(BaseModel):
-    refresh_token: str | None = None
+    # Required: logout's only effect is revoking the refresh token (docs/03).
+    refresh_token: str = Field(min_length=1)
 
 
 class AdminProfile(BaseModel):
