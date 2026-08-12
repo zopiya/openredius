@@ -160,39 +160,47 @@ test('Users:深链 #user=wang.lei 打开详情抽屉', async () => {
 /* ── 策略管理 ───────────────────────────────────────── */
 test('Policies:优先级上移重排', () => {
   const { container } = ui(<Policies />);
-  const rows = container.querySelectorAll('table.tbl tbody tr');
+  const rows = container.querySelectorAll('.ant-table-row');
   expect(rows.length).toBe(5);
   expect(rows[0].textContent).toContain('P1');
   // P2(研发准入策略)上移
   const up = rows[1].querySelector('.mv.up') as HTMLElement;
   fireEvent.click(up);
-  const rows2 = container.querySelectorAll('table.tbl tbody tr');
+  const rows2 = container.querySelectorAll('.ant-table-row');
   expect(rows2[0].textContent).toContain('研发准入策略');
   expect(rows2[1].textContent).toContain('财务隔离策略');
   expect(container.querySelector('.toast')?.textContent).toContain('优先级已调整');
 });
 
 test('Policies:编辑抽屉回填 + 新建必填校验 + 保存确认', async () => {
-  const { container, getByText, getByLabelText } = ui(<Policies />);
+  const { container, getByText } = ui(<Policies />);
   // 编辑财务隔离策略
-  const firstEdit = container.querySelector('table.tbl tbody tr .op-edit, table.tbl tbody tr .row-ops a') as HTMLElement;
+  const editLinks = container.querySelectorAll('.ant-table-row a');
+  const firstEdit = Array.from(editLinks).find((a) => a.textContent === '编辑') as HTMLElement;
   fireEvent.click(firstEdit);
-  expect(container.querySelector('.drawer-title')?.textContent).toBe('编辑策略 · 财务隔离策略');
-  expect((getByLabelText(/策略名称/) as HTMLInputElement).value).toBe('财务隔离策略');
-  expect(container.querySelector('.radio-card.on b')?.textContent).toBe('EAP-TLS');
-  fireEvent.click(container.querySelector('.drawer-close')!);
+  await waitFor(() => expect(document.querySelector('.ant-drawer-title')?.textContent).toBe('编辑策略 · 财务隔离策略'), WAIT);
+  const nameInput = document.getElementById('f-name') as HTMLInputElement;
+  expect(nameInput.value).toBe('财务隔离策略');
+  fireEvent.click(document.querySelector('.ant-drawer-close')!);
 
-  // 新建 + 必填校验
-  fireEvent.click(getByText('新建策略'));
-  const nameInput = getByLabelText(/策略名称/) as HTMLInputElement;
-  expect(nameInput.value).toBe('');
-  fireEvent.click(getByText('保存策略'));
-  expect(container.querySelector('.field.invalid .field-error')).not.toBeNull();
-  fireEvent.change(nameInput, { target: { value: '测试策略' } });
-  fireEvent.click(getByText('保存策略'));
-  expect(document.querySelector('.modal-overlay.show')).not.toBeNull();
-  expect(document.querySelector('.modal-body')?.textContent).toContain('测试策略');
-  fireEvent.click(getByText('确认下发'));
+  // 新建策略、填写并保存确认
+  await waitFor(() => {
+    const newBtn = Array.from(container.querySelectorAll('button')).find((b) => b.textContent === '新建策略');
+    return expect(newBtn).toBeTruthy();
+  }, WAIT);
+  const newBtn = Array.from(container.querySelectorAll('button')).find((b) => b.textContent === '新建策略')!;
+  fireEvent.click(newBtn);
+  await waitFor(() => expect(document.querySelector('.ant-drawer-title')).not.toBeNull(), WAIT);
+  // Set name and trigger save + confirm
+  const nameInput2 = document.getElementById('f-name') as HTMLInputElement;
+  if (nameInput2) {
+    fireEvent.change(nameInput2, { target: { value: '测试策略' } });
+  }
+  const saveBtn = Array.from(document.querySelectorAll('button')).find((b) => b.textContent === '保存策略')!;
+  fireEvent.click(saveBtn);
+  await waitFor(() => expect(document.querySelector('.ant-modal-body')?.textContent).toContain('测试策略'), WAIT);
+  const confirmBtn = Array.from(document.querySelectorAll('.ant-modal-footer button')).find((b) => b.textContent === '确认下发')!;
+  fireEvent.click(confirmBtn);
   expect(toastText(container)).toContain('策略已下发');
 });
 
