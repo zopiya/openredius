@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Button, Form, Input, Typography, Alert } from 'antd';
+import { Button, Form, Input, Typography, Alert, theme } from 'antd';
 import { UserOutlined, LockOutlined } from '@ant-design/icons';
 import { login } from '../api/auth';
 
 const { Title } = Typography;
 
 export default function Login() {
+  const { token } = theme.useToken();
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
   const nav = useNavigate();
@@ -33,17 +34,17 @@ export default function Login() {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        background: '#f5f5f7',
+        background: token.colorBgLayout,
       }}
     >
       <div
         style={{
           width: 384,
-          background: '#fff',
-          border: '1px solid #e8e8ed',
-          borderRadius: 18,
+          background: token.colorBgContainer,
+          border: `1px solid ${token.colorBorderSecondary}`,
+          borderRadius: token.borderRadiusLG,
           padding: '32px 28px 28px',
-          boxShadow: '0 12px 32px rgba(0,0,0,0.08)',
+          boxShadow: token.boxShadowSecondary,
         }}
       >
         {/* 品牌区 */}
@@ -53,11 +54,10 @@ export default function Login() {
               width: 40,
               height: 40,
               borderRadius: 10,
-              background: '#1d1d1f',
+              background: '#001529',
               color: '#fff',
               display: 'grid',
               placeItems: 'center',
-              fontFamily: '"SF Pro Display", sans-serif',
               fontSize: 18,
               fontWeight: 700,
               margin: '0 auto 12px',
@@ -105,8 +105,8 @@ export default function Login() {
           </Form.Item>
         </Form>
 
-        <div style={{ textAlign: 'center', marginTop: 20, fontSize: 12, color: '#86868b' }}>
-          RADIUS 802.1X 企业内网准入 · v2.4.1
+        <div style={{ textAlign: 'center', marginTop: 20, fontSize: 12 }}>
+          <Typography.Text type="secondary">RADIUS 802.1X 企业内网准入 · v2.4.1</Typography.Text>
         </div>
       </div>
     </div>

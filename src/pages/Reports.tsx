@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Card, Row, Col, Segmented, Button, Typography, Table, Tabs } from 'antd';
+import { Card, Row, Col, Segmented, Button, Typography, Table, Tabs, Flex, Progress, theme } from 'antd';
 import type { ColumnsType } from 'antd/es/table/interface';
 import Shell from '../components/Shell';
 import PageHeader from '../components/PageHeader';
@@ -15,6 +15,7 @@ const { Text } = Typography;
 
 export default function Reports() {
   const toast = useToast();
+  const { token } = theme.useToken();
   const location = useLocation();
   const [period, setPeriod] = useState<Period>('今日');
   const deepLinked = useRef(false);
@@ -40,10 +41,10 @@ export default function Reports() {
 
   const deptCols: ColumnsType<typeof deptRows[number]> = [
     { title: '部门', dataIndex: 'dept', key: 'dept' },
-    { title: '在线 / 账号', dataIndex: 'online', key: 'online', render: (v) => <span style={{ fontFamily: '"SF Mono", monospace', fontSize: '12.5px' }}>{v}</span> },
-    { title: '认证成功', dataIndex: 'ok', key: 'ok', render: (v) => <span style={{ fontFamily: '"SF Mono", monospace', fontSize: '12.5px' }}>{v}</span> },
-    { title: '认证失败', dataIndex: 'fail', key: 'fail', render: (v) => <span style={{ fontFamily: '"SF Mono", monospace', fontSize: '12.5px' }}>{v}</span> },
-    { title: '成功率', dataIndex: 'rate', key: 'rate', render: (v) => <span style={{ fontFamily: '"SF Mono", monospace', fontSize: '12.5px' }}>{v}</span> },
+    { title: '在线 / 账号', dataIndex: 'online', key: 'online', render: (v) => <Typography.Text code>{v}</Typography.Text> },
+    { title: '认证成功', dataIndex: 'ok', key: 'ok', render: (v) => <Typography.Text code>{v}</Typography.Text> },
+    { title: '认证失败', dataIndex: 'fail', key: 'fail', render: (v) => <Typography.Text code>{v}</Typography.Text> },
+    { title: '成功率', dataIndex: 'rate', key: 'rate', render: (v) => <Typography.Text code>{v}</Typography.Text> },
   ];
 
   const deptStats = deptRows.map((r) => ({
@@ -74,7 +75,7 @@ export default function Reports() {
 
       <Row gutter={16}>
         <Col xs={24} lg={12}>
-          <Card data-od-id="fail-dist" title="认证失败原因分布" extra={<Text type="secondary" style={{ fontSize: 12 }}>{data.total}</Text>} style={{ borderRadius: 18, marginBottom: 16 }}>
+          <Card data-od-id="fail-dist" title="认证失败原因分布" extra={<Text type="secondary" style={{ fontSize: 12 }}>{data.total}</Text>} style={{ marginBottom: 16 }}>
             <div style={{ display: 'flex', gap: 18, alignItems: 'center' }}>
               <Donut rows={data.fail} ariaLabel="认证失败原因占比环图" />
               <DonutLegend rows={data.fail} />
@@ -82,19 +83,19 @@ export default function Reports() {
           </Card>
         </Col>
         <Col xs={24} lg={12}>
-          <Card data-od-id="etype-dist" title="终端类型准入情况" extra={<Text type="secondary" style={{ fontSize: 12 }}>在线 1,286 台</Text>} style={{ borderRadius: 18, marginBottom: 16 }}>
+          <Card data-od-id="etype-dist" title="终端类型准入情况" extra={<Text type="secondary" style={{ fontSize: 12 }}>在线 1,286 台</Text>} style={{ marginBottom: 16 }}>
             <div style={{ display: 'flex', gap: 18, alignItems: 'center' }}>
               <Donut rows={etypeRows} ariaLabel="在线终端类型占比环图" />
               <DonutLegend rows={etypeRows} />
             </div>
-            <div style={{ fontSize: 12, color: '#6e6e73', marginTop: 16 }}>哑终端走 MAC 白名单准入,不校验证书;其余均按策略校验。</div>
+            <Typography.Text type="secondary" style={{ display: 'block', marginTop: 16 }}>哑终端走 MAC 白名单准入,不校验证书;其余均按策略校验。</Typography.Text>
           </Card>
         </Col>
       </Row>
 
       <Row gutter={16} style={{ marginTop: 0 }}>
         <Col xs={24} lg={12}>
-          <Card data-od-id="dept-stat" title="部门准入情况" extra={<Link to="/auth-logs" style={{ fontSize: 12 }}>对应日志 →</Link>} style={{ borderRadius: 18, marginBottom: 16 }}>
+          <Card data-od-id="dept-stat" title="部门准入情况" extra={<Link to="/auth-logs" style={{ fontSize: 12 }}>对应日志 →</Link>} style={{ marginBottom: 16 }}>
             <Tabs
               size="small"
               items={[
@@ -105,18 +106,18 @@ export default function Reports() {
           </Card>
         </Col>
         <Col xs={24} lg={12}>
-          <Card data-od-id="load-top" title="设备负载 TOP 6" extra={<Text type="secondary" style={{ fontSize: 12 }}>按当前接入终端 / 容量</Text>} style={{ borderRadius: 18, marginBottom: 16 }}>
+          <Card data-od-id="load-top" title="设备负载 TOP 6" extra={<Text type="secondary" style={{ fontSize: 12 }}>按当前接入终端 / 容量</Text>} style={{ marginBottom: 16 }}>
             {LOAD_TOP.map((r, i) => (
-              <div className="rank-row" key={r.name} style={{ display: 'flex', gap: 10, alignItems: 'center', padding: '9px 0', fontSize: 13, borderTop: i > 0 ? '1px solid #e8e8ed' : 'none' }}>
-                <span style={{ fontFamily: '"SF Mono", monospace', fontSize: 12, color: '#86868b', width: 24 }}>{String(i + 1).padStart(2, '0')}</span>
-                <div style={{ minWidth: 0 }}><b>{r.name}</b> <span style={{ fontFamily: '"SF Mono", monospace', fontSize: '11.5px', color: '#6e6e73' }}>{r.meta}</span></div>
+              <Flex key={r.name} gap={10} align="center" style={{ padding: '9px 0', borderTop: i > 0 ? `1px solid ${token.colorBorderSecondary}` : 'none' }}>
+                <Typography.Text type="secondary" style={{ fontFamily: 'monospace', fontSize: 12, width: 24 }}>{String(i + 1).padStart(2, '0')}</Typography.Text>
+                <div style={{ minWidth: 0 }}><b>{r.name}</b> <Typography.Text type="secondary" style={{ fontFamily: 'monospace', fontSize: 12 }}>{r.meta}</Typography.Text></div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <div style={{ width: 110, height: 6, borderRadius: 3, background: '#f5f5f7', overflow: 'hidden' }}><div style={{ width: r.pct + '%', height: '100%', borderRadius: 3, background: r.danger ? '#dc2626' : '#1d1d1f', opacity: r.danger ? 1 : 0.55 }} /></div>
-                  <span style={{ fontSize: 12, color: '#424245', fontVariantNumeric: 'tabular-nums' }}>{r.label}</span>
+                  <Progress percent={r.pct} showInfo={false} size="small" strokeColor={r.danger ? token.colorError : token.colorText} style={{ width: 110, margin: 0 }} />
+                  <span style={{ fontSize: 12, color: token.colorTextSecondary, fontVariantNumeric: 'tabular-nums' }}>{r.label}</span>
                 </div>
-              </div>
+              </Flex>
             ))}
-            <div style={{ marginTop: 14, fontSize: 12, color: '#6e6e73' }}>AP-4F-007 已连续 3 天超过 85% 负载,建议拆分 SSID 或增补 AP。</div>
+            <Typography.Text type="secondary" style={{ display: 'block', marginTop: 14 }}>AP-4F-007 已连续 3 天超过 85% 负载,建议拆分 SSID 或增补 AP。</Typography.Text>
           </Card>
         </Col>
       </Row>
