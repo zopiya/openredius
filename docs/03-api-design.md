@@ -80,7 +80,7 @@
 
 | 方法 路径 | 说明 |
 |---|---|
-| `GET /api/devices/nas?type=&area=&status=` | `NasRow[]`(状态/负载实时派生) |
+| `GET /api/devices/nas?type=&area=&status=` | `NasRow[]`(状态/负载实时派生;`status` 需 radpostauth/radacct 派生,M6 前参数保留但不生效——M2 注) |
 | `POST /api/devices/nas` / `PATCH /api/devices/nas/{id}` | 增改(写 radius.nas;触发 freeradius 重启流程,返回 `reload_required`) |
 | `DELETE /api/devices/nas/{id}` | 移除客户端(校验无活跃会话) |
 | `GET /api/devices/nas/{id}/secret` | 明文 Secret(强制审计,见 08) |

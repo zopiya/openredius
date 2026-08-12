@@ -40,6 +40,32 @@ async def test_nas_create_update_delete(client, domain, admin_headers):
     assert resp.status_code == 204
 
 
+async def test_nas_filters(client, domain, admin_headers):
+    resp = await client.get("/api/devices/nas?type=switch", headers=admin_headers)
+    assert resp.json()["total"] == 1
+    resp = await client.get("/api/devices/nas?type=ap", headers=admin_headers)
+    assert resp.json()["total"] == 0
+    resp = await client.get("/api/devices/nas?area=3F", headers=admin_headers)
+    assert resp.json()["total"] == 1
+    resp = await client.get("/api/devices/nas?type=bogus", headers=admin_headers)
+    assert resp.status_code == 422
+
+
+async def test_nas_dual_clash_across_rows_409(client, domain, admin_headers):
+    await client.post(
+        "/api/devices/nas",
+        json={"name": "SW-OTHER", "nasname": "10.99.8.8", "secret": "anothersecret"},
+        headers=admin_headers,
+    )
+    # name of device #1 + nasname of device #2
+    resp = await client.post(
+        "/api/devices/nas",
+        json={"name": "SW-3F-01", "nasname": "10.99.8.8", "secret": "yetanother1"},
+        headers=admin_headers,
+    )
+    assert resp.status_code == 409
+
+
 async def test_nas_duplicate_409(client, domain, admin_headers):
     resp = await client.post(
         "/api/devices/nas",
@@ -63,6 +89,17 @@ async def test_nas_secret_reveal_is_audited(client, domain, admin_headers):
     assert len(audit["items"]) == 1
     # audit detail must not contain the plaintext
     assert "testing12345" not in str(audit["items"][0])
+
+
+async def test_endpoint_filters_and_enum_validation(client, domain, admin_headers):
+    resp = await client.get("/api/devices/endpoints?type=laptop", headers=admin_headers)
+    assert [e["mac"] for e in resp.json()["items"]] == ["3C:52:82:1A:4B:01"]
+    resp = await client.get("/api/devices/endpoints?comp=white", headers=admin_headers)
+    assert resp.json()["total"] == 1
+    resp = await client.get("/api/devices/endpoints?type=bogus", headers=admin_headers)
+    assert resp.status_code == 422
+    resp = await client.get("/api/devices/endpoints?comp=bogus", headers=admin_headers)
+    assert resp.status_code == 422
 
 
 async def test_endpoint_create_normalizes_mac(client, domain, admin_headers):

@@ -52,6 +52,13 @@ async def test_create_duplicate_name_or_slug_409(client, domain, admin_headers):
     assert resp.status_code == 409
 
 
+async def test_create_dual_clash_across_rows_409(client, domain, admin_headers):
+    # name matches one existing policy, slug another — must be 409, not 500.
+    payload = dict(_POLICY, vlan_id=domain["vlan10"], name="办公默认策略", slug="rd")
+    resp = await client.post("/api/policies", json=payload, headers=admin_headers)
+    assert resp.status_code == 409
+
+
 async def test_create_unknown_vlan_404(client, domain, admin_headers):
     payload = dict(_POLICY, vlan_id=9999)
     resp = await client.post("/api/policies", json=payload, headers=admin_headers)

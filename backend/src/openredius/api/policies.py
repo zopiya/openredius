@@ -66,9 +66,9 @@ async def _check_name_slug_free(
     stmt = select(PolicyGroup).where((PolicyGroup.name == name) | (PolicyGroup.slug == slug))
     if exclude_id is not None:
         stmt = stmt.where(PolicyGroup.id != exclude_id)
-    clash = (await db.execute(stmt)).scalar_one_or_none()
-    if clash is not None:
-        field = "name" if clash.name == name else "slug"
+    clashes = (await db.execute(stmt)).scalars().all()
+    if clashes:
+        field = "name" if any(c.name == name for c in clashes) else "slug"
         raise ApiError("conflict", f"policy {field} already in use", 409)
 
 

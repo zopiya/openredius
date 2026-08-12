@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -24,7 +24,9 @@ from openredius.models import (
     AdminUser,
     Compliance,
     Endpoint,
+    EndpointType,
     NasDevice,
+    NasType,
 )
 from openredius.schemas.common import Affected
 from openredius.schemas.devices import (
@@ -79,9 +81,9 @@ async def _check_nas_unique(
     stmt = select(NasDevice).where((NasDevice.name == name) | (NasDevice.nasname == nasname))
     if exclude_id is not None:
         stmt = stmt.where(NasDevice.id != exclude_id)
-    clash = (await db.execute(stmt)).scalar_one_or_none()
-    if clash is not None:
-        field = "name" if clash.name == name else "nasname"
+    clashes = (await db.execute(stmt)).scalars().all()
+    if clashes:
+        field = "name" if any(c.name == name for c in clashes) else "nasname"
         raise ApiError("conflict", f"NAS {field} already in use", 409)
 
 
@@ -90,10 +92,20 @@ async def _check_nas_unique(
 
 @router.get("/nas")
 async def list_nas(
+    type: NasType | None = Query(default=None),
+    area: str | None = None,
+    status: str | None = Query(
+        default=None,
+        description="online/offline; derived from radpostauth/radacct in M6, inert in M2",
+    ),
     db: AsyncSession = Depends(get_db),
     _admin: AdminUser = Depends(current_admin),
 ) -> dict:
     stmt = select(NasDevice)
+    if type is not None:
+        stmt = stmt.where(NasDevice.type == type)
+    if area:
+        stmt = stmt.where(NasDevice.area == area)
     total = len((await db.execute(stmt)).scalars().all())
     stmt = apply_sort(stmt, None, _NAS_SORT, "name")
     devices = (await db.execute(stmt)).scalars().all()
@@ -239,17 +251,16 @@ async def _resolve_owner(db: AsyncSession, account: str | None) -> int | None:
 
 @router.get("/endpoints")
 async def list_endpoints(
-    etype: str | None = None,
-    comp: str | None = None,
+    type: EndpointType | None = Query(default=None),
+    comp: Compliance | None = None,
     q: str | None = None,
     db: AsyncSession = Depends(get_db),
     _admin: AdminUser = Depends(current_admin),
 ) -> dict:
-
     stmt = select(Endpoint)
-    if etype:
-        stmt = stmt.where(Endpoint.etype == etype)
-    if comp:
+    if type is not None:
+        stmt = stmt.where(Endpoint.etype == type)
+    if comp is not None:
         stmt = stmt.where(Endpoint.compliance == comp)
     if q:
         stmt = stmt.where(Endpoint.mac.like(f"%{q.upper()}%"))

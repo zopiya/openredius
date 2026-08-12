@@ -5,9 +5,10 @@
 1. **枚举持久化 value 而非 name**:SQLAlchemy `Enum(PyEnum)` 默认存成员名
    (`ACTIVE`),与 02/06 的字面值(`active`、`compliance='bad'`)不一致,会让
    FreeRADIUS 服务端 SQL 看到未文档化的值。新增 `models/base.enum_column`
-   (values_callable)统一存 value;两份迁移的 CHECK 约束同步修正。M1 迁移被修改
-   属例外(通常迁移不可变):项目未上线、仅一次性 dev 库应用过,重建即可,避免
-   留下"约束修复迁移"的长期负担。已在 roadmap M1/M2 记录。
+   (values_callable)统一存 value;两份迁移的枚举值清单同步对齐——
+   native_enum=False 不产生 DB 层 CHECK,属 DDL 无操作(评审实测确认),
+   不影响任何现有库。M1 迁移被修改属例外(通常迁移不可变):项目未上线、
+   仅一次性 dev 库应用过。已在 roadmap M1/M2 记录。
 2. **编译占位**:`services/compiler.compile_policies_placeholder` 在策略
    create/update/toggle/reorder/delete 时写 `policy.compile` 审计行
    (detail.status=placeholder)。真编译 M3。
@@ -30,3 +31,14 @@
   audit 过滤。
 - pytest 89 用例全绿;ruff check/format 干净;bun run verify 前端不回归;
   /api/openapi.json 校验通过。
+
+## 评审后修复(2026-08-12,reviewer 意见)
+
+- W1:重名/重 slug(重 name/nasname)分属不同行时 scalar_one_or_none 抛
+  MultipleResultsFound → 500;改 scalars().all() + 字段判定 → 409。
+- W2:混合分隔符畸形 MAC(如 3c:52-821a.4b01)绕过旧正则;重写 normalize_mac
+  为“分隔符替换后必须恰好 6 个 hex pair 或裸 12 位 hex”。
+- W3:契约对齐 03——endpoints 列表参数改 `type`;nas 列表补 type/area 筛选,
+  status 参数保留但 M6 前不生效(03 内联注记)。
+- nit:枚举筛选值非法统一 422(FastAPI enum 参数);roadmap 措辞修正
+  (CHECK 实为 DDL 无操作;sync-ad 归 M6;用户详情最近认证/下发预览延后 M3/M4)。
