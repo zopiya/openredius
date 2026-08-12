@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { FileSearch } from 'lucide-react';
+import { Table, Select, Button, Space, Modal, Input, Tag, Empty, Skeleton, Result } from 'antd';
+import type { ColumnsType } from 'antd/es/table/interface';
 import Shell from '../components/Shell';
-import Modal from '../components/Modal';
-import { SkeletonTable, EmptyState, ErrorState } from '../components/states';
 import { useToast } from '../components/Toast';
 import { fetchAuthLogs, LOG_FILTER_OPTIONS, type LogRow } from '../api/resources/logs';
 
@@ -23,7 +23,6 @@ const DEFAULT_FILTERS: Filters = {
   eap: '全部',
 };
 
-/** 与原型 auth-logs.html applyFilters 完全一致的匹配规则 */
 function matches(row: LogRow, f: Filters) {
   const kw = f.user.trim().toLowerCase();
   if (kw && `${row.user} ${row.name} ${row.mac}`.toLowerCase().indexOf(kw) < 0) return false;
@@ -47,7 +46,6 @@ export default function AuthLogs() {
   const [prefillNote, setPrefillNote] = useState('');
   const deepLinked = useRef(false);
 
-  /* 数据拉取 */
   useEffect(() => {
     if (view !== 'loading') return;
     let cancelled = false;
@@ -57,7 +55,6 @@ export default function AuthLogs() {
     return () => { cancelled = true; };
   }, [view]);
 
-  /* 深链预填筛选(仪表盘告警 / 用户详情 / 报表跳转):#result=失败&nas=SW-5F-01 */
   useEffect(() => {
     if (deepLinked.current) return;
     deepLinked.current = true;
@@ -87,7 +84,6 @@ export default function AuthLogs() {
     if (needAdv) setAdvOpen(true);
     setPrefillNote('  · 已按链接预填筛选:' + notes.join(' / '));
     toast('已按链接预填筛选条件');
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const visible = useMemo(() => rows.filter((r) => matches(r, applied)), [rows, applied]);
@@ -107,132 +103,267 @@ export default function AuthLogs() {
     }, 450);
   }
 
+  const columns: ColumnsType<LogRow> = [
+    {
+      title: '时间',
+      dataIndex: 'time',
+      key: 'time',
+      width: 80,
+      render: (v) => <span style={{ fontFamily: '"SF Mono", monospace', fontSize: '12.5px' }}>{v}</span>,
+    },
+    {
+      title: '用户名',
+      key: 'user',
+      render: (_v, r) => (
+        <>
+          <b>{r.name}</b>
+          <div style={{ fontSize: '12.5px', color: '#6e6e73', fontFamily: '"SF Mono", monospace' }}>{r.sub}</div>
+        </>
+      ),
+    },
+    {
+      title: '终端 MAC',
+      dataIndex: 'mac',
+      key: 'mac',
+      width: 150,
+      render: (v) => <span style={{ fontFamily: '"SF Mono", monospace', fontSize: '12.5px' }}>{v}</span>,
+    },
+    {
+      title: '接入设备',
+      key: 'nas',
+      render: (_v, r) => (
+        <>
+          {r.nasName}
+          <div style={{ fontSize: '12.5px', color: '#6e6e73', fontFamily: '"SF Mono", monospace' }}>{r.nasSub}</div>
+        </>
+      ),
+    },
+    {
+      title: '认证方式',
+      dataIndex: 'eap',
+      key: 'eap',
+      filters: LOG_FILTER_OPTIONS.eap.filter((e) => e !== '全部').map((e) => ({ text: e, value: e })),
+      onFilter: (value, record) => record.eap === value,
+    },
+    {
+      title: '结果',
+      key: 'result',
+      width: 80,
+      filters: [
+        { text: '成功', value: '成功' },
+        { text: '失败', value: '失败' },
+      ],
+      onFilter: (value, record) => (value === '成功') === (record.reply === 'Access-Accept'),
+      render: (_v, r) => (
+        <Tag color={r.reply === 'Access-Accept' ? 'green' : 'red'}>
+          {r.reply === 'Access-Accept' ? '成功' : '失败'}
+        </Tag>
+      ),
+    },
+    {
+      title: '失败原因',
+      dataIndex: 'reason',
+      key: 'reason',
+      render: (v, r) =>
+        v ? (
+          <Link
+            className={`rtag ${r.rtagClass}`}
+            to={`/reports#reason=${encodeURIComponent(v)}`}
+            title="跳转失败原因聚合分析"
+          >
+            {v}
+          </Link>
+        ) : (
+          '—'
+        ),
+    },
+    {
+      title: '操作',
+      key: 'actions',
+      width: 80,
+      render: (_v, r) => (
+        <a
+          href="#"
+          onClick={(e) => {
+            e.preventDefault();
+            setDetail(r);
+          }}
+        >
+          详情
+        </a>
+      ),
+    },
+  ];
+
   return (
     <Shell page="认证日志">
-      <div className="page-head">
+      {/* 页头 */}
+      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16, marginBottom: 20 }}>
         <div>
-          <h1>认证日志</h1>
-          <div className="page-sub">全量 Access-Request 审计记录 · 保留 180 天 · 失败原因点击可跳转聚合分析{prefillNote}</div>
+          <h1 style={{ margin: 0, fontSize: 24, fontWeight: 600 }}>认证日志</h1>
+          <div style={{ fontSize: 13, color: '#6e6e73', marginTop: 6 }}>
+            全量 Access-Request 审计记录 · 保留 180 天 · 失败原因点击可跳转聚合分析{prefillNote}
+          </div>
         </div>
-        <div className="page-actions">
-          <Link className="btn btn-outline" to="/reports" data-od-id="fail-aggregate">失败原因聚合分析 →</Link>
-          <button className="btn btn-primary" data-od-id="export-btn" onClick={() => toast('已按当前筛选导出 auth-logs-20260727.csv(12,713 条)')}>导出日志</button>
-        </div>
+        <Space>
+          <Link to="/reports" data-od-id="fail-aggregate" style={{ fontSize: 13 }}>失败原因聚合分析 →</Link>
+          <Button type="primary" data-od-id="export-btn" onClick={() => toast('已按当前筛选导出 auth-logs-20260727.csv(12,713 条)')}>
+            导出日志
+          </Button>
+        </Space>
       </div>
 
-      <section className="card" data-od-id="log-card">
-        <div className="filters" data-od-id="log-filters">
-          <div className="f-item"><label htmlFor="time-range">时间范围</label>
-            <select className="sel" id="time-range" value={timeRange} onChange={(e) => setTimeRange(e.target.value)}>
-              {LOG_FILTER_OPTIONS.timeRange.map((o) => <option key={o}>{o}</option>)}
-              <option value="custom">自定义…</option>
-            </select>
+      {/* 主卡片 */}
+      <div
+        data-od-id="log-card"
+        style={{ background: '#fff', border: '1px solid #e8e8ed', borderRadius: 18 }}
+      >
+        {/* 筛选栏 */}
+        <div data-od-id="log-filters" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-end', gap: 12, padding: '14px 20px', borderBottom: '1px solid #e8e8ed' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+            <label htmlFor="time-range" style={{ fontSize: '11.5px', color: '#6e6e73' }}>时间范围</label>
+            <Select
+              id="time-range"
+              value={timeRange}
+              onChange={setTimeRange}
+              options={[...LOG_FILTER_OPTIONS.timeRange.map((o) => ({ label: o, value: o })), { label: '自定义…', value: 'custom' }]}
+              style={{ width: 180 }}
+            />
           </div>
           {timeRange === 'custom' && (
-            <div className="f-item"><label>自定义日期</label>
-              <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <input className="inp" type="date" style={{ width: 148 }} aria-label="开始日期" /> 至 <input className="inp" type="date" style={{ width: 148 }} aria-label="结束日期" />
-              </span>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+              <label style={{ fontSize: '11.5px', color: '#6e6e73' }}>自定义日期</label>
+              <Space>
+                <Input aria-label="开始日期" type="date" style={{ width: 148 }} />
+                <span>至</span>
+                <Input aria-label="结束日期" type="date" style={{ width: 148 }} />
+              </Space>
             </div>
           )}
-          <div className="f-item"><label htmlFor="f-user">用户</label>
-            <input className="inp" type="text" id="f-user" placeholder="账号 / 姓名 / MAC" value={form.user} onChange={(e) => setForm((f) => ({ ...f, user: e.target.value }))} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+            <label htmlFor="f-user" style={{ fontSize: '11.5px', color: '#6e6e73' }}>用户</label>
+            <Input
+              id="f-user"
+              placeholder="账号 / 姓名 / MAC"
+              value={form.user}
+              onChange={(e) => setForm((f) => ({ ...f, user: e.target.value }))}
+              style={{ width: 160 }}
+            />
           </div>
-          <div className="f-item"><label htmlFor="f-result">认证结果</label>
-            <select className="sel" id="f-result" value={form.result} onChange={(e) => setForm((f) => ({ ...f, result: e.target.value }))}>
-              <option>全部</option><option>成功</option><option>失败</option>
-            </select>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+            <label htmlFor="f-result" style={{ fontSize: '11.5px', color: '#6e6e73' }}>认证结果</label>
+            <Select
+              id="f-result"
+              value={form.result}
+              onChange={(v) => setForm((f) => ({ ...f, result: v }))}
+              options={[
+                { label: '全部', value: '全部' },
+                { label: '成功', value: '成功' },
+                { label: '失败', value: '失败' },
+              ]}
+              style={{ width: 100 }}
+            />
           </div>
-          <button className="btn btn-primary btn-sm" style={{ height: 30 }} onClick={() => setApplied(form)}>筛选</button>
-          <button className="btn btn-outline btn-sm" style={{ height: 30 }} onClick={() => resetFilters()}>重置</button>
-          <div className="f-spacer"></div>
-          <button className="btn btn-outline btn-sm" style={{ height: 30 }} aria-expanded={advOpen} data-od-id="adv-toggle" onClick={() => setAdvOpen((o) => !o)}>{advOpen ? '高级筛选 ▴' : '高级筛选 ▾'}</button>
+          <Button type="primary" size="small" onClick={() => setApplied(form)}>筛选</Button>
+          <Button size="small" onClick={() => resetFilters()}>重置</Button>
+          <div style={{ flex: 1 }} />
+          <Button size="small" aria-expanded={advOpen} data-od-id="adv-toggle" onClick={() => setAdvOpen((o) => !o)}>
+            {advOpen ? '高级筛选 ▴' : '高级筛选 ▾'}
+          </Button>
         </div>
+
+        {/* 高级筛选 */}
         {advOpen && (
-          <div className="filters adv" data-od-id="adv-filters">
-            <div className="f-item"><label htmlFor="f-reason">失败原因</label>
-              <select className="sel" id="f-reason" value={form.reason} onChange={(e) => setForm((f) => ({ ...f, reason: e.target.value }))}>
-                {LOG_FILTER_OPTIONS.reason.map((o) => <option key={o}>{o}</option>)}
-              </select>
+          <div data-od-id="adv-filters" className="filters adv" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-end', gap: 12, padding: '14px 20px', borderTop: '1px dashed #e8e8ed', background: '#fbfbfd', borderBottom: 'none' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+              <label htmlFor="f-reason" style={{ fontSize: '11.5px', color: '#6e6e73' }}>失败原因</label>
+              <Select
+                id="f-reason"
+                value={form.reason}
+                onChange={(v) => setForm((f) => ({ ...f, reason: v }))}
+                options={LOG_FILTER_OPTIONS.reason.map((o) => ({ label: o, value: o }))}
+                style={{ width: 140 }}
+              />
             </div>
-            <div className="f-item"><label htmlFor="f-nas">接入设备</label>
-              <select className="sel" id="f-nas" value={form.nas} onChange={(e) => setForm((f) => ({ ...f, nas: e.target.value }))}>
-                {LOG_FILTER_OPTIONS.nas.map((o) => <option key={o}>{o}</option>)}
-              </select>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+              <label htmlFor="f-nas" style={{ fontSize: '11.5px', color: '#6e6e73' }}>接入设备</label>
+              <Select
+                id="f-nas"
+                value={form.nas}
+                onChange={(v) => setForm((f) => ({ ...f, nas: v }))}
+                options={LOG_FILTER_OPTIONS.nas.map((o) => ({ label: o, value: o }))}
+                style={{ width: 150 }}
+              />
             </div>
-            <div className="f-item"><label htmlFor="f-eap">认证方式</label>
-              <select className="sel" id="f-eap" value={form.eap} onChange={(e) => setForm((f) => ({ ...f, eap: e.target.value }))}>
-                {LOG_FILTER_OPTIONS.eap.map((o) => <option key={o}>{o}</option>)}
-              </select>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+              <label htmlFor="f-eap" style={{ fontSize: '11.5px', color: '#6e6e73' }}>认证方式</label>
+              <Select
+                id="f-eap"
+                value={form.eap}
+                onChange={(v) => setForm((f) => ({ ...f, eap: v }))}
+                options={LOG_FILTER_OPTIONS.eap.map((o) => ({ label: o, value: o }))}
+                style={{ width: 130 }}
+              />
             </div>
           </div>
         )}
 
-        <div className="stat-strip">
-          <span>今日共 <b>12,713</b> 条</span>
-          <span>成功 <b style={{ color: 'var(--success)' }}>12,547</b>(98.7%)</span>
-          <span>失败 <b style={{ color: 'var(--danger)' }}>166</b>(1.3%)</span>
-          <span>涉及用户 <b>942</b> · 接入设备 <b>37</b></span>
+        {/* 统计条 */}
+        <div style={{ display: 'flex', gap: 26, flexWrap: 'wrap', padding: '12px 20px', borderBottom: '1px solid #e8e8ed', fontSize: '12.5px', color: '#6e6e73' }}>
+          <span>今日共 <b style={{ color: '#1d1d1f', fontWeight: 600 }}>12,713</b> 条</span>
+          <span>成功 <b style={{ color: '#16a34a' }}>12,547</b>(98.7%)</span>
+          <span>失败 <b style={{ color: '#dc2626' }}>166</b>(1.3%)</span>
+          <span>涉及用户 <b style={{ color: '#1d1d1f', fontWeight: 600 }}>942</b> · 接入设备 <b style={{ color: '#1d1d1f', fontWeight: 600 }}>37</b></span>
         </div>
 
-        <div className="tbl-wrap">
-          {view === 'loading' && <SkeletonTable cols={8} widths={['w-40', 'w-60', 'w-80', 'w-60', 'w-40', 'w-40', 'w-60', '']} />}
-          {view === 'ready' && visible.length > 0 && (
-            <table className="tbl" data-od-id="log-table">
-              <thead>
-                <tr>
-                  <th>时间</th><th>用户名</th><th>终端 MAC</th><th>接入设备</th>
-                  <th>认证方式</th><th>结果</th><th>失败原因</th><th style={{ textAlign: 'right' }}>操作</th>
-                </tr>
-              </thead>
-              <tbody>
-                {visible.map((r) => (
-                  <tr key={r.time + r.user}>
-                    <td className="mono">{r.time}</td>
-                    <td><b>{r.name}</b><span className="sub mono">{r.sub}</span></td>
-                    <td className="mono">{r.mac}</td>
-                    <td>{r.nasName}<span className="sub mono">{r.nasSub}</span></td>
-                    <td>{r.eap}</td>
-                    <td><span className={`badge ${r.reply === 'Access-Accept' ? 'bg-success' : 'bg-danger'}`}>{r.reply === 'Access-Accept' ? '成功' : '失败'}</span></td>
-                    <td>
-                      {r.reason ? (
-                        <Link className={`rtag ${r.rtagClass}`} to={`/reports#reason=${encodeURIComponent(r.reason)}`} title="跳转失败原因聚合分析">{r.reason}</Link>
-                      ) : (
-                        '—'
-                      )}
-                    </td>
-                    <td><div className="row-ops"><a href="#" onClick={(e) => { e.preventDefault(); setDetail(r); }}>详情</a></div></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
-        {view === 'ready' && visible.length === 0 && (
-          <EmptyState
-            icon={FileSearch}
-            title="没有符合条件的认证记录"
-            desc="当前筛选条件下无日志。可放宽时间范围或失败原因筛选;日志保留 180 天。"
-            actionText="清空筛选条件"
-            onAction={() => resetFilters()}
-          />
-        )}
-        {view === 'error' && (
-          <ErrorState
-            title="日志数据加载失败"
-            desc={<>日志存储查询超时(<b>LOG-STORE 504</b>)。180 天归档数据未受影响,请重试。</>}
-            onRetry={retry}
-          />
+        {/* 表格 */}
+        {view === 'loading' && (
+          <div className="tbl-skel" style={{ padding: 40 }}>
+            <Skeleton active paragraph={{ rows: 8 }} />
+          </div>
         )}
         {view === 'ready' && visible.length > 0 && (
-          <div className="stat-strip" style={{ borderTop: '1px solid var(--border-soft)', borderBottom: 'none' }}>
-            <span>本页 <b>{visible.length}</b> 条(筛选实时生效)/ 今日全量 <b>12,713</b> 条</span>
-            <span style={{ marginLeft: 'auto' }}><a href="#" onClick={(e) => e.preventDefault()}>上一页</a> · 第 1 / 1,060 页 · <a href="#" onClick={(e) => e.preventDefault()}>下一页</a></span>
-          </div>
+          <Table
+            className="tbl"
+            rowKey={(r) => r.time + r.user}
+            dataSource={visible}
+            columns={columns}
+            data-od-id="log-table"
+            pagination={{
+              pageSize: 50,
+              showSizeChanger: true,
+              showTotal: (_total, range) => `本页 ${range[0]}-${range[1]} 条 / 今日全量 12,713 条`,
+            }}
+            size="middle"
+          />
         )}
-      </section>
+        {view === 'ready' && visible.length === 0 && (
+          <Empty
+            image={<FileSearch style={{ width: 64, height: 64, color: '#86868b' }} />}
+            description="没有符合条件的认证记录"
+            style={{ padding: '56px 24px' }}
+          >
+            <span style={{ fontSize: 13, color: '#6e6e73' }}>
+              当前筛选条件下无日志。可放宽时间范围或失败原因筛选;日志保留 180 天。
+            </span>
+            <br />
+            <Button style={{ marginTop: 12 }} onClick={() => resetFilters()}>
+              清空筛选条件
+            </Button>
+          </Empty>
+        )}
+        {view === 'error' && (
+          <Result
+            status="error"
+            title="日志数据加载失败"
+            subTitle="日志存储查询超时(LOG-STORE 504)。180 天归档数据未受影响,请重试。"
+            extra={<Button onClick={retry}>重试</Button>}
+          />
+        )}
+      </div>
 
-      <Modal open={!!detail} title="认证详情" width={520} onClose={() => setDetail(null)}>
+      {/* 详情模态 */}
+      <Modal open={!!detail} title="认证详情" width={520} footer={null} onCancel={() => setDetail(null)}>
         {detail && (
           <>
             <dl className="kv">
@@ -243,7 +374,9 @@ export default function AuthLogs() {
               <dt>RADIUS 回应</dt><dd>{detail.reply}</dd>
               <dt>下发 / 返回属性</dt><dd>{detail.attr}</dd>
             </dl>
-            <div style={{ marginTop: 14, fontSize: 12, color: 'var(--muted)' }}>完整报文已归档,可通过导出获取 pcap / JSON 原始记录。</div>
+            <div style={{ marginTop: 14, fontSize: 12, color: '#6e6e73' }}>
+              完整报文已归档,可通过导出获取 pcap / JSON 原始记录。
+            </div>
           </>
         )}
       </Modal>
