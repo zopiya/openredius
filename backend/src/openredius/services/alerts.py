@@ -35,7 +35,11 @@ def _now() -> datetime:
 
 
 async def _rule(db: AsyncSession, key: str) -> AlertRule | None:
-    return (await db.execute(select(AlertRule).where(AlertRule.key == key))).scalar_one_or_none()
+    rule = (await db.execute(select(AlertRule).where(AlertRule.key == key))).scalar_one_or_none()
+    # Rules default to enabled if they don't exist yet (first-run tolerance).
+    if rule is not None and not rule.enabled:
+        return None
+    return rule
 
 
 async def _recently_alerted(db: AsyncSession, rule_key: str, link: str, window_s: int) -> bool:

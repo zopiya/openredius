@@ -10,6 +10,27 @@ from pydantic import BaseModel, Field
 from openredius.models import UserSource, UserStatus
 
 
+class AdSyncResult(BaseModel):
+    """Immediate response from POST /api/users/sync-ad."""
+
+    triggered: bool
+    message: str
+
+
+class AdSyncJobOut(BaseModel):
+    """Single AD sync job record."""
+
+    id: int
+    triggered_by: str
+    started_at: datetime
+    finished_at: datetime | None
+    status: str
+    added: int
+    updated: int
+    disabled: int
+    error: str | None
+
+
 class UserOut(BaseModel):
     id: int
     account: str

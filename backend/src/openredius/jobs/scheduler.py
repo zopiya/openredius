@@ -41,4 +41,38 @@ def build_scheduler(settings: Settings) -> AsyncIOScheduler | None:
     ]
     for name, fn, interval in jobs:
         scheduler.add_job(_run, "interval", seconds=interval, args=[name, fn, settings], id=name)
+
+    # AD sync via cron expression (default: every 15 min).
+    try:
+        if settings.ad_url:
+            scheduler.add_job(
+                _run_ad_sync_cron,
+                "cron",
+                id="ad_sync",
+                minute="*/15",
+                args=[settings],
+            )
+    except Exception:
+        logger.exception("failed to schedule ad_sync cron")
+
     return scheduler
+
+
+async def _run_ad_sync_cron(settings: Settings) -> None:
+    """AD sync — cron-scheduled handler (same as manual but with actor=system)."""
+    from openredius.ldap_sync import run_ad_sync
+    from openredius.ldap_sync.ldap3_ import Ldap3ConnectorCtor
+    from openredius.models import SyncTrigger
+
+    factory = get_session_factory()
+    ctor = Ldap3ConnectorCtor()
+    connector = await ctor(settings.ad_url, settings.ad_bind_dn, settings.ad_bind_pw)
+    try:
+        async with factory() as db:
+            await run_ad_sync(db, settings, connector, triggered_by=SyncTrigger.CRON)
+            await db.commit()
+        logger.info("job ad_sync done")
+    except Exception:
+        logger.exception("job ad_sync failed")
+    finally:
+        await connector.close()
