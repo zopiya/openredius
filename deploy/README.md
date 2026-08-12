@@ -1,8 +1,8 @@
 # deploy/ · 部署目录(Docker / compose)
 
-本目录承载 OpenRedius 的部署形态,当前仅为占位骨架,按里程碑逐步落地:
-dev compose(M3)→ prod compose 与镜像(M7)。设计全文见
-[docs/07-deployment.md](../docs/07-deployment.md)。
+本目录承载 OpenRedius 的部署形态,按里程碑逐步落地:
+dev compose(M1:postgres;M3 增加 freeradius)→ prod compose 与镜像(M7)。
+设计全文见 [docs/07-deployment.md](../docs/07-deployment.md)。
 
 > **栈集成环境:GitHub Codespaces**(经 `gh`/SSH 直连;`.devcontainer/` 声明式配置
 > 暂时回退,见 ADR-0007「更新」)。M3 起手工在 Codespace 内装好 docker 依赖后,
@@ -14,10 +14,10 @@ dev compose(M3)→ prod compose 与镜像(M7)。设计全文见
 ```
 deploy/
 ├── docker-compose.yml          # 生产形态(postgres/freeradius/backend/frontend 四服务)
-├── docker-compose.dev.yml      # 开发依赖(postgres + freeradius),M3 落地
+├── docker-compose.dev.yml      # 开发依赖(postgres,M1 落地;freeradius 由 M3 增加)
 ├── .env.example                # 部署变量模板,随 compose 落地(M3/M7)
 ├── postgres/
-│   └── init/                   # 01-schema.sql(radius schema + 官方表)02-roles.sql(双角色)
+│   └── init/                   # 01-init.sh(radius schema + 官方表 + 双角色)+ schema.sql
 ├── freeradius/
 │   ├── Dockerfile + entrypoint.sh(envsubst 注入配置)
 │   ├── raddb/                  # mods-available/sql、sites-enabled/default、policy.d/

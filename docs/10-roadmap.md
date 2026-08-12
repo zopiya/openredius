@@ -8,7 +8,7 @@
 | 里程碑 | 名称 | 状态 | 完成日期 |
 |---|---|---|---|
 | M0 | 仓库基线与工程脚手架 | ✅ | 2026-08-06 |
-| M1 | 后端骨架与基础设施 | ⬜ | — |
+| M1 | 后端骨架与基础设施 | ✅ | 2026-08-12 |
 | M2 | 领域模型与 CRUD API | ⬜ | — |
 | M3 | FreeRADIUS 集成 | ⬜ | — |
 | M4 | 会话/日志/报表/仪表盘数据面 | ⬜ | — |
@@ -35,6 +35,9 @@
 - [x] ~~`.devcontainer/`:GitHub Codespaces 开发环境~~(2026-08-12 引入后当天回退,
       实测影响 `gh`/SSH 直连 Codespace 的日常使用方式;核心决定不变,见
       ADR-0007「更新」;重新设计后再引入)
+- [x] 保真审计脚本可移植性修复:原型 HTML 路径硬编码在设计机 macOS 目录,导致
+      CI/Codespace 上 `bun run verify` 恒失败;2026-08-12 改为缺失时告警跳过,
+      支持 `OPENRADIUS_PROTO_DIR` 指向原型副本(见 09)
 
 **验收**:
 
@@ -53,18 +56,18 @@ git status          # 干净
 
 **任务**:
 
-- [ ] `backend/` uv 项目(pyproject,依赖见 04 基线),src 布局 `openredius` 包
-- [ ] FastAPI app 工厂、`/api/health`、JSON 日志、request_id、异常处理(03 错误体)
-- [ ] pydantic-settings 配置(04 表);prod 模式强校验
-- [ ] SQLAlchemy async engine + Alembic(仅 public schema)
-- [ ] `admin_user` 模型 + 迁移;argon2 哈希;JWT login/refresh/logout/me(03)
-- [ ] `require_role` 守卫;审计日志模型与中间件钩子(M2 全面启用)
-- [ ] `deploy/docker-compose.dev.yml` + `deploy/postgres/init/`(radius schema + 官方
+- [x] `backend/` uv 项目(pyproject,依赖见 04 基线),src 布局 `openredius` 包(2026-08-12 完成)
+- [x] FastAPI app 工厂、`/api/health`、JSON 日志、request_id、异常处理(03 错误体)(2026-08-12 完成)
+- [x] pydantic-settings 配置(04 表);prod 模式强校验(2026-08-12 完成)
+- [x] SQLAlchemy async engine + Alembic(仅 public schema)(2026-08-12 完成)
+- [x] `admin_user` 模型 + 迁移;argon2 哈希;JWT login/refresh/logout/me(03)(2026-08-12 完成)
+- [x] `require_role` 守卫;审计日志模型与中间件钩子(M2 全面启用)(2026-08-12 完成)
+- [x] `deploy/docker-compose.dev.yml` + `deploy/postgres/init/`(radius schema + 官方
       schema.sql + 双角色,见 06)——**Codespaces 栈集成用**(docker-in-docker,
-      ADR-0007),本地纯 SQLite 开发不依赖
-- [ ] `scripts/create_admin.py`、bootstrap 管理员逻辑
-- [ ] pytest 骨架:health/login/refresh/角色守卫用例
-- [ ] CI backend job 生效(uv sync + ruff + pytest)
+      ADR-0007),本地纯 SQLite 开发不依赖(2026-08-12 完成)
+- [x] `scripts/create_admin.py`、bootstrap 管理员逻辑(2026-08-12 完成)
+- [x] pytest 骨架:health/login/refresh/角色守卫用例(2026-08-12 完成,31 用例)
+- [x] CI backend job 生效(uv sync + ruff + pytest)(2026-08-12 完成)
 
 **验收**:
 

@@ -2,7 +2,7 @@
  * 保真度审计:原型静态 HTML 与 React 运行时渲染(真实挂载、骨架加载完成后)对比。
  * 规则见脚本内 allowlist / markers 注释;多变体挂载(如设备页双 Tab)结果取并集。
  */
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { GlobalRegistrator } from '@happy-dom/global-registrator';
 
 GlobalRegistrator.register();
@@ -23,7 +23,16 @@ import Reports from '../src/pages/Reports';
 import Settings from '../src/pages/Settings';
 
 const OD =
+  process.env.OPENRADIUS_PROTO_DIR ??
   '/Users/zopiya/Library/Application Support/Open Design/namespaces/release-stable/data/projects/9a01259b-d4ce-4246-99c0-9fa84278542e';
+
+// 原型静态 HTML 仅存在于设计机(或经 OPENRADIUS_PROTO_DIR 指定的副本);缺失时
+// 审计无法运行——打印告警并跳过,而非崩溃阻断整个 verify(CI 与 Codespace 无原型)。
+if (!existsSync(OD)) {
+  console.warn(`[fidelity] SKIP: prototype dir not found: ${OD}`);
+  console.warn('[fidelity] set OPENRADIUS_PROTO_DIR to a prototype copy to enable the audit');
+  process.exit(0);
+}
 
 /** 原型 JS 钩子类 + 条件渲染(骨架/空态/错误态/抽屉内/明文密钥)才出现的类 */
 const CLASS_ALLOWLIST = new Set([

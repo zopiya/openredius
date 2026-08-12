@@ -24,12 +24,31 @@ jobs:
       - name: Verify
         run: bun run verify
 
-  # backend job:占位,M1(后端骨架与基础设施)起启用。
-  # 届时步骤:astral-sh/setup-uv → uv sync → ruff check/format → uv run pytest -q
-  # (见 docs/09-testing-quality.md「命令清单 · 后端」与 docs/10-roadmap.md M1)。
+  # backend job:M1(后端骨架与基础设施)起启用。
+  # 见 docs/09-testing-quality.md「命令清单 · 后端」与 docs/10-roadmap.md M1。
   backend:
-    name: Backend (placeholder, enabled from M1)
+    name: Backend (uv + ruff + pytest)
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
     steps:
-      - name: Placeholder
-        run: echo "backend job placeholder — enabled from M1 (docs/10-roadmap.md)"
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Ruff check
+        run: uv run ruff check .
+
+      - name: Ruff format check
+        run: uv run ruff format --check .
+
+      - name: Test
+        run: uv run pytest -q

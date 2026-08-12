@@ -12,7 +12,11 @@ coverage
 # Python 后端(uv + pytest)
 backend/.venv
 backend/.pytest_cache
+backend/.ruff_cache
 *.pyc
+
+# 本项目 Node 依赖统一用 bun(bun.lock);npm 锁文件不入库
+package-lock.json
 
 # 部署备份产物
 deploy/backups
