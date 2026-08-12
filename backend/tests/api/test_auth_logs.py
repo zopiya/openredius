@@ -68,6 +68,21 @@ async def test_filters(client: AsyncClient, logs):
     assert resp.status_code == 422
 
 
+async def test_reason_account_disabled(client: AsyncClient, logs):
+    # review W1: reason=account-disabled rows must be filterable and must not
+    # leak into the "other" bucket.
+    await insert_postauth(
+        username="zhou.ting",
+        reply="Access-Reject",
+        class_value="reason=account-disabled",
+        minutes_ago=1,
+    )
+    resp = await client.get("/api/auth-logs?reason=账号已停用", headers=logs)
+    assert resp.json()["total"] == 1
+    resp = await client.get("/api/auth-logs?reason=other", headers=logs)
+    assert resp.json()["total"] == 1  # still only the classless "ghost" reject
+
+
 async def test_time_range_filter(client: AsyncClient, logs):
     now = datetime.now(UTC)
     past = (now.replace(tzinfo=None) - timedelta(minutes=2.5)).isoformat()

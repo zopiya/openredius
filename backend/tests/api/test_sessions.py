@@ -119,6 +119,15 @@ async def test_disconnect_requires_confirm(client: AsyncClient, seeded):
     assert resp.status_code == 422
 
 
+async def test_disconnect_batch_capped(client: AsyncClient, seeded):
+    resp = await client.post(
+        "/api/sessions/disconnect",
+        headers=seeded,
+        json={"session_ids": [f"U-{i:04d}" for i in range(51)], "confirm": True},
+    )
+    assert resp.status_code == 422
+
+
 async def test_disconnect_ack_fallback_close(client: AsyncClient, seeded, monkeypatch):
     async def fake_coa(**kwargs):
         return CoaOutcome(status="ack")

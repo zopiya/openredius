@@ -13,6 +13,7 @@ from dataclasses import dataclass
 # key -> (Chinese label, badge tone); order doubles as documentation order.
 REASON_CLASSES: dict[str, tuple[str, str]] = {
     "account-locked": ("账号锁定", "warn"),
+    "account-disabled": ("账号已停用", "warn"),
     "cert-expired": ("证书过期", "danger"),
     "mac-unbound": ("MAC 未绑定", "warn"),
     "bad-password": ("密码错误", "danger"),

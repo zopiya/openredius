@@ -101,6 +101,32 @@ async def test_lockout_ignores_policy_rejects(db, job_settings):
     assert stats["locked"] == 0
 
 
+async def test_lockout_skips_disabled_users(db, job_settings):
+    """Only ACTIVE accounts transition to locked (review W3): a disabled
+    account must never be locked (and later auto-resurrected to active)."""
+    await create_radius_tables()
+    async with get_session_factory()() as session:
+        session.add(
+            AccessUser(
+                account="disabled.user",
+                name="停用",
+                dept="x",
+                status=UserStatus.DISABLED,
+            )
+        )
+        await session.commit()
+    for i in range(5):
+        await insert_postauth(username="disabled.user", reply="Access-Reject", minutes_ago=i)
+    stats = await alerts.lockout_sweeper(db, job_settings)
+    await db.commit()
+    assert stats["locked"] == 0
+    async with get_session_factory()() as session:
+        user = (
+            await session.execute(select(AccessUser).where(AccessUser.account == "disabled.user"))
+        ).scalar_one()
+        assert user.status == UserStatus.DISABLED
+
+
 async def test_lockout_unlocks_expired(db, job_settings):
     await create_radius_tables()
     async with get_session_factory()() as session:

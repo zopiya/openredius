@@ -138,6 +138,10 @@ post-auth 各阶段加入 `sql`,authenticate 启用 eap。
   Disconnect 三路径(ACK/NAK+Error-Cause/timeout)对 `coa_sink.py` 实测通过。
 - **`coa_sink.py` 回包须设 reply.source/fd**:`SendReplyPacket` 用回包自身的
   `.source` 寻址,`CreateReply()` 不拷贝,漏设则进程在首个请求后崩溃。
+- **Disconnect ACK 丢失边角(RFC 5176 固有)**:首发包已被 NAS 执行但 ACK 丢失
+  时,重试包会收到 NAK 405(session-context-not-found),API 记为 failed;会话
+  实际已断,radacct 由后续 Accounting-Stop 收敛。客户端共发 2 包(pyrad
+  retries=1 为单次尝试 + 外层 1 次)。
 
 ## 失败原因 Class 约定(与 02 归类一致)
 
@@ -145,10 +149,13 @@ post-auth 各阶段加入 `sql`,authenticate 启用 eap。
 |---|---|
 | 账号锁定 | 编译器写 radreply:`Class = "reason=account-locked"`, `Reply-Message = "Account locked (…)"` |
 | MAC 未绑定 / 时间策略 / 不合规 / 证书过期 | unlang 拒绝路径设置 |
-| 密码错误 | FreeRADIUS 原生拒绝;后端按 Reply-Message 正则归类 |
+| 密码错误 | FreeRADIUS 原生拒绝(EAP 层),无 Class → 归类"其他"(见下注) |
 | Accept | Class 可携带策略快照(可选) |
 
-radpostauth 的 `class` 列默认记录 `%{reply:Class}`(v3.2 post-auth 查询已含),无需改表。
+radpostauth 的 `class` 列记录 `%{reply:OpenRedius-Deny-Reason}`(M3 sed 补丁);
+M4 起 postauth_query 扩采 callingstationid/nasipaddress(schema 补列)。
+注:radpostauth 不落 Reply-Message 列,归类器运行时仅以 Class 为来源——无
+Class 的原生拒绝计入"其他";归类器的 Reply-Message 正则回退为未来扩展保留。
 
 ## EAP 与证书(dev)
 

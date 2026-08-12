@@ -183,7 +183,6 @@ async def list_sessions(
         {
             "start": _radacct(db).c.acctstarttime,
             "user": _radacct(db).c.username,
-            "duration": _radacct(db).c.acctstarttime,
         },
         default="-start",
     )

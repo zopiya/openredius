@@ -44,7 +44,8 @@ class DisconnectFailure(BaseModel):
 
 
 class DisconnectRequest(BaseModel):
-    session_ids: list[str]
+    # Capped so the serial DB-close phase stays inside proxy timeouts (docs/04).
+    session_ids: list[str] = Field(min_length=1, max_length=50)
     confirm: bool = False
 
 

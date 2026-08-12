@@ -10,6 +10,7 @@ from openredius.core.db import get_db
 from openredius.core.deps import get_app_settings, require_role
 from openredius.core.errors import ApiError
 from openredius.models import AdminRole, AdminUser
+from openredius.services import audit
 from openredius.services import dashboard as svc
 
 router = APIRouter()
@@ -68,5 +69,9 @@ async def read_alert(
     event = await svc.mark_alert_read(db, alert_id)
     if event is None:
         raise ApiError("alert_not_found", f"alert {alert_id} not found", 404)
+    await audit.record_audit(
+        db, actor=_admin.username, action="alert.read", target_type="alert_event",
+        target_id=str(event.id),
+    )
     await db.commit()
     return {"id": event.id, "read_at": event.read_at}

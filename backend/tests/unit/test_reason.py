@@ -36,8 +36,17 @@ def test_other_bucket():
     assert classify_reason(None).label == "其他"
 
 
+def test_account_disabled_bucket():
+    # Compiler writes reason=account-disabled for disabled users (M2) — must
+    # classify into its own bucket, not fall through to "other" (review W1).
+    r = classify_reason("reason=account-disabled")
+    assert r.key == "account-disabled"
+    assert r.label == "账号已停用"
+
+
 def test_reason_param_normalization():
     assert reason_key_from_param("账号锁定") == "account-locked"
+    assert reason_key_from_param("账号已停用") == "account-disabled"
     assert reason_key_from_param("account-locked") == "account-locked"
     assert reason_key_from_param("其他") == "other"
     assert reason_key_from_param("unknown-thing") is None

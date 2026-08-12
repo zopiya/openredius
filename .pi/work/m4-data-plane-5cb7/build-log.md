@@ -42,3 +42,15 @@ uv run pytest -q               # 146 passed, 9 deselected
 uv run pytest -m integration -q  # 9 passed(场景 9–13)
 curl /api/dashboard/kpis /api/sessions /api/auth-logs?reason=账号锁定  # 形状符合 03
 ```
+
+## 评审后修复(2026-08-12,reviewer 意见)
+
+- W1 归类器增 account-disabled 桶(账号已停用),消除"显示其他但过滤不可见"
+  的口径黑洞;02 归类表同步。
+- W2 文档对齐:radpostauth 不落 Reply-Message,归类运行时仅 Class;02/06
+  改为"正则回退为未来扩展保留",原生拒绝计其他(不再承诺密码错误归类)。
+- W3 lockout 仅作用于 ACTIVE 账号(DISABLED 不再被锁→解锁"复活")。
+- W4 06 记录 RFC 5176 ACK 丢失边角(重试 NAK 405 记 failed,会话实际已断)。
+- nit:disconnect 批量上限 50(串行关账防代理超时)、去掉误导性 duration
+  排序别名、alerts read 补审计、06 修正 class 列旧描述。
+- 复验:pytest 150 + integration 9 全绿,ruff 干净;bun verify 21 绿。

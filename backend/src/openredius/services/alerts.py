@@ -209,7 +209,9 @@ async def lockout_sweeper(db: AsyncSession, settings: Settings) -> dict[str, int
             user = (
                 await db.execute(select(AccessUser).where(AccessUser.account == username))
             ).scalar_one_or_none()
-            if user is None or user.status == UserStatus.LOCKED:
+            # Only ACTIVE accounts transition to locked (docs/02 状态机):
+            # DISABLED stays disabled, LOCKED is already handled.
+            if user is None or user.status != UserStatus.ACTIVE:
                 continue
             user.status = UserStatus.LOCKED
             user.locked_until = now + timedelta(seconds=settings.lockout_duration)
