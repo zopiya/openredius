@@ -1,0 +1,33 @@
+# OpenRedius dev stack — Codespaces 栈集成用(docker-in-docker,ADR-0007)。
+# M1:仅 postgres;freeradius 服务由 M3 增加。本地纯 SQLite 开发不依赖本文件。
+#
+#   docker compose -f deploy/docker-compose.dev.yml up -d
+#   docker compose -f deploy/docker-compose.dev.yml ps   # 全部 healthy
+#
+# 口令来自 deploy/.env(或环境),缺省为 dev 默认值(见仓库根 .env.example)。
+
+name: openredius-dev
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: openredius
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-dev-only-postgres-password}
+      # 透传给 init 脚本(创建 openredius / radius 两个应用角色)
+      OPENRADIUS_DB_PASSWORD: ${OPENRADIUS_DB_PASSWORD:-dev-only-openredius-password}
+      RADIUS_SQL_PASSWORD: ${RADIUS_SQL_PASSWORD:-dev-only-radius-sql-password}
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./postgres/init:/docker-entrypoint-initdb.d:ro
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d openredius"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+volumes:
+  postgres-data:
