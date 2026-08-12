@@ -86,9 +86,12 @@ async def export_audit_csv(
         detail_esc = (r.detail_json or "").replace('"', '""')
         # Use RFC 4180 quoting for detail (may contain commas).
         lines.append(
-            f'{r.id},{r.action},{r.actor},{r.target_type or ""},{r.target_id or ""},'
+            f"{r.id},{r.action},{r.actor},{r.target_type or ''},{r.target_id or ''},"
             f'"{detail_esc}",{r.ip or ""},{r.created_at.isoformat() if r.created_at else ""}'
         )
     filename = f"audit-{datetime.now(UTC).strftime('%Y%m%d')}.csv"
-    return Response("\n".join(lines), media_type="text/csv",
-                    headers={"Content-Disposition": f"attachment; filename={filename}"})
+    return Response(
+        "\n".join(lines),
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )

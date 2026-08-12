@@ -335,45 +335,57 @@ async def user_compiled_rules(db: AsyncSession, account: str) -> list[str]:
     user_attrs: list[str] = []
 
     # Per-user overrides (radcheck + radreply)
-    rows = (await db.execute(
-        select(radcheck.c.attribute, radcheck.c.op, radcheck.c.value)
-        .where(radcheck.c.username == account)
-    )).all()
+    rows = (
+        await db.execute(
+            select(radcheck.c.attribute, radcheck.c.op, radcheck.c.value).where(
+                radcheck.c.username == account
+            )
+        )
+    ).all()
     for row in rows:
         if row.op == ":=":
             user_attrs.append(f"{row.attribute} = {row.value}")
         else:
             user_attrs.append(f"{row.attribute} {row.op} {row.value}")
 
-    rows = (await db.execute(
-        select(radreply.c.attribute, radreply.c.op, radreply.c.value)
-        .where(radreply.c.username == account)
-    )).all()
+    rows = (
+        await db.execute(
+            select(radreply.c.attribute, radreply.c.op, radreply.c.value).where(
+                radreply.c.username == account
+            )
+        )
+    ).all()
     for row in rows:
         user_attrs.append(f"{row.attribute} = {row.value}")
 
     # Group-level rules via policy assignment
-    grp_rows = (await db.execute(
-        select(radusergroup.c.groupname)
-        .where(radusergroup.c.username == account)
-    )).all()
+    grp_rows = (
+        await db.execute(select(radusergroup.c.groupname).where(radusergroup.c.username == account))
+    ).all()
     group_names = [r.groupname for r in grp_rows]
 
     if group_names:
-        rows = (await db.execute(
-            select(radgroupreply.c.attribute, radgroupreply.c.op, radgroupreply.c.value)
-            .where(radgroupreply.c.groupname.in_(group_names))
-        )).all()
+        rows = (
+            await db.execute(
+                select(radgroupreply.c.attribute, radgroupreply.c.op, radgroupreply.c.value).where(
+                    radgroupreply.c.groupname.in_(group_names)
+                )
+            )
+        ).all()
         for row in rows:
             desc = _REGELD_DESC.get(row.attribute, "{attribute} = {value}").format(
-                value=row.value, attribute=row.attribute,
+                value=row.value,
+                attribute=row.attribute,
             )
             user_attrs.append(desc)
 
-        rows = (await db.execute(
-            select(radgroupcheck.c.attribute, radgroupcheck.c.op, radgroupcheck.c.value)
-            .where(radgroupcheck.c.groupname.in_(group_names))
-        )).all()
+        rows = (
+            await db.execute(
+                select(radgroupcheck.c.attribute, radgroupcheck.c.op, radgroupcheck.c.value).where(
+                    radgroupcheck.c.groupname.in_(group_names)
+                )
+            )
+        ).all()
         for row in rows:
             user_attrs.append(f"{row.attribute} {row.op} {row.value}")
 

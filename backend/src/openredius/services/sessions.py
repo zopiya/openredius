@@ -366,7 +366,9 @@ async def nas_ssids(db: AsyncSession, nasname: str) -> list[dict]:
         .join(Vlan, Vlan.id == PolicyGroup.vlan_id, isouter=True)
         .where(radacct.c.acctstoptime.is_(None), nas_ip_col == nasname)
         .group_by(
-            radacct.c.calledstationid, PolicyGroup.eap_method, Vlan.vid,
+            radacct.c.calledstationid,
+            PolicyGroup.eap_method,
+            Vlan.vid,
         )
         .order_by(func.count().desc())
     )
