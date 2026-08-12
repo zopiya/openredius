@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Anchor, Card, Input, Select, Switch, Checkbox, Button, Space, Table, Modal, Typography, Tag, Radio } from 'antd';
+import { Anchor, Card, Input, Select, Switch, Checkbox, Button, Space, Table, Modal, Typography, Tag, Radio, Descriptions, theme } from 'antd';
 import type { ColumnsType } from 'antd/es/table/interface';
 import Shell from '../components/Shell';
 import PageHeader from '../components/PageHeader';
@@ -28,6 +28,7 @@ function portOk(v: string) { return /^\d{1,5}$/.test(v.trim()) && +v.trim() >= 1
 
 export default function Settings() {
   const toast = useToast();
+  const { token } = theme.useToken();
   const [authPort, setAuthPort] = useState('1812');
   const [acctPort, setAcctPort] = useState('1813');
   const origPorts = useRef({ auth: '1812', acct: '1813' });
@@ -70,7 +71,7 @@ export default function Settings() {
         <Anchor data-od-id="settings-subnav" items={anchorItems} style={{ position: 'sticky', top: 80 }} />
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           {/* RADIUS */}
-          <Card id="set-radius" data-od-id="set-radius" title="RADIUS 服务参数" extra={<Tag color="orange">含核心端口 · 改动需二次确认</Tag>} style={{ borderRadius: 18 }}>
+          <Card id="set-radius" data-od-id="set-radius" title="RADIUS 服务参数" extra={<Tag color="orange">含核心端口 · 改动需二次确认</Tag>}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px 20px' }}>
               <div>
                 <label htmlFor="r-auth-port" style={{ display: 'block', marginBottom: 6, fontSize: '12.5px', fontWeight: 500 }}>认证端口(UDP)*</label>
@@ -91,14 +92,19 @@ export default function Settings() {
           </Card>
 
           {/* 证书 */}
-          <Card id="set-cert" data-od-id="set-cert" title="证书管理" extra={<Tag color="green">CA 有效</Tag>} style={{ borderRadius: 18 }}>
+          <Card id="set-cert" data-od-id="set-cert" title="证书管理" extra={<Tag color="green">CA 有效</Tag>}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px 20px' }}>
               <div style={{ gridColumn: 'span 2' }}>
                 <Text strong>企业 CA 证书</Text>
-                <dl className="kv" style={{ rowGap: 5, marginTop: 6 }}>
-                  <dt>颁发者</dt><dd>CN=Corp Root CA 2024, O=Example Inc.</dd>
-                  <dt>有效期</dt><dd>2024-01-01 至 2034-01-01(剩余 8.4 年)</dd>
-                </dl>
+                <Descriptions
+                  column={1}
+                  size="small"
+                  items={[
+                    { key: 'issuer', label: '颁发者', children: 'CN=Corp Root CA 2024, O=Example Inc.' },
+                    { key: 'valid', label: '有效期', children: '2024-01-01 至 2034-01-01(剩余 8.4 年)' },
+                  ]}
+                  style={{ marginTop: 6 }}
+                />
                 <Space style={{ marginTop: 10 }}><Button onClick={() => toast('「CA 证书更新申请」已提交')}>上传新 CA 证书</Button><Button onClick={() => toast('CRL(吊销列表)已开始下载,共 23 条记录')}>下载 CRL</Button></Space>
               </div>
               <div><label style={{ display: 'block', marginBottom: 6, fontSize: '12.5px', fontWeight: 500 }}>终端证书有效期</label><Select defaultValue="365 天" options={['180 天','365 天','730 天'].map((o) => ({ label: o, value: o }))} style={{ width: '100%' }} /></div>
@@ -109,7 +115,7 @@ export default function Settings() {
           </Card>
 
           {/* AD/LDAP */}
-          <Card id="set-ldap" data-od-id="set-ldap" title="AD / LDAP 对接" extra={<Tag color="green">已连接</Tag>} style={{ borderRadius: 18 }}>
+          <Card id="set-ldap" data-od-id="set-ldap" title="AD / LDAP 对接" extra={<Tag color="green">已连接</Tag>}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px 20px' }}>
               <div><label style={{ display: 'block', marginBottom: 6, fontSize: '12.5px', fontWeight: 500 }}>服务器地址</label><Input defaultValue="ldaps://dc01.corp.example.com:636" /></div>
               <div><label style={{ display: 'block', marginBottom: 6, fontSize: '12.5px', fontWeight: 500 }}>Base DN</label><Input defaultValue="OU=Employees,DC=corp,DC=example,DC=com" /></div>
@@ -117,16 +123,23 @@ export default function Settings() {
               <div><label style={{ display: 'block', marginBottom: 6, fontSize: '12.5px', fontWeight: 500 }}>同步周期</label><Select defaultValue="60 分钟" options={['15 分钟','60 分钟','6 小时','每日 02:00'].map((o) => ({ label: o, value: o }))} style={{ width: '100%' }} /></div>
               <div style={{ gridColumn: 'span 2' }}>
                 <Text strong>字段映射</Text>
-                <table className="tbl map-tbl" style={{ marginTop: 8, width: '100%' }}>
-                  <thead><tr><th>AD 属性</th><th>本系统字段</th></tr></thead>
-                  <tbody>
-                    <tr><td className="mono">sAMAccountName</td><td>登录账号</td></tr>
-                    <tr><td className="mono">displayName</td><td>姓名</td></tr>
-                    <tr><td className="mono">department</td><td>所属部门</td></tr>
-                    <tr><td className="mono">mail</td><td>通知邮箱</td></tr>
-                    <tr><td className="mono">userAccountControl</td><td>停用状态</td></tr>
-                  </tbody>
-                </table>
+                <Table
+                  rowKey="ad"
+                  size="small"
+                  pagination={false}
+                  style={{ marginTop: 8 }}
+                  dataSource={[
+                    { ad: 'sAMAccountName', field: '登录账号' },
+                    { ad: 'displayName', field: '姓名' },
+                    { ad: 'department', field: '所属部门' },
+                    { ad: 'mail', field: '通知邮箱' },
+                    { ad: 'userAccountControl', field: '停用状态' },
+                  ]}
+                  columns={[
+                    { title: 'AD 属性', dataIndex: 'ad', key: 'ad', render: (v: string) => <Typography.Text code>{v}</Typography.Text> },
+                    { title: '本系统字段', dataIndex: 'field', key: 'field' },
+                  ]}
+                />
               </div>
               <div style={{ gridColumn: 'span 2', display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
                 <Button onClick={() => toast('连接成功,耗时 84ms,可读取 1,472 个账号')}>测试连接</Button>
@@ -139,12 +152,12 @@ export default function Settings() {
           <AdminSection />
 
           {/* 告警 */}
-          <Card id="set-alert" data-od-id="set-alert" title="告警通知配置" extra={<Button type="primary" size="small" onClick={() => toast('「告警通知配置」已保存')}>保存</Button>} style={{ borderRadius: 18, gridColumn: '1 / -1' }}>
+          <Card id="set-alert" data-od-id="set-alert" title="告警通知配置" extra={<Button type="primary" size="small" onClick={() => toast('「告警通知配置」已保存')}>保存</Button>} style={{ gridColumn: '1 / -1' }}>
             {rules.map((rule) => (
-              <div key={rule.key} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 0', borderTop: rule.key !== 'mail' ? '1px solid #e8e8ed' : 'none', opacity: rule.on ? 1 : 0.55, fontSize: '13.5px' }}>
+              <div key={rule.key} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 0', borderTop: rule.key !== 'mail' ? `1px solid ${token.colorBorderSecondary}` : 'none', opacity: rule.on ? 1 : 0.55 }}>
                 <Switch checked={rule.on} aria-label={rule.name + '通知'} onChange={(on) => toggleRule(rule.key, on)} />
-                <div style={{ flex: 1 }}><b>{rule.name}</b><small style={{ display: 'block', color: '#6e6e73', fontSize: '11.5px' }}>{rule.sub}</small></div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, fontSize: '12.5px', color: '#424245' }}>
+                <div style={{ flex: 1 }}><b>{rule.name}</b><Typography.Text type="secondary" style={{ display: 'block', fontSize: 12 }}>{rule.sub}</Typography.Text></div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, color: token.colorTextSecondary }}>
                   {rule.subs.map((s, i) => s.radio ? (
                     <Radio key={s.label} checked={s.checked} disabled={!rule.on} onChange={() => toggleSub(rule.key, i, true)}>{s.label}</Radio>
                   ) : (
@@ -188,17 +201,17 @@ function AdminSection() {
   }
 
   const adminCols: ColumnsType<AdminRow> = [
-    { title: '账号', key: 'user', render: (_v, a) => <><b>{a.username}</b>{me?.username === a.username ? ' (当前)' : ''}<div style={{ fontSize: '11.5px', color: '#6e6e73', fontFamily: '"SF Mono", monospace' }}>{a.display_name || '-'}</div></> },
-    { title: '来源', key: 'source', render: (_v, a) => <span style={{ fontSize: '11.5px', color: '#6e6e73' }}>{a.linked_account ? `关联用户:${a.linked_account}` : '独立账号'}</span> },
+    { title: '账号', key: 'user', render: (_v, a) => <><b>{a.username}</b>{me?.username === a.username ? ' (当前)' : ''}<Typography.Text type="secondary" style={{ fontSize: 12, fontFamily: 'monospace' }}>{a.display_name || '-'}</Typography.Text></> },
+    { title: '来源', key: 'source', render: (_v, a) => <Typography.Text type="secondary" style={{ fontSize: 12 }}>{a.linked_account ? `关联用户:${a.linked_account}` : '独立账号'}</Typography.Text> },
     { title: '角色', key: 'role', render: (_v, a) => me?.username === a.username ? <Tag color="blue">{ROLE_LABELS[a.role] || a.role}</Tag> : <Select size="small" value={a.role} onChange={(v) => changeRole(a.id, v)} options={['admin','operator','auditor'].map((r) => ({ label: ROLE_LABELS[r], value: r }))} style={{ width: 100 }} /> },
     { title: '权限范围', key: 'scope', render: (_v, a) => <span className="truncate" style={{ maxWidth: 240 }} title={ROLE_SCOPES[a.role] || ''}>{ROLE_SCOPES[a.role] || a.role}</span> },
-    { title: '操作', key: 'actions', render: (_v, a) => me?.username !== a.username ? <Button danger size="small" onClick={() => revoke(a.id, a.username)}>撤销</Button> : <span style={{ fontSize: '11.5px', color: '#6e6e73' }}>—</span> },
+    { title: '操作', key: 'actions', render: (_v, a) => me?.username !== a.username ? <Button danger size="small" onClick={() => revoke(a.id, a.username)}>撤销</Button> : <Typography.Text type="secondary">—</Typography.Text> },
   ];
 
   return (
     <Card id="set-rbac" data-od-id="set-rbac" title="管理员与权限" extra={<Button size="small" onClick={() => setShowGrant(true)}>授权用户</Button>} style={{ borderRadius: 18 }}>
-      <Table className="tbl" rowKey="id" dataSource={admins} columns={adminCols} pagination={false} size="small" />
-      <div style={{ marginTop: 12, fontSize: 12, color: '#6e6e73' }}>内置超级管理员不可被降级或删除;敏感操作全部记录审计日志。</div>
+      <Table rowKey="id" dataSource={admins} columns={adminCols} pagination={false} size="small" />
+      <Typography.Text type="secondary" style={{ display: 'block', marginTop: 12 }}>内置超级管理员不可被降级或删除;敏感操作全部记录审计日志。</Typography.Text>
       {showGrant && <GrantAccessModal onClose={() => setShowGrant(false)} onGranted={() => { setShowGrant(false); fetchApi('/api/auth/admins').then((b: any) => setAdmins(b ?? [])).catch(() => {}); }} />}
     </Card>
   );
@@ -226,16 +239,26 @@ function GrantAccessModal({ onClose, onGranted }: { onClose: () => void; onGrant
 
   return (
     <Modal open title="授权用户访问后台" onCancel={onClose} okText="授权" confirmLoading={busy} onOk={grant} okButtonProps={{ disabled: !selected }}>
-      <p style={{ color: '#6e6e73', fontSize: 13, marginBottom: 12 }}>选择一个已有用户,授予后台访问权限。该用户可使用其 RADIUS 密码(本地用户)或 AD 密码登录。</p>
+      <Typography.Text type="secondary" style={{ display: 'block', marginBottom: 12 }}>选择一个已有用户,授予后台访问权限。该用户可使用其 RADIUS 密码(本地用户)或 AD 密码登录。</Typography.Text>
       <Input value={search} onChange={(e) => { setSearch(e.target.value); setSelected(null); }} placeholder="输入账号或姓名…" autoFocus />
       <div style={{ maxHeight: 200, overflow: 'auto', marginTop: 8 }}>
-        <table className="tbl" style={{ width: '100%' }}><thead><tr><th>账号</th><th>姓名</th><th>部门</th></tr></thead><tbody>
-          {filtered.slice(0, 50).map((u) => (
-            <tr key={u.account} style={{ cursor: 'pointer', background: selected === u.account ? '#e6f0ff' : undefined }} onClick={() => setSelected(u.account)}>
-              <td><b>{u.account}</b></td><td>{u.name}</td><td>{u.dept}</td>
-            </tr>
-          ))}
-        </tbody></table>
+        <Table
+          rowKey="account"
+          size="small"
+          pagination={false}
+          dataSource={filtered.slice(0, 50)}
+          columns={[
+            { title: '账号', dataIndex: 'account', key: 'account', render: (v: string) => <b>{v}</b> },
+            { title: '姓名', dataIndex: 'name', key: 'name' },
+            { title: '部门', dataIndex: 'dept', key: 'dept' },
+          ]}
+          rowSelection={{
+            type: 'radio',
+            selectedRowKeys: selected ? [selected] : [],
+            onChange: (keys) => setSelected((keys[0] as string) ?? null),
+          }}
+          onRow={(record) => ({ onClick: () => setSelected(record.account) })}
+        />
       </div>
       {selected && <><div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 6 }}><Text strong>已选择:</Text><Input value={`${selected} · ${picked?.name || ''}`} readOnly /></div>
         <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 6 }}><Text strong>角色:</Text>

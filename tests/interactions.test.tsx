@@ -119,7 +119,7 @@ test('AuthLogs:深链预填筛选(result=失败&nas=SW-5F-02)', async () => {
   const { container } = ui(<AuthLogs />, '/auth-logs#result=失败&nas=SW-5F-02');
   await waitFor(() => expect(container.querySelectorAll('.ant-table-row').length).toBeLessThan(5), WAIT);
   expect(container.textContent).toContain('已按链接预填筛选');
-  expect(container.querySelector('.filters.adv')).not.toBeNull();
+  expect(container.querySelector('[data-od-id="adv-filters"]')).not.toBeNull();
   expect(toastText(container)).toContain('已按链接预填筛选条件');
 });
 
