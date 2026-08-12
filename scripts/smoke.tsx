@@ -5,7 +5,7 @@
 import { renderToString } from 'react-dom/server';
 import { MemoryRouter } from 'react-router-dom';
 import App from '../src/App';
-import { ToastProvider } from '../src/components/Toast';
+import AntdProvider from '../src/providers/AntdProvider';
 
 const paths = [
   '/login',
@@ -28,9 +28,9 @@ for (const p of paths) {
   try {
     const html = renderToString(
       <MemoryRouter initialEntries={[p]}>
-        <ToastProvider>
+        <AntdProvider>
           <App />
-        </ToastProvider>
+        </AntdProvider>
       </MemoryRouter>,
     );
     // login page is minimal by design (simple form)
