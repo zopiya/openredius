@@ -6,7 +6,7 @@ import { afterEach, expect, test } from 'bun:test';
 import { cleanup, fireEvent, render, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import type { ReactNode } from 'react';
-import { ToastProvider } from '../src/components/Toast';
+import AntdProvider from '../src/providers/AntdProvider';
 import Dashboard from '../src/pages/Dashboard';
 import Sessions from '../src/pages/Sessions';
 import AuthLogs from '../src/pages/AuthLogs';
@@ -24,13 +24,13 @@ afterEach(() => {
 function ui(node: ReactNode, route = '/') {
   return render(
     <MemoryRouter initialEntries={[route]}>
-      <ToastProvider>{node}</ToastProvider>
+      <AntdProvider>{node}</AntdProvider>
     </MemoryRouter>,
   );
 }
 
-function toastText(container: HTMLElement) {
-  return container.querySelector('.toast')?.textContent ?? '';
+function toastText(_container: HTMLElement) {
+  return document.querySelector('.ant-message-notice .ant-message-notice-content')?.textContent ?? '';
 }
 
 const WAIT = { timeout: 2500 };
@@ -169,7 +169,7 @@ test('Policies:优先级上移重排', () => {
   const rows2 = container.querySelectorAll('.ant-table-row');
   expect(rows2[0].textContent).toContain('研发准入策略');
   expect(rows2[1].textContent).toContain('财务隔离策略');
-  expect(container.querySelector('.toast')?.textContent).toContain('优先级已调整');
+  expect(toastText(container)).toContain('优先级已调整');
 });
 
 test('Policies:编辑抽屉回填 + 新建必填校验 + 保存确认', async () => {
@@ -211,7 +211,7 @@ test('Devices:NAS 骨架→8 行、Secret 明文切换', async () => {
   const secretBtn = container.querySelector('.ant-table-row button');
   if (secretBtn) {
     fireEvent.click(secretBtn);
-    expect(container.querySelector('.toast')?.textContent).toContain('Shared Secret 已明文显示');
+    expect(toastText(container)).toContain('Shared Secret 已明文显示');
   }
 });
 
@@ -248,7 +248,7 @@ test('Reports:周期切换联动环图合计', async () => {
 
 test('Reports:深链 reason 定位提示', () => {
   const { container } = ui(<Reports />, '/reports#reason=账号锁定');
-  expect(container.querySelector('.toast')?.textContent).toContain('已定位到「账号锁定」');
+  expect(toastText(container)).toContain('已定位到「账号锁定」');
 });
 
 /* ── 系统设置 ───────────────────────────────────────── */

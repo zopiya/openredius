@@ -1,29 +1,15 @@
-import { createContext, useCallback, useContext, useRef, useState, type ReactNode } from 'react';
+import { App } from 'antd';
 
-const ToastCtx = createContext<(msg: string) => void>(() => {});
-
+/**
+ * Toast 通知 —— 已迁移到 Ant Design App.useApp().message。
+ * 所有页面无需修改 import 路径,内部实现已替换。
+ */
 export function useToast() {
-  return useContext(ToastCtx);
+  const { message } = App.useApp();
+  return (msg: string) => message.info(msg);
 }
 
-export function ToastProvider({ children }: { children: ReactNode }) {
-  const [msg, setMsg] = useState('');
-  const [show, setShow] = useState(false);
-  const timer = useRef<number | undefined>(undefined);
-
-  const showToast = useCallback((m: string) => {
-    setMsg(m);
-    setShow(true);
-    window.clearTimeout(timer.current);
-    timer.current = window.setTimeout(() => setShow(false), 2600);
-  }, []);
-
-  return (
-    <ToastCtx.Provider value={showToast}>
-      {children}
-      <div className={show ? 'toast show' : 'toast'} role="status">
-        {msg}
-      </div>
-    </ToastCtx.Provider>
-  );
+/** 不再需要,保留空实现以兼容 main.tsx 中的应用(将被移除) */
+export function ToastProvider({ children }: { children: React.ReactNode }) {
+  return <>{children}</>;
 }
