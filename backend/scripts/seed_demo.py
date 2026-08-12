@@ -172,6 +172,10 @@ NAS_DEVICES = [
 ]
 NAS_SECRET = "R@dius-S3cr3t"
 
+# Shared cleartext password written to radius.radcheck for every demo user.
+# Dev/integration only (docs/06: radcheck Cleartext-Password); prod uses AD/EAP.
+SEED_USER_PASSWORD = "Demo-Radius-2026"
+
 # (mac, etype, compliance, comp_detail, owner_account, whitelisted, fingerprint)
 ENDPOINTS = [
     (
@@ -260,6 +264,47 @@ SETTINGS = {
     "alerts.master": {"enabled": True},
     "audit.enabled": True,
 }
+
+
+async def seed_radius_schema(session_factory) -> None:
+    """Provision radius-schema artifacts so the FreeRADIUS stack can auth (M3).
+
+    - Wipe compiler-owned tables + seed Cleartext-Password for every demo user.
+    - Upsert radius.nas from the seeded NAS devices (keeps non-seeded clients,
+      e.g. the 127.0.0.1 dev radtest client written by compose init).
+    - Run the policy compiler so radgroupreply/radusergroup reflect seed state.
+
+    Only runs against PostgreSQL (radius schema exists there; docs/04).
+    """
+    from openredius.radius import nas_sync
+    from openredius.radius.compiler import compile_all
+    from openredius.radius.tables import build_radius_metadata
+
+    meta = build_radius_metadata("radius")
+    prefix = "radius."
+    radcheck = meta.tables[f"{prefix}radcheck"]
+    radreply = meta.tables[f"{prefix}radreply"]
+    radgroupcheck = meta.tables[f"{prefix}radgroupcheck"]
+    radgroupreply = meta.tables[f"{prefix}radgroupreply"]
+    radusergroup = meta.tables[f"{prefix}radusergroup"]
+
+    async with session_factory() as session:
+        for table in (radgroupreply, radgroupcheck, radusergroup, radreply, radcheck):
+            await session.execute(delete(table))
+        for account, *_ in USERS:
+            await session.execute(
+                radcheck.insert().values(
+                    username=account,
+                    attribute="Cleartext-Password",
+                    op=":=",
+                    value=SEED_USER_PASSWORD,
+                )
+            )
+        devices = (await session.execute(select(NasDevice))).scalars().all()
+        for device in devices:
+            await nas_sync.upsert_nas_client(session, device)
+        await compile_all(session, actor="seed_demo", trigger="seed")
+        await session.commit()
 
 
 async def seed() -> None:
@@ -380,12 +425,18 @@ async def seed() -> None:
 
         await session.commit()
         admin_names = (await session.execute(select(AdminUser.username))).scalars().all()
+        dialect_name = session.get_bind().dialect.name
+
+    if dialect_name == "postgresql":
+        await seed_radius_schema(session_factory)
 
     print(
         f"seeded: {len(USERS)} users, {len(POLICIES)} policies, "
         f"{len(NAS_DEVICES)} NAS, {len(ENDPOINTS)} endpoints, "
         f"{len(VLANS)} vlans, {len(ACLS)} acls; admins kept: {admin_names}"
     )
+    if dialect_name == "postgresql":
+        print(f"radius schema: Cleartext-Password={SEED_USER_PASSWORD!r} for all demo users")
 
 
 async def main() -> None:
