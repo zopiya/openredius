@@ -2,11 +2,16 @@
 
 ## 前置条件与环境策略
 
-- **本机无 Docker/PostgreSQL,且本地开发不需要任何容器**:后端默认 SQLite(见 04),
-  前端 mock/http 代理,纯本地即可跑通 M0–M2 与前端全部测试。
-- 栈集成(Postgres + FreeRADIUS + radtest/CoA)与生产部署统一在**远程 Linux 服务器**
-  经 SSH 完成(docker-ce + compose plugin);服务器连接信息在 M3 前补录到 deploy/README。
-- 本机已具备:bun 1.3.14、uv 0.11.29、Python 3.14.6(满足后端 >=3.13)。
+- **开发环境:GitHub Codespaces**(`.devcontainer/`,ADR-0007)。容器内含
+  Python 3.13 + uv(backend feature)与 docker-in-docker(栈集成);bun/uv 由
+  `.devcontainer/post-create.sh` 安装。一键创建 Codespace 即得到完整环境,不再需要
+  连接一台额外的远程服务器。
+- **M0–M2(后端默认 SQLite,见 04;前端 mock/http 代理)不依赖任何容器**,Codespace
+  内或本机(无 Docker 也可)均可直接跑通。
+- **栈集成(Postgres + FreeRADIUS + radtest/CoA,M3 起)在 Codespace 终端内直接执行**
+  `docker compose -f deploy/docker-compose.dev.yml up -d`,docker-in-docker 提供
+  运行时,无需 SSH、无需额外服务器(见下「栈集成环境」)。
+- 生产部署(M7)仍面向独立的生产 Linux 服务器,流程见下「生产运行」,不受本节影响。
 
 ## 目录布局
 
@@ -84,7 +89,7 @@ CMD ["uvicorn", "openredius.main:app", "--host", "0.0.0.0", "--port", "8000"]
 
 `.env` 永不入库;`.env.example` 提供全部键与注释。
 
-## 本地开发流(全程零 Docker)
+## 开发流(M0–M2,零 Docker;Codespace 内或本机均可)
 
 ```bash
 # 前端(mock 模式)
@@ -96,21 +101,21 @@ uv run uvicorn openredius.main:app --reload --port 8000
 VITE_API_BASE=http://localhost:8000 bun run dev
 ```
 
-## 远程联调环境(SSH)
+## 栈集成环境(Codespaces,ADR-0007)
 
-栈集成与生产验证在服务器执行:
+栈集成测试(M3 起)直接在 Codespace 终端执行,docker-in-docker 提供运行时,
+不再需要额外服务器或 SSH:
 
 ```bash
-ssh <openredius-server>                      # 连接信息 M3 前补录 deploy/README
-git clone <repo> ~/openredius && cd ~/openredius
 docker compose -f deploy/docker-compose.dev.yml up -d --build   # postgres + freeradius
 cd backend && OPENRADIUS_DATABASE_URL='postgresql+asyncpg://…' \
   uv run pytest -m integration -q
 ```
 
-- 本地前端要连服务器后端:`ssh -L 18000:127.0.0.1:8000 <server>`,
-  然后 `VITE_API_BASE=http://localhost:18000 bun run dev`。
-- 服务器侧备份目录:~/openredius/deploy/backups。
+- Codespaces 按 `.devcontainer/devcontainer.json` 自动转发 5173(前端)/8000(后端)/
+  5432(postgres)端口,浏览器直接打开转发地址即可,无需手工端口转发。
+- 若发布前需要在真实生产型服务器上复现,仍可 `ssh <server>` 后执行同样的 compose
+  命令;此路径为可选的最后验证,不再是 M3 起步的必经步骤。
 
 ## 生产运行
 

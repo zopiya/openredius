@@ -32,6 +32,8 @@
 - [x] `.gitignore` 增补:`.env`、`backend/.venv`、`backend/.pytest_cache`、`deploy/backups`、`*.pyc`(2026-08-06 完成)
 - [x] 根目录 `.env.example`(键见 04/07,值全为 dev 默认)(2026-08-06 完成)
 - [x] CI:frontend job(`bun run verify`);backend job 占位(M1 起生效)(2026-08-06 完成)
+- [x] `.devcontainer/`:GitHub Codespaces 开发环境(python:3.13 + docker-in-docker
+      features,post-create.sh 装 bun/uv)(2026-08-12 完成,ADR-0007)
 
 **验收**:
 
@@ -57,7 +59,8 @@ git status          # 干净
 - [ ] `admin_user` 模型 + 迁移;argon2 哈希;JWT login/refresh/logout/me(03)
 - [ ] `require_role` 守卫;审计日志模型与中间件钩子(M2 全面启用)
 - [ ] `deploy/docker-compose.dev.yml` + `deploy/postgres/init/`(radius schema + 官方
-      schema.sql + 双角色,见 06)——**服务器联调用**,本地开发不依赖(本机无 Docker)
+      schema.sql + 双角色,见 06)——**Codespaces 栈集成用**(docker-in-docker,
+      ADR-0007),本地纯 SQLite 开发不依赖
 - [ ] `scripts/create_admin.py`、bootstrap 管理员逻辑
 - [ ] pytest 骨架:health/login/refresh/角色守卫用例
 - [ ] CI backend job 生效(uv sync + ruff + pytest)
@@ -68,7 +71,7 @@ git status          # 干净
 cd backend && uv sync && uv run alembic upgrade head && uv run pytest -q   # 本地 SQLite
 uv run uvicorn openredius.main:app --port 8000 &  # curl /api/health 与 login 冒烟
 bun run verify   # 前端不回归
-# compose 产物供服务器使用,Postgres 验证并入 M3 服务器联调
+# compose 产物供 Codespaces 栈集成使用,Postgres 验证并入 M3(见 07「栈集成环境」)
 ```
 
 ---
@@ -119,7 +122,7 @@ uv run pytest -q   # 新增用例全绿
 - [ ] 集成测试(pytest -m integration):09 场景 9–11
 - [ ] radiusd 配置语法校验流程(`radiusd -XC` 冒烟脚本)
 
-**验收**(远程服务器 SSH 执行,见 07「远程联调环境」):
+**验收**(Codespaces 终端执行,docker-in-docker,见 07「栈集成环境」):
 
 ```bash
 docker compose -f deploy/docker-compose.dev.yml up -d --build
@@ -242,5 +245,6 @@ bun run verify && (cd backend && uv run pytest -q)
 | FreeRADIUS unlang 内联 SQL 语法细节 | M3 延期 | 语义已冻结(06),语法允许迭代;`radiusd -XC` 先行验证 |
 | 无真实 NAS/AD | 集成验证受限 | coa_sink + demo_traffic + radtest 容器内闭环;真实设备清单入运行手册 |
 | TS7/Vite8 新工具链兼容问题 | 前端构建波动 | 依赖锁 bun.lock;CI 恒跑 verify |
-| 本机无 Docker/PostgreSQL | 本地跑不了栈集成 | 本地全程 SQLite 零容器;栈集成 SSH 到服务器(07 远程联调环境) |
+| ~~本机无 Docker/PostgreSQL~~(已解决,2026-08-12) | ~~本地跑不了栈集成~~ | 已改用 GitHub Codespaces + docker-in-docker(ADR-0007,07「栈集成环境」);M0–M2 仍可零容器跑 |
+| Codespaces 配额/网络(docker-in-docker 拉镜像慢) | 栈集成偶发变慢/失败 | 优先用官方轻量镜像;必要时预热/缓存镜像层;超时重试 |
 | 原型保真回归 | 验收失败 | 05 约束清单 + verify 门禁恒绿 |

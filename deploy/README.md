@@ -4,8 +4,9 @@
 dev compose(M3)→ prod compose 与镜像(M7)。设计全文见
 [docs/07-deployment.md](../docs/07-deployment.md)。
 
-> **服务器连接信息待 M3 前补录**(SSH 远程联调环境;本机无 Docker,
-> 栈集成与生产部署均在远程服务器执行)。
+> **栈集成环境:GitHub Codespaces**(`.devcontainer/`,docker-in-docker,ADR-0007)。
+> M3 起直接在 Codespace 终端跑 `docker compose -f deploy/docker-compose.dev.yml up -d`,
+> 不再需要额外服务器与 SSH。生产部署(M7)仍面向独立服务器,连接信息届时补录于此。
 
 ## 目录规划
 

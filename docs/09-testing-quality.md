@@ -6,7 +6,7 @@
 |---|---|---|---|
 | 单元 | 服务/编译器/归类器/同步器 | pytest(asyncio) | 每次提交 |
 | API 集成 | FastAPI 路由 + SQLite 内存库(app 表) | pytest + httpx AsyncClient | 每次提交 |
-| 栈集成 | 真实 PostgreSQL + FreeRADIUS(radtest/CoA sink) | pytest -m integration(远程服务器 SSH 执行) | 里程碑验收 |
+| 栈集成 | 真实 PostgreSQL + FreeRADIUS(radtest/CoA sink) | pytest -m integration(Codespaces docker-in-docker 执行,ADR-0007) | 里程碑验收 |
 | 前端回归 | 21 交互 + 冒烟 + 保真审计(mock 模式) | bun test / scripts | 每次提交 |
 | 前端契约 | OpenAPI schema vs types.ts | bun test | 每次提交 |
 | E2E(可选) | http 模式 8 页走查 | 手工/脚本 | M5 验收 |
@@ -32,7 +32,7 @@ uv run pytest -m integration -q  # 需 docker compose dev 栈
 uv run alembic upgrade head      # 迁移演练(对 compose postgres)
 ```
 
-### 栈集成(在远程服务器执行;本机无 Docker,见 07「远程联调环境」)
+### 栈集成(Codespaces 终端执行,docker-in-docker,见 07「栈集成环境」)
 
 ```bash
 docker compose -f deploy/docker-compose.dev.yml up -d --build
@@ -75,7 +75,8 @@ docker compose -f deploy/docker-compose.dev.yml exec freeradius \
 - `backend`:M0 为占位 job,M1 起启用:astral-sh/setup-uv → `uv sync` → ruff → `uv run pytest -q`。
 - `audit`(允许失败但标注):pip-audit + bun audit,随 M7「依赖审计」任务增补。
 
-栈集成不进 CI(依赖 docker),由里程碑验收人工触发并记录结果到 roadmap。
+栈集成不进 GitHub Actions CI(耗时/资源开销大,不适合每次提交都跑),
+由里程碑验收在 Codespaces 内人工触发并记录结果到 roadmap。
 
 ## 质量门禁(Definition of Done,适用于每个里程碑)
 

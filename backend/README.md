@@ -8,8 +8,9 @@
 - REST API 契约:见 [docs/03-api-design.md](../docs/03-api-design.md)
 - 任务分解与验收:见 [docs/10-roadmap.md](../docs/10-roadmap.md) M1
 
-本地开发零容器:默认 SQLite(aiosqlite)即可运行 M1–M2 全部功能与测试;
-PostgreSQL + FreeRADIUS 栈集成在远程服务器经 SSH 调试,见
+开发环境为 GitHub Codespaces(`.devcontainer/`,ADR-0007)。默认 SQLite(aiosqlite)
+即可运行 M1–M2 全部功能与测试,零容器;PostgreSQL + FreeRADIUS 栈集成(M3 起)
+在 Codespace 内经 docker-in-docker 调试,不再需要远程服务器,见
 [docs/07-deployment.md](../docs/07-deployment.md)。
 
 M1 落地后的目录形态(src 布局,`openredius` 包):

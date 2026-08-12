@@ -42,7 +42,7 @@ backend/
 | uvicorn[standard] | 0.52.x | ASGI |
 | sqlalchemy | 2.0.x | ORM(async engine) |
 | asyncpg | 最新稳定 | PG 驱动(集成/生产) |
-| aiosqlite | 最新稳定 | 本地开发 SQLite 驱动(本机无 Docker,见 07) |
+| aiosqlite | 最新稳定 | 本地开发 SQLite 驱动(M1–M2 无需外部数据库;Postgres 集成见 07) |
 | alembic | 1.19.x | 迁移 |
 | pydantic / pydantic-settings | v2 | DTO / 配置 |
 | pyrad | 2.5.4 | CoA/Disconnect(同步 API,线程池调用) |

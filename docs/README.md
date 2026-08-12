@@ -3,6 +3,9 @@
 本目录是 OpenRedius 项目的**唯一规划与设计事实来源**。后续开发(含 `/goal` 全自动开发)
 必须以本目录文档为准;代码与文档冲突时,先修文档(Architecture Decision Record 流程),再改代码。
 
+**"要做什么"看这里;"agent 怎么干活"看根目录 [`AGENTS.md`](../AGENTS.md) 与 [`.pi/`](../.pi/)**
+(pi coding agent 配置,ADR-0007)—— 两者分工不重叠,`AGENTS.md` 不覆盖本目录的规划权威性。
+
 ## 文档索引
 
 | 文档 | 内容 | 状态 |
@@ -38,9 +41,11 @@
 - 文档语言:中文;代码标识符、命令、配置键:英文。
 - 引用版本号以 2026-08 调研为准(见各文档"版本基线"小节);升级需在 roadmap 中立项。
 
-## 项目当前状态(2026-08-06)
+## 项目当前状态(2026-08-12)
 
 - 前端原型:8 页高保真移植完成,21 个交互测试 + 冒烟 + 保真度审计全部通过(见根目录 README)。
 - 后端 / 部署 / 集成:未开始,按 roadmap M1 起步。
-- 环境:bun 1.3.14 ✅ / uv 0.11.29 ✅ / Python 3.14.6 ✅;本机无 Docker/PostgreSQL——
-  本地开发零容器(SQLite + mock),栈集成与部署经 SSH 到远程服务器调试(见 07)。
+- 开发环境:GitHub Codespaces(`.devcontainer/`,ADR-0007)——容器内含 Python 3.13 +
+  uv、docker-in-docker,bun/uv 由 `post-create.sh` 安装。M0–M2(SQLite + mock)零容器
+  即可跑;M3 起的栈集成(Postgres + FreeRADIUS)直接在 Codespace 终端起
+  `deploy/docker-compose.dev.yml`,不再需要远程服务器 + SSH(见 07)。

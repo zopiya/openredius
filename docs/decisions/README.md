@@ -20,3 +20,4 @@
 | [0004](./ADR-0004-postgresql.md) | PostgreSQL 单库双 schema | 已接受 |
 | [0005](./ADR-0005-frontend-data-layer.md) | 前端数据层切换策略 | 已接受 |
 | [0006](./ADR-0006-coa-pyrad.md) | CoA 实现选用 pyrad | 已接受 |
+| [0007](./ADR-0007-dev-environment-codespaces.md) | 开发环境:GitHub Codespaces(docker-in-docker)取代远程 SSH 服务器 | 已接受 |
