@@ -100,3 +100,193 @@ uv run alembic upgrade head && uv run python scripts/seed_demo.py \
 
 - 本地开发全程零容器:后端默认 SQLite,前端 mock/http 代理(见 07「本地开发流」)。
 - 生产 compose 服务清单、端口、健康检查与镜像构建要点见 07 对应小节。
+
+---
+
+# 生产运维手册(M7)
+
+## 快速部署
+
+```bash
+# 1. 准备环境变量
+cp deploy/.env.example deploy/.env
+$EDITOR deploy/.env   # 替换全部默认口令,设 OPENRADIUS_ENV=prod
+
+# 2. TLS 证书(二选一)
+#   a) 自签(内网):不创建 deploy/nginx/certs/,容器启动时自动生成
+#   b) 真实证书:将 cert.pem + key.pem 放入 deploy/nginx/certs/(推荐挂载 read-only)
+mkdir -p deploy/nginx/certs
+cp /path/to/your/fullchain.pem deploy/nginx/certs/cert.pem
+cp /path/to/your/privkey.pem   deploy/nginx/certs/key.pem
+
+# 3. 构建并启动
+docker compose -f deploy/docker-compose.yml up -d --build
+
+# 4. 运行数据库迁移(首次)
+docker compose -f deploy/docker-compose.yml exec backend \
+  alembic upgrade head
+
+# 5. 创建初始管理员(如未设 bootstrap 变量)
+docker compose -f deploy/docker-compose.yml exec backend \
+  python scripts/create_admin.py admin --password '<强口令>' --role admin --force
+
+# 6. 验证
+docker compose -f deploy/docker-compose.yml ps   # 全部 healthy
+curl -sk https://localhost/api/health            # {"status":"ok"}
+```
+
+## 真实 NAS 接入清单
+
+### 1. 在 OpenRedius 注册 NAS
+
+后台「设备管理」→ 新增 NAS,填写:
+- 名称(建议含位置,如 `SW-3F-01`)
+- nasname(IP 地址,必须与交换机/NAS 管理 IP 一致)
+- secret(与 NAS 端 RADIUS shared secret 一致)
+- 容量(交换机端口数,用于负载展示)
+
+保存后后端自动写入 `radius.nas` 表。
+
+### 2. NAS 端配置(以 Cisco IOS 为例)
+
+```cisco
+radius-server host <backend-host> auth-port 1812 acct-port 1813 key <secret>
+aaa new-model
+aaa authentication dot1x default group radius
+aaa authorization network default group radius
+aaa accounting dot1x default start-stop group radius
+dot1x system-auth-control
+```
+
+### 3. 防火墙规则
+
+- NAS → 服务器 UDP 1812/1813(RADIUS)
+- 服务器 → NAS UDP 3799(CoA,用于强制下线)
+- 管理员 → 服务器 TCP 443(HTTPS 控制台)
+
+### 4. FreeRADIUS 重载
+
+NAS 变更后生效:通过 API `POST /api/ops/reload-radius` 或 compose
+`docker compose -f deploy/docker-compose.yml restart freeradius`。
+
+### 5. 冒烟
+
+```bash
+# 从 NAS 可达的主机测试
+docker compose -f deploy/docker-compose.yml exec freeradius \
+  radtest <用户名> <密码> <服务器私网IP> 0 <nas-secret>
+```
+
+## CoA(coa_sink / 强制下线)配置
+
+### 假 NAS 接收端(调试用)
+
+```bash
+cd backend
+uv run python ../deploy/scripts/coa_sink.py --port 3799 --secret '<coa-secret>' --log coa.log
+```
+
+### 生产配置
+
+后端需要的 CoA 参数:
+- `OPENRADIUS_RADIUS_COA_SECRET`:与 NAS 共享密钥一致
+- `OPENRADIUS_RADIUS_COA_PORT`:NAS 端 CoA 监听端口(默认 3799)
+- NAS 端必须启用 CoA(如 Cisco: `aaa server radius dynamic-author client ...`)
+
+验证:
+```bash
+# 查看在线会话 → 记下 session_id
+curl -sk -H "Authorization:Bearer <token>" https://localhost/api/sessions?status=active
+# 强制下线
+curl -sk -X POST -H "Authorization:Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{"session_ids":["<session_id>"],"reason":"管理员手动"}' \
+  https://localhost/api/sessions/disconnect
+```
+
+## 备份与恢复
+
+### 每日备份(crontab)
+
+```bash
+# 服务器 crontab
+0 3 * * * cd /opt/openredius && \
+  POSTGRES_PASSWORD='<pwd>' OPENRADIUS_DB_PASSWORD='<pwd>' \
+  bash deploy/scripts/backup.sh >> /var/log/openredius-backup.log 2>&1
+```
+
+### 恢复
+
+```bash
+cd /opt/openredius
+FORCE=1 RESTORE_METHOD=compose bash deploy/scripts/restore.sh ./backups/openredius-202608xx.dump.gz
+```
+
+恢复后 `docker compose -f deploy/docker-compose.yml ps` 确认全部 healthy。
+
+## 故障排查
+
+### 后端不健康
+
+```bash
+docker compose -f deploy/docker-compose.yml logs backend | tail -50
+# 常见:OPENRADIUS_JWT_SECRET 长度不足(prod 需 ≥32)
+#       OPENRADIUS_DATABASE_URL 拼写或权限错误
+```
+
+### FreeRADIUS 不启动
+
+```bash
+docker compose -f deploy/docker-compose.yml logs freeradius | tail -50
+# 常见:clients.conf 拼写错误、radius.nas 未写入
+# 配置校验:docker compose ... exec freeradius radiusd -CX
+```
+
+### NAS 认证失败
+
+1. 检查 `radius.nas` 是否有该 NAS 的 IP
+2. secret 是否与 NAS 端一致(GET /api/devices/nas/{id}/secret 查看)
+3. 用户状态:GET /api/users?account=<用户名> 确认 status=active
+4. 策略分配:确认用户已绑定策略,且策略处于启用状态
+5. 时间策略:若启用了时间窗口,确认当前在允许时段内
+
+### nginx TLS 证书过期
+
+自签证书有效期 365 天;过期后删除 `deploy/nginx/certs/` 目录并重启容器:
+
+```bash
+rm deploy/nginx/certs/*.pem
+docker compose -f deploy/docker-compose.yml up -d --force-recreate frontend
+```
+
+## 依赖审计
+
+### Python
+
+```bash
+uvx pip-audit   # No known vulnerabilities found
+```
+
+### JavaScript
+
+```bash
+bun audit
+# 12 undici 漏洞:来自 openapi-typescript@6 开发依赖
+# 影响面:仅 dev/build 工具链;prod 前端为静态文件,不加载 undici
+# 处置:接受风险,openapi-typescript@6 锁定(M5 reviewer NIT);定期 bun update
+```
+
+## 安全清单(docs/08 验收)
+
+- [x] JWT + 登录限流 + 锁定 + RBAC(实现:core/security + api/auth + deps)
+- [x] NAS Secret 默认掩码(前4后4)+ 查看强制审计
+- [x] 服务端角色守卫(require_role 依赖注入)
+- [x] ORM 参数化查询(全部 SQLAlchemy select/insert/update)
+- [x] JWT 短 access(15m)+ refresh 轮换 + jti 黑名单
+- [x] 锁文件:uv.lock / bun.lock
+- [x] FreeRADIUS 只监听 NAS 网段(compose NAS_UDP_EXPOSE 控制)
+- [x] nginx TLS(self-signed)+ HSTS + CSP + X-Frame-Options + 其它安全头
+- [x] 备份/恢复脚本;演练记录见 docs/08
+- [x] Argon2id + 最小口令长度 10
+- [x] 依赖审计(pip-audit 无漏洞;bun 12 dev 漏洞,不可利用)
+- [x] 审计日志覆盖:登录/下线/用户启停/策略CRUD/设备CRUD/Secret查看/AD同步/管理员变更

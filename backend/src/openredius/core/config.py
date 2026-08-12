@@ -59,6 +59,9 @@ class Settings(BaseSettings):
     ad_filter: str = ""
     ad_sync_cron: str = "*/15 * * * *"
 
+    # ── CORS (prod: empty = disabled, comma-sep origins to enable) ───────
+    cors_origins: str = ""
+
     lockout_max_fails: int = 5
     lockout_window: int = 600
     lockout_duration: int = 1800

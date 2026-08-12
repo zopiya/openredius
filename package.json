@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "\u51c6\u5165\u8ba4\u8bc1\u63a7\u5236\u53f0 \u2014 RADIUS 802.1X \u4f01\u4e1a\u5185\u7f51\u51c6\u5165\u7ba1\u7406(React + TypeScript + bun)",
+  "description": "准入认证控制台 — RADIUS 802.1X 企业内网准入管理(React + TypeScript + bun)",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
@@ -12,22 +12,22 @@
     "api:gen": "bunx openapi-typescript@6 http://localhost:8000/api/openapi.json -o src/api/schema.d.ts --enum"
   },
   "dependencies": {
-    "lucide-react": "^1.28.0",
+    "lucide-react": "^1.31.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-router-dom": "^7.18.2"
   },
   "devDependencies": {
-    "@happy-dom/global-registrator": "^20.11.1",
+    "@happy-dom/global-registrator": "^20.11.2",
     "@tailwindcss/vite": "^4.3.3",
     "@testing-library/react": "^16.3.2",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
     "@vitejs/plugin-react": "^6.0.5",
-    "happy-dom": "^20.11.1",
-    "openapi-typescript": "~6.7.0",
+    "happy-dom": "^20.11.2",
+    "openapi-typescript": "~6.7.6",
     "tailwindcss": "^4.3.3",
     "typescript": "^7.0.2",
-    "vite": "^8.2.0"
+    "vite": "^8.2.1"
   }
 }

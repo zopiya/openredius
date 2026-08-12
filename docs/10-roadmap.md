@@ -14,7 +14,7 @@
 | M4 | 会话/日志/报表/仪表盘数据面 | ✅ | 2026-08-12 |
 | M5 | 前端接入真实 API | ⬜ | — |
 | M6 | 运维能力(AD 同步/告警/任务) | ⬜ | — |
-| M7 | 生产部署与安全加固 | ⬜ | — |
+| M7 | 生产部署与安全加固 | ✅ | 2026-08-12 |
 
 ---
 
@@ -237,13 +237,13 @@ cd backend && uv run pytest -q
 
 **任务**:
 
-- [ ] prod compose(四服务)+ 三个 Dockerfile 全部可构建
-- [ ] nginx TLS(自签)+ 安全头;backend CORS prod 配置
-- [ ] backup.sh/restore.sh + 一次真实演练记录
-- [ ] 08 验收清单逐项自动化/手工核验
-- [ ] 依赖审计(pip-audit/bun audit)处置记录
-- [ ] 运行手册:deploy/README(真实 NAS 接入清单、CoA 配置样例、故障排查)
-- [ ] 版本号 v0.1.0;根 README 更新为项目级文档(链接 docs/)
+- [x] prod compose(四服务)+ 三个 Dockerfile 全部可构建
+- [x] nginx TLS(自签)+ 安全头;backend CORS prod 配置
+- [x] backup.sh/restore.sh + 一次真实演练记录
+- [x] 08 验收清单逐项自动化/手工核验
+- [x] 依赖审计(pip-audit/bun audit)处置记录
+- [x] 运行手册:deploy/README(真实 NAS 接入清单、CoA 配置样例、故障排查)
+- [x] 版本号 v0.1.0;根 README 更新为项目级文档(链接 docs/)
 
 **验收**:
 
