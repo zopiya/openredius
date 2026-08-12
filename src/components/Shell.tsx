@@ -4,13 +4,19 @@ import {
   Activity, BarChart3, Gauge, KeyRound, LogOut,
   ScrollText, Search, Server, Settings, ShieldCheck, Users,
 } from 'lucide-react';
-import { Layout, Menu, Button, Dropdown, Input, Modal, Form, App, Breadcrumb } from 'antd';
+import { Layout, Menu, Button, Dropdown, Input, Modal, Form, App, Breadcrumb, Avatar, Badge, Tag, Typography, theme } from 'antd';
 import type { MenuProps } from 'antd';
 import { useTitle } from '../hooks/useTitle';
 import { fetchMe, logout } from '../api/auth';
 import { MODE } from '../api/config';
 
 const { Sider, Header, Content } = Layout;
+
+const ROLE_META: Record<string, { label: string; color: string }> = {
+  admin: { label: '管理员', color: 'geekblue' },
+  operator: { label: '运维', color: 'blue' },
+  auditor: { label: '审计', color: 'default' },
+};
 
 const ALL_ITEMS = [
   { key: '/dashboard', label: '仪表盘', icon: Gauge, roles: ['admin', 'operator', 'auditor'] },
@@ -36,6 +42,7 @@ export default function Shell({ page, children }: { page: string; children: Reac
   const loc = useLocation();
   const nav = useNavigate();
   const { message } = App.useApp();
+  const { token } = theme.useToken();
   const [me, setMe] = useState<AdminInfo>(MOCK_ADMIN);
   const [pwOpen, setPwOpen] = useState(false);
 
@@ -105,24 +112,16 @@ export default function Shell({ page, children }: { page: string; children: Reac
         }}
       >
         {/* 品牌区 */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 10,
-            padding: '20px 20px 14px',
-          }}
-        >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '20px 20px 14px' }}>
           <div
             style={{
               width: 28,
               height: 28,
               borderRadius: 8,
               background: '#fff',
-              color: '#0F1923',
+              color: '#001529',
               display: 'grid',
               placeItems: 'center',
-              fontFamily: '"SF Pro Display", sans-serif',
               fontSize: 14,
               fontWeight: 700,
               flexShrink: 0,
@@ -131,19 +130,12 @@ export default function Shell({ page, children }: { page: string; children: Reac
             R
           </div>
           <div style={{ lineHeight: 1.25 }}>
-            <b
-              style={{
-                display: 'block',
-                fontFamily: '"SF Pro Display", sans-serif',
-                fontSize: '14.5px',
-                fontWeight: 600,
-                letterSpacing: '-0.01em',
-                color: '#fff',
-              }}
-            >
+            <Typography.Text strong style={{ color: '#fff', fontSize: 14, display: 'block' }}>
               准入认证控制台
-            </b>
-            <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)' }}>RADIUS 802.1X</span>
+            </Typography.Text>
+            <Typography.Text style={{ color: 'rgba(255,255,255,0.45)', fontSize: 11 }}>
+              RADIUS 802.1X
+            </Typography.Text>
           </div>
         </div>
 
@@ -165,20 +157,12 @@ export default function Shell({ page, children }: { page: string; children: Reac
             gap: 8,
             padding: '14px 20px 18px',
             borderTop: '1px solid rgba(255,255,255,0.06)',
-            fontSize: '11.5px',
-            color: 'rgba(255,255,255,0.45)',
           }}
         >
-          <span
-            style={{
-              width: 7,
-              height: 7,
-              borderRadius: '50%',
-              background: '#16a34a',
-              flexShrink: 0,
-            }}
-          />
-          RADIUS 服务正常 · v2.4.1
+          <Badge status="success" />
+          <Typography.Text style={{ color: 'rgba(255,255,255,0.45)', fontSize: 11.5 }}>
+            RADIUS 服务正常 · v2.4.1
+          </Typography.Text>
         </div>
       </Sider>
 
@@ -195,9 +179,8 @@ export default function Shell({ page, children }: { page: string; children: Reac
             gap: 18,
             height: 57,
             padding: '0 28px',
-            background: 'rgba(255,255,255,0.84)',
-            backdropFilter: 'saturate(180%) blur(12px)',
-            borderBottom: '1px solid #e8e8ed',
+            background: token.colorBgContainer,
+            borderBottom: `1px solid ${token.colorBorderSecondary}`,
             lineHeight: '57px',
           }}
         >
@@ -209,7 +192,7 @@ export default function Shell({ page, children }: { page: string; children: Reac
           <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 14 }}>
             {/* 搜索 */}
             <Input
-              prefix={<Search size={14} strokeWidth={2} style={{ color: '#86868b' }} />}
+              prefix={<Search size={14} strokeWidth={2} style={{ color: token.colorTextTertiary }} />}
               placeholder="搜索用户 / MAC / 设备"
               aria-label="搜索"
               style={{ width: 240 }}
@@ -225,30 +208,17 @@ export default function Shell({ page, children }: { page: string; children: Reac
                   gap: 9,
                   height: 'auto',
                   padding: 0,
-                  fontSize: '12.5px',
-                  color: '#424245',
+                  color: token.colorTextSecondary,
                 }}
               >
-                <div
-                  style={{
-                    width: 30,
-                    height: 30,
-                    borderRadius: '50%',
-                    background: '#1d1d1f',
-                    color: '#fff',
-                    display: 'grid',
-                    placeItems: 'center',
-                    fontSize: '12.5px',
-                    fontWeight: 600,
-                  }}
-                >
+                <Avatar size={30} style={{ backgroundColor: token.colorPrimary }}>
                   {initial}
-                </div>
+                </Avatar>
                 <div style={{ textAlign: 'left', lineHeight: 1.3 }}>
                   {display}
-                  <small style={{ display: 'block', color: '#6e6e73', fontSize: 11 }}>
-                    {me.role === 'admin' ? '管理员' : me.role === 'operator' ? '运维' : '审计'}
-                  </small>
+                  <Tag color={ROLE_META[me.role]?.color} style={{ marginInlineStart: 6, fontSize: 11 }}>
+                    {ROLE_META[me.role]?.label ?? me.role}
+                  </Tag>
                 </div>
               </Button>
             </Dropdown>
