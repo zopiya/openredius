@@ -11,7 +11,7 @@
 | M1 | 后端骨架与基础设施 | ✅ | 2026-08-12 |
 | M2 | 领域模型与 CRUD API | ✅ | 2026-08-12 |
 | M3 | FreeRADIUS 集成 | ✅ | 2026-08-12 |
-| M4 | 会话/日志/报表/仪表盘数据面 | ⬜ | — |
+| M4 | 会话/日志/报表/仪表盘数据面 | ✅ | 2026-08-12 |
 | M5 | 前端接入真实 API | ⬜ | — |
 | M6 | 运维能力(AD 同步/告警/任务) | ⬜ | — |
 | M7 | 生产部署与安全加固 | ⬜ | — |
@@ -158,15 +158,18 @@ cd backend && uv run pytest -m integration -q
 
 **任务**:
 
-- [ ] 会话服务:active radacct ⋈ 元数据 → SessionRow;筛选;导出 CSV
-- [ ] CoA 客户端(pyrad,04)+ `POST /api/sessions/disconnect` + 兜底关账
-- [ ] 认证日志服务:radpostauth ⋈ 用户 → LogRow;归类器(02 表);详情;导出
-- [ ] 报表:summary(period)/endpoint-types/departments(03)
-- [ ] 仪表盘:kpis/trend/alerts;告警规则表与 alert_event
-- [ ] jobs:nas_watchdog、lockout_sweeper、cert_scan、alert_gc(调度装配)
-- [ ] seed_demo 增加 7 天合成历史;demo_traffic.py
-- [ ] coa_sink.py;集成测试:09 场景 12–13
-- [ ] pytest:归类器/报表聚合/KPI 计算
+- [x] 会话服务:active radacct ⋈ 元数据 → SessionRow;筛选;导出 CSV
+- [x] CoA 客户端(pyrad,04)+ `POST /api/sessions/disconnect` + 兜底关账
+      (ACK/NAK/timeout 三路径实测;NAK 携带 Error-Cause 译名)
+- [x] 认证日志服务:radpostauth ⋈ 用户 → LogRow;归类器(02 表);详情;导出
+- [x] 报表:summary(period)/endpoint-types/departments(03;export 501 至 M7)
+- [x] 仪表盘:kpis/trend/alerts;告警规则表与 alert_event(去重窗口内不重发)
+- [x] jobs:nas_watchdog、lockout_sweeper、cert_scan、alert_gc(APScheduler 随
+      lifespan 启停;`OPENRADIUS_JOBS_ENABLED` 可关)
+- [x] seed_demo 增加 7 天合成历史;demo_traffic.py(另 scripts/generate_history.py
+      30 天幂等,SYNTH 标记可重跑)
+- [x] coa_sink.py;集成测试:09 场景 12–13
+- [x] pytest:归类器/报表聚合/KPI 计算(146 单测/API + 9 集成)
 
 **验收**:
 

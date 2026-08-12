@@ -116,6 +116,29 @@ post-auth 各阶段加入 `sql`,authenticate 启用 eap。
   覆盖为空客户端列表(NAS 表单一来源,避免与内置 localhost 客户端冲突);
   挂载 certs 目录遮蔽上游证书时,entrypoint 自签兜底。
 
+### M4 实测修正记录(数据面)
+
+- **postauth 增补两列**:官方 3.2.10 `postauth_query` 只写
+  username/pass/reply/authdate(+class)。日志列表需要 NAS 与 MAC,故 sed 扩为
+  `callingstationid, nasipaddress`,schema.sql 的 radpostauth 增
+  `nasipaddress varchar(64) NOT NULL DEFAULT ''`。radtest 不带这两属性 → 落空串,
+  归类/展示须容忍。
+- **class 子段须同时开 `packet_xlat`**:只开 `column_name/reply_xlat` 会让
+  accounting INSERT 带 `class` 列却无值 → `UNDEFINED COLUMN`/值不匹配而静默丢
+  计费。修法:`packet_xlat = ", '%{Class}'"` 且 radacct 增
+  `class varchar(64) NOT NULL DEFAULT ''`(官方 ≥3.0.22 语义)。
+- **radacct 约束对齐官方 INSERT**:官方计费查询用 `ON CONFLICT (AcctUniqueId)`
+  与 `NULLIF(...)`/字面 NULL,故 `acctuniqueid` 需 UNIQUE(非普通索引)、
+  `acctstoptime/acctterminatecause/framedipaddress/framedipv6*/framedipv6prefix/
+  delegatedipv6prefix` 须可空——否则 Start/Stop 记录报 NOT NULL 冲突。
+- **`CAST(inet AS varchar)` 返回 CIDR**(`127.0.0.2/32`),与 nas_device.nasname
+  等值连接失配;后端统一用 `host()`(PG)/原样(SQLite)取纯 IP(`ip_text()`)。
+- **pyrad 2.5.4 wheel 不携带字典文件**:自带最小 `radius.dict`
+  (User-Name/NAS-IP-Address/Acct-Session-Id/Calling-Station-Id/Error-Cause)。
+  Disconnect 三路径(ACK/NAK+Error-Cause/timeout)对 `coa_sink.py` 实测通过。
+- **`coa_sink.py` 回包须设 reply.source/fd**:`SendReplyPacket` 用回包自身的
+  `.source` 寻址,`CreateReply()` 不拷贝,漏设则进程在首个请求后崩溃。
+
 ## 失败原因 Class 约定(与 02 归类一致)
 
 | 场景 | Class 来源 |

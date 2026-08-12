@@ -58,7 +58,7 @@
 | 方法 路径 | 前端映射 | 说明 |
 |---|---|---|
 | `GET /api/users?dept=&status=&policy=&q=` | `fetchUsers` | `UserRow[]` |
-| `GET /api/users/{account}` | 用户抽屉 | 含最近认证、终端列表、策略下发规则 |
+| `GET /api/users/{account}` | 用户抽屉 | 含最近认证(`recent_auth`,最近 5 条 radpostauth)、终端列表、策略下发规则 |
 | `POST /api/users/status` `{ accounts: [], action: "enable"|"disable" }` | `updateUserStatus` | 联动 radcheck |
 | `POST /api/users/policy` `{ accounts: [], policy_id }` | `assignUserPolicy` | 改 radusergroup |
 | `POST /api/users/sync-ad` | `syncAdNow` | 立即触发增量同步(异步任务)→ `AdSyncResult` |
@@ -80,7 +80,7 @@
 
 | 方法 路径 | 说明 |
 |---|---|
-| `GET /api/devices/nas?type=&area=&status=` | `NasRow[]`(状态/负载实时派生;`status` 需 radpostauth/radacct 派生,M6 前参数保留但不生效——M2 注) |
+| `GET /api/devices/nas?type=&area=&status=` | `NasRow[]`(`status=online/offline/high-load`、`active_sessions`、`load_pct`、`last_seen` 由 radpostauth/radacct 实时派生——M4 起生效) |
 | `POST /api/devices/nas` / `PATCH /api/devices/nas/{id}` | 增改(写 radius.nas;触发 freeradius 重启流程,返回 `reload_required`) |
 | `DELETE /api/devices/nas/{id}` | 移除客户端(校验无活跃会话) |
 | `GET /api/devices/nas/{id}/secret` | 明文 Secret(强制审计,见 08) |
