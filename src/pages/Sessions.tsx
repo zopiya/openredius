@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Inbox } from 'lucide-react';
-import { Table, Select, Button, Space, Modal, Tag, Checkbox, Dropdown, Empty, Skeleton, Result } from 'antd';
+import { Table, Select, Button, Space, Modal, Tag, Checkbox, Dropdown, Empty, Skeleton, Result, Card, Descriptions, Typography, theme } from 'antd';
 import type { ColumnsType, TableRowSelection } from 'antd/es/table/interface';
 import Shell from '../components/Shell';
 import PageHeader from '../components/PageHeader';
+import TableToolbar, { FilterField } from '../components/TableToolbar';
 import { useToast } from '../components/Toast';
 import {
   disconnectSessions,
@@ -54,6 +55,7 @@ const COL_VIS_OPTIONS: [ColKey, string][] = [
 
 export default function Sessions() {
   const toast = useToast();
+  const { token } = theme.useToken();
   const [view, setView] = useState<'loading' | 'ready' | 'error'>('loading');
   const [rows, setRows] = useState<SessionRow[]>(SESSION_ROWS);
   const [form, setForm] = useState<Filters>(DEFAULT_FILTERS);
@@ -147,9 +149,9 @@ export default function Sessions() {
         render: (_v, r) => (
           <>
             <b>{r.name}</b>
-            <div style={{ fontSize: '12.5px', color: '#6e6e73', fontFamily: '"SF Mono", monospace' }}>
+            <Typography.Text type="secondary" style={{ display: 'block', fontFamily: 'monospace' }}>
               {r.user} · {r.dept}
-            </div>
+            </Typography.Text>
           </>
         ),
       },
@@ -159,7 +161,7 @@ export default function Sessions() {
         key: 'mac',
         hidden: !colVis.mac,
         width: 150,
-        render: (v) => <span style={{ fontFamily: '"SF Mono", monospace', fontSize: '12.5px' }}>{v}</span>,
+        render: (v) => <Typography.Text code>{v}</Typography.Text>,
       },
       {
         title: '接入方式',
@@ -180,7 +182,7 @@ export default function Sessions() {
         render: (_v, r) => (
           <>
             {r.nas}
-            <div style={{ fontSize: '12.5px', color: '#6e6e73', fontFamily: '"SF Mono", monospace' }}>{r.nasSub}</div>
+            <Typography.Text type="secondary" style={{ display: 'block', fontFamily: 'monospace' }}>{r.nasSub}</Typography.Text>
           </>
         ),
       },
@@ -189,7 +191,7 @@ export default function Sessions() {
         dataIndex: 'vlanLabel',
         key: 'vlan',
         hidden: !colVis.vlan,
-        render: (v) => <span style={{ fontFamily: '"SF Mono", monospace', fontSize: '12.5px' }}>{v}</span>,
+        render: (v) => <Typography.Text code>{v}</Typography.Text>,
       },
       {
         title: '认证方式',
@@ -242,7 +244,7 @@ export default function Sessions() {
             </a>
             <a
               href="#"
-              style={{ color: '#dc2626' }}
+              style={{ color: token.colorError }}
               onClick={(e) => {
                 e.preventDefault();
                 setKickTarget([r]);
@@ -261,32 +263,27 @@ export default function Sessions() {
   const expandedRowRender = useCallback(
     (r: SessionRow) => (
       <div>
-        <div
-          style={{
-            fontSize: 12,
-            fontWeight: 600,
-            color: '#6e6e73',
-            textTransform: 'uppercase',
-            letterSpacing: '0.04em',
-            marginBottom: 10,
-          }}
-        >
+        <Typography.Text type="secondary" strong style={{ display: 'block', marginBottom: 10 }}>
           会话 {r.session} · 完整 RADIUS 属性
-        </div>
-        <dl className="kv">
-          <dt>User-Name</dt><dd>{r.user}</dd>
-          <dt>Calling-Station-Id</dt><dd>{r.mac}</dd>
-          <dt>Called-Station-Id</dt><dd>{r.called}</dd>
-          <dt>NAS-IP-Address / NAS-Port</dt><dd>{r.nasIp} · {r.nasPort}</dd>
-          <dt>Framed-IP-Address</dt><dd>{r.ip}</dd>
-          <dt>Tunnel-Private-Group-Id</dt><dd>VLAN {r.vlan}</dd>
-          <dt>Filter-ID</dt><dd>{r.filterId}</dd>
-          <dt>Session-Timeout</dt><dd>{r.timeout} 秒(剩余自动重认证)</dd>
-          <dt>Acct-Start-Time</dt><dd>{r.start}</dd>
-        </dl>
-        <div style={{ marginTop: 12, fontSize: '12.5px' }}>
+        </Typography.Text>
+        <Descriptions
+          column={1}
+          size="small"
+          items={[
+            { key: 'user', label: 'User-Name', children: r.user },
+            { key: 'csi', label: 'Calling-Station-Id', children: r.mac },
+            { key: 'called', label: 'Called-Station-Id', children: r.called },
+            { key: 'nasip', label: 'NAS-IP-Address / NAS-Port', children: `${r.nasIp} · ${r.nasPort}` },
+            { key: 'ip', label: 'Framed-IP-Address', children: r.ip },
+            { key: 'vlan', label: 'Tunnel-Private-Group-Id', children: `VLAN ${r.vlan}` },
+            { key: 'filter', label: 'Filter-ID', children: r.filterId },
+            { key: 'timeout', label: 'Session-Timeout', children: `${r.timeout} 秒(剩余自动重认证)` },
+            { key: 'start', label: 'Acct-Start-Time', children: r.start },
+          ]}
+        />
+        <Typography.Text style={{ display: 'block', marginTop: 12 }}>
           <Link to={`/users#user=${encodeURIComponent(r.user)}`}>查看 {r.name} 的用户详情 →</Link>
-        </div>
+        </Typography.Text>
       </div>
     ),
     [],
@@ -328,18 +325,22 @@ export default function Sessions() {
       />
 
       {/* 主卡片 */}
-      <div
-        data-od-id="session-table-card"
-        style={{
-          background: '#fff',
-          border: '1px solid #e8e8ed',
-          borderRadius: 18,
-        }}
-      >
+      <Card data-od-id="session-table-card" styles={{ body: { padding: 0 } }}>
         {/* 筛选栏 */}
-        <div data-od-id="session-filters" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-end', gap: 12, padding: '14px 20px', borderBottom: '1px solid #e8e8ed' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-            <label htmlFor="f-dept" style={{ fontSize: '11.5px', color: '#6e6e73' }}>部门</label>
+        <TableToolbar
+          data-od-id="session-filters"
+          actions={
+            <Button
+              danger
+              data-od-id="batch-kick"
+              disabled={selectedVisible.length === 0}
+              onClick={() => setKickTarget(selectedVisible)}
+            >
+              {selectedVisible.length ? `强制下线(已选 ${selectedVisible.length})` : '强制下线'}
+            </Button>
+          }
+        >
+          <FilterField label="部门" htmlFor="f-dept">
             <Select
               id="f-dept"
               value={form.dept}
@@ -347,9 +348,8 @@ export default function Sessions() {
               options={SESSION_FILTER_OPTIONS.dept.map((o) => ({ label: o, value: o }))}
               style={{ width: 140 }}
             />
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-            <label htmlFor="f-method" style={{ fontSize: '11.5px', color: '#6e6e73' }}>接入方式</label>
+          </FilterField>
+          <FilterField label="接入方式" htmlFor="f-method">
             <Select
               id="f-method"
               value={form.method}
@@ -357,9 +357,8 @@ export default function Sessions() {
               options={SESSION_FILTER_OPTIONS.method.map((o) => ({ label: o, value: o }))}
               style={{ width: 120 }}
             />
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-            <label htmlFor="f-nas" style={{ fontSize: '11.5px', color: '#6e6e73' }}>接入设备</label>
+          </FilterField>
+          <FilterField label="接入设备" htmlFor="f-nas">
             <Select
               id="f-nas"
               value={form.nas}
@@ -367,9 +366,8 @@ export default function Sessions() {
               options={SESSION_FILTER_OPTIONS.nas.map((o) => ({ label: o, value: o }))}
               style={{ width: 150 }}
             />
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-            <label htmlFor="f-vlan" style={{ fontSize: '11.5px', color: '#6e6e73' }}>VLAN</label>
+          </FilterField>
+          <FilterField label="VLAN" htmlFor="f-vlan">
             <Select
               id="f-vlan"
               value={form.vlan}
@@ -377,9 +375,8 @@ export default function Sessions() {
               options={SESSION_FILTER_OPTIONS.vlan.map((o) => ({ label: o, value: o }))}
               style={{ width: 120 }}
             />
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-            <label htmlFor="f-auth" style={{ fontSize: '11.5px', color: '#6e6e73' }}>认证方式</label>
+          </FilterField>
+          <FilterField label="认证方式" htmlFor="f-auth">
             <Select
               id="f-auth"
               value={form.auth}
@@ -387,24 +384,17 @@ export default function Sessions() {
               options={SESSION_FILTER_OPTIONS.auth.map((o) => ({ label: o, value: o }))}
               style={{ width: 130 }}
             />
-          </div>
-          <Button type="primary" size="small" onClick={() => setApplied(form)}>筛选</Button>
-          <Button size="small" onClick={() => resetFilters()}>重置</Button>
-          <div style={{ flex: 1 }} />
-          <Button
-            danger
-            data-od-id="batch-kick"
-            disabled={selectedVisible.length === 0}
-            onClick={() => setKickTarget(selectedVisible)}
-          >
-            {selectedVisible.length ? `强制下线(已选 ${selectedVisible.length})` : '强制下线'}
-          </Button>
-        </div>
+          </FilterField>
+          <Space>
+            <Button type="primary" size="small" onClick={() => setApplied(form)}>筛选</Button>
+            <Button size="small" onClick={() => resetFilters()}>重置</Button>
+          </Space>
+        </TableToolbar>
 
         {/* 选中提示 */}
         {selectedVisible.length > 0 && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '12px 20px', borderBottom: '1px solid #e8e8ed', fontSize: '12.5px', color: '#424245' }}>
-            <span>已选 <b style={{ color: '#0071e3' }}>{selectedVisible.length}</b> 项</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '12px 20px', borderBottom: `1px solid ${token.colorBorderSecondary}`, color: token.colorTextSecondary }}>
+            <span>已选 <b style={{ color: token.colorPrimary }}>{selectedVisible.length}</b> 项</span>
             <a href="#" style={{ marginLeft: 'auto' }} onClick={(e) => { e.preventDefault(); setSelected(new Set()); }}>清除选择</a>
           </div>
         )}
@@ -425,12 +415,12 @@ export default function Sessions() {
         )}
         {view === 'ready' && visible.length === 0 && (
           <Empty
-            image={<Inbox style={{ width: 64, height: 64, color: '#86868b' }} />}
+            image={<Inbox style={{ width: 64, height: 64, color: token.colorTextQuaternary }} />}
             description="当前没有在线会话"
           >
-            <span style={{ fontSize: 13, color: '#6e6e73' }}>
+            <Typography.Text type="secondary">
               没有符合条件的在线终端。可放宽筛选条件,或等待下一次刷新(每 15 秒自动拉取)。
-            </span>
+            </Typography.Text>
             <br />
             <Button style={{ marginTop: 12 }} onClick={() => resetFilters()}>
               清空筛选条件
@@ -459,7 +449,7 @@ export default function Sessions() {
             locale={{ emptyText: null }}
           />
         )}
-      </div>
+      </Card>
 
       {/* 强制下线确认模态 */}
       <Modal
@@ -479,11 +469,11 @@ export default function Sessions() {
             </p>
             <div
               style={{
-                background: '#f5f5f7',
+                background: token.colorBgLayout,
                 borderRadius: 8,
                 padding: '10px 12px',
                 marginTop: 10,
-                fontFamily: '"SF Mono", monospace',
+                fontFamily: 'monospace',
                 fontSize: 12,
                 maxHeight: 140,
                 overflow: 'auto',
@@ -502,11 +492,11 @@ export default function Sessions() {
             </p>
             <div
               style={{
-                background: '#f5f5f7',
+                background: token.colorBgLayout,
                 borderRadius: 8,
                 padding: '10px 12px',
                 marginTop: 10,
-                fontFamily: '"SF Mono", monospace',
+                fontFamily: 'monospace',
                 fontSize: 12,
                 maxHeight: 140,
                 overflow: 'auto',

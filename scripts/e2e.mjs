@@ -116,7 +116,7 @@ async function main() {
     log(rows >= 10, `Sessions: 表格 ${rows} 行`);
     // 展开第一行详情
     await page.click('.ant-table-row a:has-text("详情")');
-    await page.waitForSelector('.kv', { timeout: 5000 });
+    await page.waitForSelector('.ant-descriptions', { timeout: 5000 });
     log(true, `Sessions: 展开行详情(完整 RADIUS 属性)`);
   } catch (e) { log(false, `Sessions — ${String(e.message).split('\n')[0]}`); }
 
