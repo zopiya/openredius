@@ -298,7 +298,7 @@ export default function UsersPage() {
         open={!!drawerUser}
         title={drawerUser ? drawerUser.name + ' · ' + drawerUser.account : '用户详情'}
         onClose={() => setDrawerUser(null)}
-        width={560}
+        size={560}
         footer={
           drawerUser ? (
             <Space>

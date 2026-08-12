@@ -30,7 +30,7 @@ function ui(node: ReactNode, route = '/') {
 }
 
 function toastText(_container: HTMLElement) {
-  return document.querySelector('.ant-message-notice .ant-message-notice-content')?.textContent ?? '';
+  return document.querySelector('.ant-message-notice-wrapper')?.textContent ?? '';
 }
 
 const WAIT = { timeout: 2500 };

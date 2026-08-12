@@ -189,7 +189,7 @@ export default function Devices() {
         />
       </div>
 
-      <Drawer open={!!drawerDevice} title={drawerDevice ? drawerDevice.name + ' · ' + (drawerDevice.type === 'switch' ? '端口接入状态' : 'SSID 接入状态') : ''} onClose={() => setDrawerDevice(null)} width={560}>
+      <Drawer open={!!drawerDevice} title={drawerDevice ? drawerDevice.name + ' · ' + (drawerDevice.type === 'switch' ? '端口接入状态' : 'SSID 接入状态') : ''} onClose={() => setDrawerDevice(null)} size={560}>
         {drawerDevice && (
           <>
             <div style={{ display: 'flex', gap: 7, fontSize: '12.5px', color: '#6e6e73', marginBottom: 16 }}><a href="#" onClick={(e) => e.preventDefault()}>设备管理</a><span>/</span><span style={{ color: '#1d1d1f', fontWeight: 500 }}>{drawerDevice.name}</span></div>

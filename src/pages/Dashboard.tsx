@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Row, Col, Card, Statistic, Segmented, List, Typography, Space, Tag } from 'antd';
+import { Row, Col, Card, Statistic, Segmented, Typography, Space, Tag } from 'antd';
 import {
   TeamOutlined,
   CheckCircleOutlined,
@@ -76,7 +76,7 @@ export default function Dashboard() {
             <Statistic
               title="当前在线终端"
               value={kpis.online_sessions}
-              valueStyle={{ fontSize: 33, fontWeight: 600, fontFamily: '"SF Pro Display", sans-serif' }}
+              styles={{ content: { fontSize: 33, fontWeight: 600, fontFamily: '"SF Pro Display", sans-serif' } }}
               prefix={<TeamOutlined />}
               suffix={<Text type="secondary" style={{ fontSize: 12 }}>实时 · 较昨日同时段</Text>}
             />
@@ -89,7 +89,7 @@ export default function Dashboard() {
               value={rateVal}
               precision={1}
               suffix="%"
-              valueStyle={{ fontSize: 33, fontWeight: 600, fontFamily: '"SF Pro Display", sans-serif' }}
+              styles={{ content: { fontSize: 33, fontWeight: 600, fontFamily: '"SF Pro Display", sans-serif' } }}
               prefix={<CheckCircleOutlined style={{ color: '#16a34a' }} />}
             />
             <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 4 }}>
@@ -102,7 +102,7 @@ export default function Dashboard() {
             <Statistic
               title="今日认证失败"
               value={failCount}
-              valueStyle={{ fontSize: 33, fontWeight: 600, fontFamily: '"SF Pro Display", sans-serif', color: failCount > 20 ? '#dc2626' : undefined }}
+              styles={{ content: { fontSize: 33, fontWeight: 600, fontFamily: '"SF Pro Display", sans-serif', color: failCount > 20 ? '#dc2626' : undefined } }}
               prefix={<CloseCircleOutlined style={{ color: '#dc2626' }} />}
             />
             <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 4 }}>
@@ -116,7 +116,7 @@ export default function Dashboard() {
               title="准入设备离线告警"
               value={kpis.nas_online}
               suffix={<Text type="secondary" style={{ fontSize: 13 }}>/ {kpis.nas_total}</Text>}
-              valueStyle={{ fontSize: 33, fontWeight: 600, fontFamily: '"SF Pro Display", sans-serif', color: kpis.nas_total - kpis.nas_online > 0 ? '#dc2626' : undefined }}
+              styles={{ content: { fontSize: 33, fontWeight: 600, fontFamily: '"SF Pro Display", sans-serif', color: kpis.nas_total - kpis.nas_online > 0 ? '#dc2626' : undefined } }}
               prefix={<WarningOutlined />}
             />
             <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 4 }}>
@@ -191,22 +191,17 @@ export default function Dashboard() {
         extra={<Link to="/auth-logs">全部认证日志 →</Link>}
         style={{ borderRadius: 18, marginTop: 16 }}
       >
-        <List
-          dataSource={alertItems}
-          split={false}
-          renderItem={(a: any) => (
-            <List.Item style={{ padding: '11px 0', borderBottom: '1px solid #e8e8ed' }}>
+        <div>
+          {alertItems.map((a: any, i: number) => (
+            <div key={i} style={{ padding: '11px 0', borderBottom: i < alertItems.length - 1 ? '1px solid #e8e8ed' : 'none' }}>
               <Link className="alert-item" to={a.to} style={{ display: 'flex', alignItems: 'baseline', gap: 12, width: '100%', color: 'inherit', textDecoration: 'none', fontSize: 13 }}>
                 <Text type="secondary" style={{ fontFamily: '"SF Mono", monospace', fontSize: 12, width: 44, flexShrink: 0 }}>{a.time}</Text>
                 <Tag color={LEVEL_COLOR[a.level] ?? 'default'} style={{ flexShrink: 0 }}>{a.level}</Tag>
-                <span style={{ color: '#424245' }}>
-                  {/* render bold parts by splitting on bold markers or using the original msg */}
-                  {(a as any).msg}
-                </span>
+                <span style={{ color: '#424245' }}>{(a as any).msg}</span>
               </Link>
-            </List.Item>
-          )}
-        />
+            </div>
+          ))}
+        </div>
       </Card>
     </Shell>
   );

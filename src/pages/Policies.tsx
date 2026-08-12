@@ -193,7 +193,7 @@ export default function Policies() {
       <Drawer
         open={drawerOpen}
         title={drawerTitle}
-        width={620}
+        size={620}
         onClose={() => setDrawerOpen(false)}
         footer={
           <Space>
@@ -232,7 +232,7 @@ export default function Policies() {
               value={form.eap}
               onChange={(e) => { setForm((f) => ({ ...f, eap: e.target.value })); antForm.setFieldsValue({ eap: e.target.value }); }}
             >
-              <Space direction="vertical">
+              <Space orientation="vertical">
                 {EAP_OPTIONS.map((o) => (
                   <Radio key={o.value} value={o.value}>
                     <b>{o.label}</b> <small style={{ color: '#6e6e73' }}>{o.desc}</small>
