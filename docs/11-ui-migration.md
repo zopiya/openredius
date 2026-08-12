@@ -280,3 +280,106 @@ Ant Design 5 的 **Design Token** 机制允许精确映射现有 CSS 变量到 a
 | 保真度审计差异过大 | 接受 CSS class 层面的合理偏差，文案/结构/交互不变 |
 | 迁移进度拖慢主功能 | 按阶段分 PR 提交，每个阶段独立可合入 |
 | antd 主题与原型视觉不一致 | 用 ConfigProvider token 精确映射，保留深色侧边栏等关键特征 |
+
+---
+
+## 8. 开发与审计循环（强制流程）
+
+每个阶段的每个页面**必须**走完至少 3 轮循环才视为完成:
+
+```text
+第 1 轮:实现 → 验证 → 发现问题 → 记录
+第 2 轮:修正 → 验证 → 发现残余问题 → 记录
+第 3 轮:修正 → 验证 → 全部通过 → 进入下一页面
+```
+
+### 8.1 实现规则
+
+1. **不确定就去查 Ant Design 官方文档**，绝不猜测 API 签名或 prop 名称:
+   - 组件参考:https://5x.ant.design/components/overview-cn
+   - 每个组件页有「代码演示」折叠面板——展开看源码，复制即用
+   - `ConfigProvider` 主题 token 列表:https://5x.ant.design/docs/react/customize-theme-cn
+2. **优先用 antd 内置功能**，不要绕开手写:
+   - 表格排序/筛选/分页 → Table 的 `onChange` + `sorter`/`filters` prop
+   - 表单校验 → Form.Item 的 `rules`
+   - 异步操作 loading → Button 的 `loading` prop + Modal 的 `confirmLoading`
+3. **保留现有业务逻辑不动**:
+   - `src/api/auth.ts` / `src/api/http.ts` / `src/api/resources/*.ts` 不改
+   - `AuthGuard` 不改
+   - 页面内状态管理逻辑尽量保持不变，只换组件壳
+
+### 8.2 审计检查清单（每轮执行）
+
+```text
+[ ] bun run verify 全绿（tsc + smoke + test + fidelity）
+[ ] 页面在 mock 模式(http 不启动)下无白屏、无 Console 报错
+[ ] 页面在 http 模式下正常渲染真实数据
+[ ] 所有交互逻辑保留:筛选/分页/展开/二次确认/抽屉/深链/状态流转
+[ ] Table columns: sorter/filters/render 的行为与预期一致
+[ ] Form:校验信息正确显示、提交 loading 态正常
+[ ] Modal/Drawer:打开/关闭/遮罩点击/异步确认均正常
+[ ] 侧边栏:当前页高亮、角色过滤正确
+[ ] 顶栏:用户信息正确、下拉菜单(修改密码/退出)可用
+[ ] 主题:侧边栏深色风格保留、品牌色正确、圆角/间距协调
+[ ] 删除的文件确实不再被任何地方 import
+```
+
+### 8.3 审计失败处理
+
+- 如果是 antd 组件用法错误 → 查官方文档修正，不自行绕路
+- 如果是测试期望过时 → 先更新测试，再确认功能正常
+- 如果是 antd 与现有逻辑冲突 → 记录到 `docs/11-ui-migration.md` 的风险表
+- 同一问题在第 3 轮仍未解决 → 暂停，标记为 BLOCK 并说明原因
+
+### 8.4 质量门禁
+
+每个阶段完成后:
+
+```bash
+bun run verify   # tsc + smoke + test + fidelity —— 必须全绿
+(cd backend && uv run ruff check . && uv run pytest -q)  # 后端不回归
+```
+
+提交信息格式:`feat(ui): 阶段 N——<页面名> Ant Design 迁移`
+
+---
+
+## 9. 启动提示语
+
+以下提示语可以粘贴到新的 pi 会话中启动完整的 UI 迁移:
+
+> 执行 OpenRedius Ant Design 5 UI 迁移。
+>
+> **项目根目录**:`/workspaces/openredius`
+>
+> **必读文档**:`docs/11-ui-migration.md`（完整阅读后再动手）
+>
+> **核心约束**:
+> 1. 每个阶段每个页面至少 3 轮 audit 循环:实现 → bun run verify → 对照审计清单检查 → 修正 → 再来
+> 2. 任何不确定的 antd API 用法，先去 https://5x.ant.design/components/overview-cn 查文档，绝不猜测
+> 3. `src/api/` 层和 `AuthGuard` 不动；后端代码不动
+> 4. `bun run verify` 必须在每轮循环后全绿
+>
+> **审计检查清单**（每页每轮必过）:
+> ```text
+> [ ] bun run verify 全绿
+> [ ] mock 模式无白屏/无 Console 报错
+> [ ] http 模式正常渲染真实数据
+> [ ] 所有交互:筛选/分页/展开/确认/抽屉/深链
+> [ ] Table:列定义正确、排序/筛选可用
+> [ ] Form:校验+提交 loading
+> [ ] Modal/Drawer:开关/遮罩/异步确认
+> [ ] 侧边栏:当前页高亮+角色过滤
+> [ ] 顶栏:用户信息+下拉(修改密码/退出)
+> [ ] 主题:深色侧边栏+品牌色+间距协调
+> [ ] 删除的文件不被 import
+> ```
+>
+> **执行顺序**:
+> - 阶段 0:依赖安装 + theme.ts + AntdProvider + main.tsx
+> - 阶段 1:Shell.tsx(布局) → Login.tsx → 删除 Toast/Modal/states/ui
+> - 阶段 2:按 P0→P1→P2 逐页迁移(Dashboard→Sessions→AuthLogs→Users→Policies→Devices→Reports→Settings)
+> - 阶段 3:@ant-design/charts 替换内联 SVG
+> - 阶段 4:清理 radius-admin.css + index.css + 更新 docs/05 + 全量走查
+>
+> **提交**:每个阶段完成后单独 commit(P0/P1/P2 可每页 commit)，格式 `feat(ui): 阶段N——页面名`
