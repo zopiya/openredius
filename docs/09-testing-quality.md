@@ -19,6 +19,8 @@
 bun run build        # tsc 类型检查 + 生产构建
 bun test             # 交互测试(≥21)
 bun run verify       # tsc + 13 路由冒烟 + 交互测试 + 保真审计
+                     # 保真审计需要原型静态 HTML(设计机路径或 OPENRADIUS_PROTO_DIR);
+                     # 缺失时打印告警并跳过,不阻断其余检查(CI 即此路径)
 bun run api:gen      # 从后端 OpenAPI 生成类型(M5 起)
 ```
 
