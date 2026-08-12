@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from sqlalchemy import MetaData
+from enum import StrEnum
+
+from sqlalchemy import Enum, MetaData
 from sqlalchemy.orm import DeclarativeBase
 
 NAMING_CONVENTION = {
@@ -16,3 +18,16 @@ NAMING_CONVENTION = {
 
 class Base(DeclarativeBase):
     metadata = MetaData(naming_convention=NAMING_CONVENTION)
+
+
+def enum_column(enum_cls: type[StrEnum], length: int) -> Enum:
+    """Enum column persisting the enum *values* (docs/02 semantics, e.g.
+    'active'/'laptop'/'eap-tls') instead of SQLAlchemy's default member names,
+    so server-side SQL consumed by FreeRADIUS (docs/06) sees documented values.
+    """
+    return Enum(
+        enum_cls,
+        values_callable=lambda e: [member.value for member in e],
+        native_enum=False,
+        length=length,
+    )

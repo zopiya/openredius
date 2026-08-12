@@ -5,10 +5,10 @@ from __future__ import annotations
 import enum
 from datetime import datetime
 
-from sqlalchemy import DateTime, Enum, Integer, String, func
+from sqlalchemy import DateTime, Integer, String, func
 from sqlalchemy.orm import Mapped, mapped_column
 
-from openredius.models.base import Base
+from openredius.models.base import Base, enum_column
 
 
 class AdminRole(enum.StrEnum):
@@ -29,11 +29,9 @@ class AdminUser(Base):
     username: Mapped[str] = mapped_column(String(64), unique=True, index=True)
     display_name: Mapped[str] = mapped_column(String(128), default="")
     password_hash: Mapped[str] = mapped_column(String(255))
-    role: Mapped[AdminRole] = mapped_column(
-        Enum(AdminRole, native_enum=False, length=16), default=AdminRole.OPERATOR
-    )
+    role: Mapped[AdminRole] = mapped_column(enum_column(AdminRole, 16), default=AdminRole.OPERATOR)
     status: Mapped[AdminStatus] = mapped_column(
-        Enum(AdminStatus, native_enum=False, length=16), default=AdminStatus.ACTIVE
+        enum_column(AdminStatus, 16), default=AdminStatus.ACTIVE
     )
 
     # Login lockout bookkeeping (docs/08: 5 fails / 10 min window, 30 min lock).
