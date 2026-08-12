@@ -2,22 +2,23 @@ import { type ReactNode, useEffect, useState, useRef } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
   Activity, BarChart3, Gauge, KeyRound, LogOut,
-  ScrollText, Search, Server, Settings, ShieldCheck, Users,
+  ScrollText, Search, Server, Settings, ShieldCheck, UserCog, Users,
 } from 'lucide-react';
 import { useTitle } from '../hooks/useTitle';
 import { fetchMe, logout } from '../api/auth';
 import { MODE } from '../api/config';
 
-export const NAV_ITEMS = [
-  { to: '/dashboard', label: '仪表盘', icon: Gauge },
-  { to: '/sessions', label: '在线会话', icon: Activity },
-  { to: '/auth-logs', label: '认证日志', icon: ScrollText },
-  { to: '/users', label: '用户管理', icon: Users },
-  { to: '/policies', label: '策略管理', icon: ShieldCheck },
-  { to: '/devices', label: '设备管理', icon: Server },
-  { to: '/reports', label: '报表统计', icon: BarChart3 },
-  { to: '/settings', label: '系统设置', icon: Settings },
-] as const;
+const ALL_ITEMS = [
+  { to: '/dashboard', label: '仪表盘', icon: Gauge, roles: ['admin', 'operator', 'auditor'] },
+  { to: '/sessions', label: '在线会话', icon: Activity, roles: ['admin', 'operator', 'auditor'] },
+  { to: '/auth-logs', label: '认证日志', icon: ScrollText, roles: ['admin', 'operator', 'auditor'] },
+  { to: '/users', label: '用户管理', icon: Users, roles: ['admin', 'operator'] },
+  { to: '/policies', label: '策略管理', icon: ShieldCheck, roles: ['admin'] },
+  { to: '/devices', label: '设备管理', icon: Server, roles: ['admin'] },
+  { to: '/reports', label: '报表统计', icon: BarChart3, roles: ['admin', 'operator', 'auditor'] },
+  { to: '/settings', label: '系统设置', icon: Settings, roles: ['admin'] },
+  { to: '/settings/admins', label: '管理员账户', icon: UserCog, roles: ['admin'] },
+];
 
 interface AdminInfo { username: string; display_name: string; role: string; }
 
@@ -57,6 +58,7 @@ export default function Shell({ page, children }: { page: string; children: Reac
 
   const display = me.display_name || me.username;
   const initial = display.charAt(0).toUpperCase();
+  const navItems = ALL_ITEMS.filter((item) => item.roles.includes(me.role));
 
   return (
     <>
@@ -69,7 +71,7 @@ export default function Shell({ page, children }: { page: string; children: Reac
           </div>
         </div>
         <nav className="side-nav">
-          {NAV_ITEMS.map(({ to, label, icon: Icon }) => (
+          {navItems.map(({ to, label, icon: Icon }) => (
             <NavLink
               key={to}
               to={to}

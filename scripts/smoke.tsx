@@ -21,6 +21,7 @@ const paths = [
   '/reports',
   '/reports#reason=账号锁定',
   '/settings',
+  '/settings/admins',
 ];
 
 let failed = 0;
