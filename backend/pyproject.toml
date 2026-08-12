@@ -48,6 +48,7 @@ select = ["E", "F", "I", "UP", "B"]
 # FastAPI dependency-injection idioms.
 extend-immutable-calls = [
     "fastapi.Depends",
+    "fastapi.Query",
     "fastapi.security.HTTPBearer",
     "openredius.core.deps.require_role",
 ]
