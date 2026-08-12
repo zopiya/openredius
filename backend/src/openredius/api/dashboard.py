@@ -70,7 +70,10 @@ async def read_alert(
     if event is None:
         raise ApiError("alert_not_found", f"alert {alert_id} not found", 404)
     await audit.record_audit(
-        db, actor=_admin.username, action="alert.read", target_type="alert_event",
+        db,
+        actor=_admin.username,
+        action="alert.read",
+        target_type="alert_event",
         target_id=str(event.id),
     )
     await db.commit()
