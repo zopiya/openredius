@@ -407,7 +407,7 @@ function GrantAccessModal({ onClose, onGranted }: { onClose: () => void; onGrant
   }
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="modal-overlay show" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 420 }}>
         <div className="modal-hd"><b>授权用户访问后台</b></div>
         <div className="modal-bd">
