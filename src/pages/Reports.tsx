@@ -100,7 +100,7 @@ export default function Reports() {
               size="small"
               items={[
                 { key: 'chart', label: '图表', children: <DeptBarChart rows={deptStats} ariaLabel="部门认证成功与失败对比柱状图" /> },
-                { key: 'table', label: '明细', children: <Table className="tbl" rowKey="dept" dataSource={deptRows} columns={deptCols} pagination={false} size="small" /> },
+                { key: 'table', label: '明细', children: <Table rowKey="dept" dataSource={deptRows} columns={deptCols} pagination={false} size="small" /> },
               ]}
             />
           </Card>

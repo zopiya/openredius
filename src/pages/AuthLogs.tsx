@@ -323,7 +323,7 @@ export default function AuthLogs() {
         )}
         {view === 'ready' && visible.length > 0 && (
           <Table
-            className="tbl"
+           
             rowKey={(r) => r.time + r.user}
             dataSource={visible}
             columns={columns}

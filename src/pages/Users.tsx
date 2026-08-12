@@ -277,7 +277,7 @@ export default function UsersPage() {
         {view === 'loading' && <div style={{ padding: 40 }}><Skeleton active paragraph={{ rows: 8 }} /></div>}
         {view === 'ready' && visible.length > 0 && (
           <Table
-            className="tbl"
+           
             rowKey="account"
             dataSource={visible}
             columns={columns}

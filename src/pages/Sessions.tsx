@@ -429,7 +429,7 @@ export default function Sessions() {
         )}
         {view === 'ready' && visible.length > 0 && (
           <Table
-            className="tbl"
+           
             rowKey="session"
             dataSource={visible}
             columns={columns}

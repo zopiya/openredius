@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Anchor, Card, Input, Select, Switch, Checkbox, Button, Space, Table, Modal, Typography, Tag, Radio, Descriptions, theme } from 'antd';
+import { Anchor, Card, Input, Select, Switch, Checkbox, Button, Space, Table, Modal, Typography, Tag, Radio, Descriptions, theme, Form, Row, Col, Flex } from 'antd';
 import type { ColumnsType } from 'antd/es/table/interface';
 import Shell from '../components/Shell';
 import PageHeader from '../components/PageHeader';
@@ -72,87 +72,136 @@ export default function Settings() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           {/* RADIUS */}
           <Card id="set-radius" data-od-id="set-radius" title="RADIUS 服务参数" extra={<Tag color="orange">含核心端口 · 改动需二次确认</Tag>}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px 20px' }}>
-              <div>
-                <label htmlFor="r-auth-port" style={{ display: 'block', marginBottom: 6, fontSize: '12.5px', fontWeight: 500 }}>认证端口(UDP)*</label>
-                <Input id="r-auth-port" value={authPort} onChange={(e) => { setAuthPort(e.target.value); setAuthErr(''); }} status={authErr ? 'error' : undefined} />
-                {authErr && <Text type="danger" style={{ fontSize: 12 }}>{authErr}</Text>}
-                <Text type="secondary" style={{ fontSize: '11.5px', display: 'block', marginTop: 2 }}>修改后需重启 NAS 连接,会短暂中断认证</Text>
-              </div>
-              <div>
-                <label htmlFor="r-acct-port" style={{ display: 'block', marginBottom: 6, fontSize: '12.5px', fontWeight: 500 }}>计费端口(UDP,会话审计)*</label>
-                <Input id="r-acct-port" value={acctPort} onChange={(e) => { setAcctPort(e.target.value); setAcctErr(''); }} status={acctErr ? 'error' : undefined} />
-                {acctErr && <Text type="danger" style={{ fontSize: 12 }}>{acctErr}</Text>}
-              </div>
-              <div><label htmlFor="r-timeout" style={{ display: 'block', marginBottom: 6, fontSize: '12.5px', fontWeight: 500 }}>NAS 请求超时</label><Select id="r-timeout" defaultValue="3 秒" options={['2 秒','3 秒','5 秒'].map((o) => ({ label: o, value: o }))} style={{ width: '100%' }} /></div>
-              <div><label htmlFor="r-retry" style={{ display: 'block', marginBottom: 6, fontSize: '12.5px', fontWeight: 500 }}>超时重试次数</label><Select id="r-retry" defaultValue="2 次" options={['1 次','2 次','3 次'].map((o) => ({ label: o, value: o }))} style={{ width: '100%' }} /></div>
-              <div style={{ gridColumn: 'span 2' }}><label style={{ display: 'block', marginBottom: 6, fontSize: '12.5px', fontWeight: 500 }}>CoA / Disconnect 监听端口</label><Input defaultValue="3799" /><Text type="secondary" style={{ fontSize: '11.5px' }}>强制下线与策略重授权均通过 CoA 下发</Text></div>
-              <div style={{ gridColumn: 'span 2', display: 'flex', justifyContent: 'flex-end' }}><Button type="primary" onClick={saveRadius}>保存</Button></div>
-            </div>
+            <Form layout="vertical">
+              <Row gutter={16}>
+                <Col span={12}>
+                  <Form.Item label="认证端口(UDP)*" validateStatus={authErr ? 'error' : undefined} help={authErr || '修改后需重启 NAS 连接,会短暂中断认证'}>
+                    <Input id="r-auth-port" value={authPort} onChange={(e) => { setAuthPort(e.target.value); setAuthErr(''); }} status={authErr ? 'error' : undefined} />
+                  </Form.Item>
+                </Col>
+                <Col span={12}>
+                  <Form.Item label="计费端口(UDP,会话审计)*" validateStatus={acctErr ? 'error' : undefined} help={acctErr}>
+                    <Input id="r-acct-port" value={acctPort} onChange={(e) => { setAcctPort(e.target.value); setAcctErr(''); }} status={acctErr ? 'error' : undefined} />
+                  </Form.Item>
+                </Col>
+                <Col span={12}>
+                  <Form.Item label="NAS 请求超时">
+                    <Select id="r-timeout" defaultValue="3 秒" options={['2 秒','3 秒','5 秒'].map((o) => ({ label: o, value: o }))} style={{ width: '100%' }} />
+                  </Form.Item>
+                </Col>
+                <Col span={12}>
+                  <Form.Item label="超时重试次数">
+                    <Select id="r-retry" defaultValue="2 次" options={['1 次','2 次','3 次'].map((o) => ({ label: o, value: o }))} style={{ width: '100%' }} />
+                  </Form.Item>
+                </Col>
+                <Col span={24}>
+                  <Form.Item label="CoA / Disconnect 监听端口" extra="强制下线与策略重授权均通过 CoA 下发">
+                    <Input defaultValue="3799" />
+                  </Form.Item>
+                </Col>
+                <Col span={24}>
+                  <Flex justify="flex-end"><Button type="primary" onClick={saveRadius}>保存</Button></Flex>
+                </Col>
+              </Row>
+            </Form>
           </Card>
 
           {/* 证书 */}
           <Card id="set-cert" data-od-id="set-cert" title="证书管理" extra={<Tag color="green">CA 有效</Tag>}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px 20px' }}>
-              <div style={{ gridColumn: 'span 2' }}>
-                <Text strong>企业 CA 证书</Text>
-                <Descriptions
-                  column={1}
-                  size="small"
-                  items={[
-                    { key: 'issuer', label: '颁发者', children: 'CN=Corp Root CA 2024, O=Example Inc.' },
-                    { key: 'valid', label: '有效期', children: '2024-01-01 至 2034-01-01(剩余 8.4 年)' },
-                  ]}
-                  style={{ marginTop: 6 }}
-                />
-                <Space style={{ marginTop: 10 }}><Button onClick={() => toast('「CA 证书更新申请」已提交')}>上传新 CA 证书</Button><Button onClick={() => toast('CRL(吊销列表)已开始下载,共 23 条记录')}>下载 CRL</Button></Space>
-              </div>
-              <div><label style={{ display: 'block', marginBottom: 6, fontSize: '12.5px', fontWeight: 500 }}>终端证书有效期</label><Select defaultValue="365 天" options={['180 天','365 天','730 天'].map((o) => ({ label: o, value: o }))} style={{ width: '100%' }} /></div>
-              <div><label style={{ display: 'block', marginBottom: 6, fontSize: '12.5px', fontWeight: 500 }}>到期提醒</label><Select defaultValue="前 30 天" options={['前 7 天','前 30 天','前 60 天'].map((o) => ({ label: o, value: o }))} style={{ width: '100%' }} /></div>
-              <div style={{ gridColumn: 'span 2' }}><Checkbox defaultChecked>过期证书直接拒绝接入(不进入隔离区)</Checkbox></div>
-              <div style={{ gridColumn: 'span 2', display: 'flex', justifyContent: 'flex-end' }}><Button type="primary" onClick={() => toast('「证书策略」已保存')}>保存</Button></div>
-            </div>
+            <Form layout="vertical">
+              <Row gutter={16}>
+                <Col span={24}>
+                  <Text strong>企业 CA 证书</Text>
+                  <Descriptions
+                    column={1}
+                    size="small"
+                    items={[
+                      { key: 'issuer', label: '颁发者', children: 'CN=Corp Root CA 2024, O=Example Inc.' },
+                      { key: 'valid', label: '有效期', children: '2024-01-01 至 2034-01-01(剩余 8.4 年)' },
+                    ]}
+                    style={{ marginTop: 6 }}
+                  />
+                  <Space style={{ marginTop: 10 }}><Button onClick={() => toast('「CA 证书更新申请」已提交')}>上传新 CA 证书</Button><Button onClick={() => toast('CRL(吊销列表)已开始下载,共 23 条记录')}>下载 CRL</Button></Space>
+                </Col>
+                <Col span={12}>
+                  <Form.Item label="终端证书有效期">
+                    <Select defaultValue="365 天" options={['180 天','365 天','730 天'].map((o) => ({ label: o, value: o }))} style={{ width: '100%' }} />
+                  </Form.Item>
+                </Col>
+                <Col span={12}>
+                  <Form.Item label="到期提醒">
+                    <Select defaultValue="前 30 天" options={['前 7 天','前 30 天','前 60 天'].map((o) => ({ label: o, value: o }))} style={{ width: '100%' }} />
+                  </Form.Item>
+                </Col>
+                <Col span={24}>
+                  <Checkbox defaultChecked>过期证书直接拒绝接入(不进入隔离区)</Checkbox>
+                </Col>
+                <Col span={24}>
+                  <Flex justify="flex-end"><Button type="primary" onClick={() => toast('「证书策略」已保存')}>保存</Button></Flex>
+                </Col>
+              </Row>
+            </Form>
           </Card>
 
           {/* AD/LDAP */}
           <Card id="set-ldap" data-od-id="set-ldap" title="AD / LDAP 对接" extra={<Tag color="green">已连接</Tag>}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px 20px' }}>
-              <div><label style={{ display: 'block', marginBottom: 6, fontSize: '12.5px', fontWeight: 500 }}>服务器地址</label><Input defaultValue="ldaps://dc01.corp.example.com:636" /></div>
-              <div><label style={{ display: 'block', marginBottom: 6, fontSize: '12.5px', fontWeight: 500 }}>Base DN</label><Input defaultValue="OU=Employees,DC=corp,DC=example,DC=com" /></div>
-              <div><label style={{ display: 'block', marginBottom: 6, fontSize: '12.5px', fontWeight: 500 }}>绑定账号</label><Input defaultValue="CN=svc-radius,OU=Service,DC=corp,DC=example,DC=com" /></div>
-              <div><label style={{ display: 'block', marginBottom: 6, fontSize: '12.5px', fontWeight: 500 }}>同步周期</label><Select defaultValue="60 分钟" options={['15 分钟','60 分钟','6 小时','每日 02:00'].map((o) => ({ label: o, value: o }))} style={{ width: '100%' }} /></div>
-              <div style={{ gridColumn: 'span 2' }}>
-                <Text strong>字段映射</Text>
-                <Table
-                  rowKey="ad"
-                  size="small"
-                  pagination={false}
-                  style={{ marginTop: 8 }}
-                  dataSource={[
-                    { ad: 'sAMAccountName', field: '登录账号' },
-                    { ad: 'displayName', field: '姓名' },
-                    { ad: 'department', field: '所属部门' },
-                    { ad: 'mail', field: '通知邮箱' },
-                    { ad: 'userAccountControl', field: '停用状态' },
-                  ]}
-                  columns={[
-                    { title: 'AD 属性', dataIndex: 'ad', key: 'ad', render: (v: string) => <Typography.Text code>{v}</Typography.Text> },
-                    { title: '本系统字段', dataIndex: 'field', key: 'field' },
-                  ]}
-                />
-              </div>
-              <div style={{ gridColumn: 'span 2', display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
-                <Button onClick={() => toast('连接成功,耗时 84ms,可读取 1,472 个账号')}>测试连接</Button>
-                <Button type="primary" onClick={() => toast('「AD/LDAP 对接配置」已保存')}>保存</Button>
-              </div>
-            </div>
+            <Form layout="vertical">
+              <Row gutter={16}>
+                <Col span={12}>
+                  <Form.Item label="服务器地址">
+                    <Input defaultValue="ldaps://dc01.corp.example.com:636" />
+                  </Form.Item>
+                </Col>
+                <Col span={12}>
+                  <Form.Item label="Base DN">
+                    <Input defaultValue="OU=Employees,DC=corp,DC=example,DC=com" />
+                  </Form.Item>
+                </Col>
+                <Col span={12}>
+                  <Form.Item label="绑定账号">
+                    <Input defaultValue="CN=svc-radius,OU=Service,DC=corp,DC=example,DC=com" />
+                  </Form.Item>
+                </Col>
+                <Col span={12}>
+                  <Form.Item label="同步周期">
+                    <Select defaultValue="60 分钟" options={['15 分钟','60 分钟','6 小时','每日 02:00'].map((o) => ({ label: o, value: o }))} style={{ width: '100%' }} />
+                  </Form.Item>
+                </Col>
+                <Col span={24}>
+                  <Text strong>字段映射</Text>
+                  <Table
+                    rowKey="ad"
+                    size="small"
+                    pagination={false}
+                    style={{ marginTop: 8 }}
+                    dataSource={[
+                      { ad: 'sAMAccountName', field: '登录账号' },
+                      { ad: 'displayName', field: '姓名' },
+                      { ad: 'department', field: '所属部门' },
+                      { ad: 'mail', field: '通知邮箱' },
+                      { ad: 'userAccountControl', field: '停用状态' },
+                    ]}
+                    columns={[
+                      { title: 'AD 属性', dataIndex: 'ad', key: 'ad', render: (v: string) => <Typography.Text code>{v}</Typography.Text> },
+                      { title: '本系统字段', dataIndex: 'field', key: 'field' },
+                    ]}
+                  />
+                </Col>
+                <Col span={24}>
+                  <Flex justify="flex-end" gap={10}>
+                    <Button onClick={() => toast('连接成功,耗时 84ms,可读取 1,472 个账号')}>测试连接</Button>
+                    <Button type="primary" onClick={() => toast('「AD/LDAP 对接配置」已保存')}>保存</Button>
+                  </Flex>
+                </Col>
+              </Row>
+            </Form>
           </Card>
 
           {/* 管理员 */}
           <AdminSection />
 
           {/* 告警 */}
-          <Card id="set-alert" data-od-id="set-alert" title="告警通知配置" extra={<Button type="primary" size="small" onClick={() => toast('「告警通知配置」已保存')}>保存</Button>} style={{ gridColumn: '1 / -1' }}>
+          <Card id="set-alert" data-od-id="set-alert" title="告警通知配置" extra={<Button type="primary" size="small" onClick={() => toast('「告警通知配置」已保存')}>保存</Button>}>
             {rules.map((rule) => (
               <div key={rule.key} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 0', borderTop: rule.key !== 'mail' ? `1px solid ${token.colorBorderSecondary}` : 'none', opacity: rule.on ? 1 : 0.55 }}>
                 <Switch checked={rule.on} aria-label={rule.name + '通知'} onChange={(on) => toggleRule(rule.key, on)} />
@@ -171,7 +220,7 @@ export default function Settings() {
       </div>
 
       <Modal open={coreModal} title="确认修改核心端口" cancelText="再检查一下" okText="确认修改并重启监听" okButtonProps={{ danger: true }} onCancel={() => setCoreModal(false)} onOk={confirmCore}>
-        <p>核心端口将由 <span className="mono">{origPorts.current.auth} / {origPorts.current.acct}</span> 修改为 <span className="mono">{authPort.trim()} / {acctPort.trim()}</span>。变更影响:</p>
+        <p>核心端口将由 <Typography.Text code>{origPorts.current.auth} / {origPorts.current.acct}</Typography.Text> 修改为 <Typography.Text code>{authPort.trim()} / {acctPort.trim()}</Typography.Text>。变更影响:</p>
         <p>• 全部 NAS 将中断当前监听并重连,期间认证请求超时或失败<br />• 在线会话不会立即断开,但计费报文可能丢失<br />• 操作记录审计,建议在低峰时段执行。</p>
       </Modal>
     </Shell>
@@ -204,12 +253,12 @@ function AdminSection() {
     { title: '账号', key: 'user', render: (_v, a) => <><b>{a.username}</b>{me?.username === a.username ? ' (当前)' : ''}<Typography.Text type="secondary" style={{ fontSize: 12, fontFamily: 'monospace' }}>{a.display_name || '-'}</Typography.Text></> },
     { title: '来源', key: 'source', render: (_v, a) => <Typography.Text type="secondary" style={{ fontSize: 12 }}>{a.linked_account ? `关联用户:${a.linked_account}` : '独立账号'}</Typography.Text> },
     { title: '角色', key: 'role', render: (_v, a) => me?.username === a.username ? <Tag color="blue">{ROLE_LABELS[a.role] || a.role}</Tag> : <Select size="small" value={a.role} onChange={(v) => changeRole(a.id, v)} options={['admin','operator','auditor'].map((r) => ({ label: ROLE_LABELS[r], value: r }))} style={{ width: 100 }} /> },
-    { title: '权限范围', key: 'scope', render: (_v, a) => <span className="truncate" style={{ maxWidth: 240 }} title={ROLE_SCOPES[a.role] || ''}>{ROLE_SCOPES[a.role] || a.role}</span> },
+    { title: '权限范围', key: 'scope', render: (_v, a) => <Typography.Text ellipsis={{ tooltip: ROLE_SCOPES[a.role] || '' }} style={{ maxWidth: 240 }}>{ROLE_SCOPES[a.role] || a.role}</Typography.Text> },
     { title: '操作', key: 'actions', render: (_v, a) => me?.username !== a.username ? <Button danger size="small" onClick={() => revoke(a.id, a.username)}>撤销</Button> : <Typography.Text type="secondary">—</Typography.Text> },
   ];
 
   return (
-    <Card id="set-rbac" data-od-id="set-rbac" title="管理员与权限" extra={<Button size="small" onClick={() => setShowGrant(true)}>授权用户</Button>} style={{ borderRadius: 18 }}>
+    <Card id="set-rbac" data-od-id="set-rbac" title="管理员与权限" extra={<Button size="small" onClick={() => setShowGrant(true)}>授权用户</Button>}>
       <Table rowKey="id" dataSource={admins} columns={adminCols} pagination={false} size="small" />
       <Typography.Text type="secondary" style={{ display: 'block', marginTop: 12 }}>内置超级管理员不可被降级或删除;敏感操作全部记录审计日志。</Typography.Text>
       {showGrant && <GrantAccessModal onClose={() => setShowGrant(false)} onGranted={() => { setShowGrant(false); fetchApi('/api/auth/admins').then((b: any) => setAdmins(b ?? [])).catch(() => {}); }} />}

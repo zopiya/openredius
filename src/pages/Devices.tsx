@@ -170,7 +170,7 @@ export default function Devices() {
                   </Space>
                 </Flex>
                 {nasView === 'loading' && <div style={{ padding: 40 }}><Skeleton active paragraph={{ rows: 8 }} /></div>}
-                {nasView === 'ready' && nasVisible.length > 0 && <Table className="tbl" rowKey="name" dataSource={nasVisible} columns={nasCols} data-od-id="nas-table" pagination={false} size="middle" />}
+                {nasView === 'ready' && nasVisible.length > 0 && <Table rowKey="name" dataSource={nasVisible} columns={nasCols} data-od-id="nas-table" pagination={false} size="middle" />}
                 {nasView === 'ready' && nasVisible.length === 0 && <Empty image={<Server style={{ width: 64, height: 64, color: token.colorTextQuaternary }} />} description="没有符合条件的设备" style={{ padding: '56px 24px' }}><Button onClick={() => { setNasForm(DEFAULT_NAS_FILTERS); setNasApplied(DEFAULT_NAS_FILTERS); }}>清空筛选条件</Button></Empty>}
                 {nasView === 'error' && <Result status="error" title="设备数据加载失败" subTitle="无法获取 NAS 清单(NDEV-API 502)。" extra={<Button onClick={nasRetry}>重试</Button>} />}
               </div>
@@ -187,7 +187,7 @@ export default function Devices() {
                   </Space>
                   <Button onClick={() => toast('已导出 endpoints-20260727.csv(1,642 条)')}>导出清单</Button>
                 </Flex>
-                {epVisible.length > 0 && <Table className="tbl" rowKey="mac" dataSource={epVisible} columns={epCols} data-od-id="ep-table" pagination={false} size="middle" />}
+                {epVisible.length > 0 && <Table rowKey="mac" dataSource={epVisible} columns={epCols} data-od-id="ep-table" pagination={false} size="middle" />}
                 {epVisible.length === 0 && <Empty image={<Laptop style={{ width: 64, height: 64, color: token.colorTextQuaternary }} />} description="没有符合条件的终端" style={{ padding: '56px 24px' }}><Button onClick={() => { setEpForm(DEFAULT_EP_FILTERS); setEpApplied(DEFAULT_EP_FILTERS); }}>清空筛选条件</Button></Empty>}
               </div>
             )},
