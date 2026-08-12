@@ -18,7 +18,7 @@ from openredius.schemas.policies import (
     PolicyUpdate,
 )
 from openredius.services import audit
-from openredius.services.compiler import compile_policies_placeholder
+from openredius.services.compiler import compile_policies
 
 router = APIRouter()
 
@@ -116,9 +116,7 @@ async def create_policy(
         target_id=str(policy.id),
         detail={"name": policy.name, "slug": policy.slug},
     )
-    await compile_policies_placeholder(
-        db, actor=admin.username, trigger="policy.create", policy_ids=[policy.id]
-    )
+    await compile_policies(db, actor=admin.username, trigger="policy.create")
     await db.commit()
     await db.refresh(policy)
     return await _policy_out(db, policy)
@@ -150,9 +148,7 @@ async def update_policy(
         target_id=str(policy_id),
         detail={"name": policy.name},
     )
-    await compile_policies_placeholder(
-        db, actor=admin.username, trigger="policy.update", policy_ids=[policy_id]
-    )
+    await compile_policies(db, actor=admin.username, trigger="policy.update")
     await db.commit()
     await db.refresh(policy)
     return await _policy_out(db, policy)
@@ -177,9 +173,7 @@ async def toggle_policy(
         target_id=str(policy_id),
         detail={"enabled": body.enabled},
     )
-    await compile_policies_placeholder(
-        db, actor=admin.username, trigger="policy.toggle", policy_ids=[policy_id]
-    )
+    await compile_policies(db, actor=admin.username, trigger="policy.toggle")
     await db.commit()
     await db.refresh(policy)
     return await _policy_out(db, policy)
@@ -215,9 +209,7 @@ async def reorder_policies(
         target_type="policy_group",
         detail={"order": body.order},
     )
-    await compile_policies_placeholder(
-        db, actor=admin.username, trigger="policy.reorder", policy_ids=body.order
-    )
+    await compile_policies(db, actor=admin.username, trigger="policy.reorder")
     await db.commit()
     return await list_policies(db=db, _admin=admin)
 
@@ -245,7 +237,5 @@ async def delete_policy(
         target_id=str(policy_id),
         detail={"name": policy.name},
     )
-    await compile_policies_placeholder(
-        db, actor=admin.username, trigger="policy.delete", policy_ids=[policy_id]
-    )
+    await compile_policies(db, actor=admin.username, trigger="policy.delete")
     await db.commit()

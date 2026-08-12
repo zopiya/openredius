@@ -28,6 +28,7 @@ from openredius.schemas.users import (
     UserStatusRequest,
 )
 from openredius.services import audit
+from openredius.services.compiler import compile_policies
 
 router = APIRouter()
 
@@ -167,6 +168,7 @@ async def update_user_status(
             target_id=user.account,
             detail={"status": target.value},
         )
+    await compile_policies(db, actor=admin.username, trigger="user.status")
     await db.commit()
     return Affected(affected=len(users))
 
@@ -191,5 +193,6 @@ async def assign_user_policy(
             target_id=user.account,
             detail={"policy_id": policy.id, "policy": policy.name},
         )
+    await compile_policies(db, actor=admin.username, trigger="user.policy")
     await db.commit()
     return Affected(affected=len(users))

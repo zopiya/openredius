@@ -44,6 +44,9 @@ class Settings(BaseSettings):
 
     radius_coa_port: int = 3799
     radius_coa_timeout: float = 3.0
+    # Command used by POST /api/ops/reload-radius (empty = manual mode).
+    # Dev: "docker compose -f deploy/docker-compose.dev.yml restart freeradius"
+    radius_reload_command: str = ""
     nas_online_window: int = 300
 
     ad_url: str = ""
