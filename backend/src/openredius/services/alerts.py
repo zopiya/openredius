@@ -35,11 +35,7 @@ def _now() -> datetime:
 
 
 async def _rule(db: AsyncSession, key: str) -> AlertRule | None:
-    rule = (await db.execute(select(AlertRule).where(AlertRule.key == key))).scalar_one_or_none()
-    # Rules default to enabled if they don't exist yet (first-run tolerance).
-    if rule is not None and not rule.enabled:
-        return None
-    return rule
+    return (await db.execute(select(AlertRule).where(AlertRule.key == key))).scalar_one_or_none()
 
 
 async def _recently_alerted(db: AsyncSession, rule_key: str, link: str, window_s: int) -> bool:
@@ -66,6 +62,13 @@ async def _emit(
     link_path: str,
     dedup_window_s: int,
 ) -> AlertEvent | None:
+    # Respect rule.enabled toggle — query directly to avoid conflating
+    # "disabled" (→ skip) with "missing" (→ default-enabled).
+    rule = (
+        await db.execute(select(AlertRule).where(AlertRule.key == rule_key))
+    ).scalar_one_or_none()
+    if rule is not None and not rule.enabled:
+        return None
     # link_path doubles as the de-dup identity (it embeds the subject).
     if await _recently_alerted(db, rule_key, link_path, dedup_window_s):
         return None

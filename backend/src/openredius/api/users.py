@@ -161,7 +161,7 @@ async def _load_accounts(db: AsyncSession, accounts: list[str]) -> list[AccessUs
 @router.post("/sync-ad", response_model=AdSyncResult)
 async def trigger_ad_sync(
     db: AsyncSession = Depends(get_db),
-    admin: AdminUser = Depends(require_role(AdminRole.ADMIN)),
+    admin: AdminUser = Depends(require_role(AdminRole.ADMIN, AdminRole.OPERATOR)),
 ) -> AdSyncResult:
     """Trigger an incremental AD sync (async — returns immediately).
 
@@ -200,6 +200,15 @@ async def trigger_ad_sync(
     # Fire and forget; the job record is created synchronously first.
     import asyncio
     asyncio.ensure_future(_run_in_background())
+
+    await audit.record_audit(
+        db,
+        actor=admin.username,
+        action="ad_sync.triggered",
+        target_type="ad_sync_job",
+        detail={"triggered_by": "manual"},
+    )
+    await db.commit()
 
     return AdSyncResult(
         triggered=True,

@@ -45,11 +45,11 @@ def build_scheduler(settings: Settings) -> AsyncIOScheduler | None:
     # AD sync via cron expression (default: every 15 min).
     try:
         if settings.ad_url:
+            from apscheduler.triggers.cron import CronTrigger
             scheduler.add_job(
                 _run_ad_sync_cron,
-                "cron",
+                CronTrigger.from_crontab(settings.ad_sync_cron),
                 id="ad_sync",
-                minute="*/15",
                 args=[settings],
             )
     except Exception:
