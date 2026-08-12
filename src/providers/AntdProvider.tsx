@@ -10,7 +10,7 @@ import theme from '../theme';
  */
 export default function AntdProvider({ children }: { children: ReactNode }) {
   return (
-    <ConfigProvider theme={theme} locale={zhCN}>
+    <ConfigProvider theme={theme} locale={zhCN} button={{ autoInsertSpace: false }}>
       <App>
         {children}
       </App>
