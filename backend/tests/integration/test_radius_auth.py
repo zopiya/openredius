@@ -121,6 +121,14 @@ async def test_locked_account_rejects_with_class(client: AsyncClient, admin_head
 
 
 async def test_time_window_rejects(client: AsyncClient, admin_headers) -> None:
+    from datetime import UTC, datetime, timedelta
+
+    # Closed window guaranteed to exclude the current UTC instant regardless of
+    # when the suite runs (a fixed 00:00-00:01 window would flake once a day).
+    now = datetime.now(UTC)
+    win_from = (now - timedelta(hours=3)).strftime("%H:%M:%S")
+    win_to = (now - timedelta(hours=2)).strftime("%H:%M:%S")
+
     listing = await client.get("/api/policies", headers=admin_headers)
     rd = next(p for p in listing.json() if p["slug"] == "rd")
     original = {
@@ -146,9 +154,7 @@ async def test_time_window_rejects(client: AsyncClient, admin_headers) -> None:
             "enabled",
         )
     }
-    closed_window = dict(
-        original, time_window_enabled=True, time_from="00:00:00", time_to="00:01:00"
-    )
+    closed_window = dict(original, time_window_enabled=True, time_from=win_from, time_to=win_to)
     resp = await client.put(f"/api/policies/{rd['id']}", json=closed_window, headers=admin_headers)
     assert resp.status_code == 200, resp.text
     try:

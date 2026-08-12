@@ -8,9 +8,9 @@ import shlex
 from fastapi import APIRouter, Depends
 from sqlalchemy import text
 
-from openredius.core.config import get_settings
+from openredius.core.config import Settings
 from openredius.core.db import get_db, get_engine
-from openredius.core.deps import require_role
+from openredius.core.deps import get_app_settings, require_role
 from openredius.core.errors import ApiError
 from openredius.models import AdminRole, AdminUser
 from openredius.radius.compiler import compile_all
@@ -23,7 +23,7 @@ _RELOAD_TIMEOUT_S = 30
 
 
 @health_router.get("/health")
-async def health() -> dict[str, str]:
+async def health(settings: Settings = Depends(get_app_settings)) -> dict[str, str]:
     db_status = "ok"
     try:
         async with get_engine().connect() as conn:
@@ -34,7 +34,7 @@ async def health() -> dict[str, str]:
         "status": "ok" if db_status == "ok" else "degraded",
         "db": db_status,
         # reload command configured -> ops can restart FreeRADIUS itself (docs/06).
-        "radius_config": "configured" if get_settings().radius_reload_command.strip() else "manual",
+        "radius_config": "configured" if settings.radius_reload_command.strip() else "manual",
     }
 
 
@@ -42,6 +42,7 @@ async def health() -> dict[str, str]:
 async def reload_radius(
     db=Depends(get_db),
     admin: AdminUser = Depends(require_role(AdminRole.ADMIN)),
+    settings: Settings = Depends(get_app_settings),
 ) -> dict:
     """Restart FreeRADIUS so rlm_sql re-reads the nas table (docs/06).
 
@@ -49,7 +50,7 @@ async def reload_radius(
     Runs ``OPENRADIUS_RADIUS_RELOAD_COMMAND`` when configured; otherwise
     responds in manual mode with instructions.
     """
-    command = get_settings().radius_reload_command.strip()
+    command = settings.radius_reload_command.strip()
     if not command:
         detail = {"mode": "manual"}
         await record_audit(db, actor=admin.username, action="ops.reload_radius", detail=detail)
@@ -63,6 +64,7 @@ async def reload_radius(
         }
 
     argv = shlex.split(command)
+    proc = None
     try:
         proc = await asyncio.wait_for(
             asyncio.create_subprocess_exec(
@@ -74,6 +76,9 @@ async def reload_radius(
         )
         stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=_RELOAD_TIMEOUT_S)
     except TimeoutError as exc:
+        if proc is not None:
+            proc.kill()
+            await proc.wait()
         raise ApiError("reload_timeout", "reload command timed out", 504) from exc
     except FileNotFoundError as exc:
         raise ApiError("reload_unavailable", f"reload command not found: {argv[0]}", 500) from exc
@@ -95,4 +100,4 @@ async def compile(
     """Idempotent full recompile of policy/user state into the radius schema."""
     summary = await compile_all(db, actor=admin.username, trigger="ops.compile")
     await db.commit()
-    return summary.as_audit_detail()
+    return summary.as_audit_detail("ops.compile")

@@ -151,6 +151,24 @@ async def test_locked_user_gets_reject_entries(compile_env):
         assert await _rows(db, "radreply") == []
 
 
+async def test_external_usergroup_rows_preserved(compile_env):
+    """Compiler only owns policy_* group rows (W1): foreign radusergroup entries
+    (e.g. future AD-synced groups) must survive a full recompile."""
+    async with compile_env() as db:
+        await _seed_basic(db)
+        meta = build_radius_metadata(None)
+        radusergroup = meta.tables["radusergroup"]
+        await db.execute(
+            radusergroup.insert().values(username="ad.user", groupname="ad-group", priority=9)
+        )
+        await comp.compile_all(db, actor="test", trigger="t1")
+        await db.commit()
+
+        rows = await _rows(db, "radusergroup")
+        foreign = [(r[1], r[2]) for r in rows if r[2] == "ad-group"]
+        assert foreign == [("ad.user", "ad-group")]
+
+
 async def test_compile_writes_audit(compile_env):
     async with compile_env() as db:
         await _seed_basic(db)

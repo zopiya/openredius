@@ -1,6 +1,9 @@
 # OpenRedius dev FreeRADIUS image (docs/06).
 # Base: official FreeRADIUS server image; raddb/ is an overlay — only files we
 # ship replace upstream defaults, everything else stays stock.
+# Tested baseline: FreeRADIUS 3.2.10 (docs/06). On upgrade run
+# deploy/scripts/smoke_freeradius.sh + `uv run pytest -m integration` — the
+# entrypoint's awk anchors and the queries.conf class patch are version-sensitive.
 FROM freeradius/freeradius-server:latest
 
 # envsubst for credential injection in entrypoint.sh

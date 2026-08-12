@@ -208,7 +208,7 @@ async def compile_all(db: AsyncSession, actor: str, trigger: str = "manual") -> 
         (r.groupname, r.attribute, r.op, r.value)
         for r in (
             await db.execute(
-                select(radgroupreply).where(radgroupreply.c.groupname.like(f"{GROUP_PREFIX}%"))
+                select(radgroupreply).where(radgroupreply.c.groupname.startswith(GROUP_PREFIX))
             )
         ).all()
     }
@@ -216,13 +216,17 @@ async def compile_all(db: AsyncSession, actor: str, trigger: str = "manual") -> 
         (r.groupname, r.attribute, r.op, r.value)
         for r in (
             await db.execute(
-                select(radgroupcheck).where(radgroupcheck.c.groupname.like(f"{GROUP_PREFIX}%"))
+                select(radgroupcheck).where(radgroupcheck.c.groupname.startswith(GROUP_PREFIX))
             )
         ).all()
     }
     existing_usergroup = {
         (r.username, r.groupname, r.priority)
-        for r in (await db.execute(select(radusergroup))).all()
+        for r in (
+            await db.execute(
+                select(radusergroup).where(radusergroup.c.groupname.startswith(GROUP_PREFIX))
+            )
+        ).all()
     }
     existing_reject_check = {
         (r.username, r.attribute, r.op, r.value)

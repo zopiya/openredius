@@ -60,8 +60,9 @@ post-auth 各阶段加入 `sql`,authenticate 启用 eap。
 
 - 设备管理 CRUD → 写 `radius.nas`(nasname=IP, shortname=名称, secret, type, description)。
 - **变更后必须重启 freeradius 容器**(`read_clients` 仅启动时读取)。后端流程:
-  1. 写库成功;2. 调用 `POST /api/ops/reload-radius`(docker socket 可用则自动
-  `docker restart openredius-freeradius`,否则响应提示手动重启);3. 前端 toast 说明。
+  1. 写库成功;2. 调用 `POST /api/ops/reload-radius`:配置了
+  `OPENRADIUS_RADIUS_RELOAD_COMMAND`(dev 如 `docker compose -f deploy/docker-compose.dev.yml restart freeradius`)
+  则自动执行,未配置返回 `{mode:"manual"}` 提示手动重启;3. 前端 toast 说明。
 - 删除 NAS 前校验无活跃会话(03 已定义)。
 
 ## 策略消费:unlang 设计(authorize,在 sql 之后)
@@ -70,13 +71,14 @@ post-auth 各阶段加入 `sql`,authenticate 启用 eap。
 `policy-openredius`(sites-enabled/default authorize 内,sql 之后)消费:
 
 1. 取当前用户生效策略标记(应用库 public 侧为事实来源):
-   `%{sql: SELECT flags_csv FROM public.v_user_policy_flags WHERE account = '%{SQL-User-Name}'}`
-   → 写入暂存属性 `control:Tmp-String-0`(格式 `mac,edr,time:08:00-20:00`)。
+   `%{sql: SELECT flags_csv FROM public.v_user_policy_flags WHERE account = LOWER('%{User-Name}')}`
+   → 写入暂存属性 `control:Tmp-String-0`(格式 `mac,edr,time:08:00-20:00,cert`)。
    视图 `v_user_policy_flags` 由 Alembic 维护(取 enabled、priority 最高的策略组)。
+   (用 `LOWER('%{User-Name}')` 而非 `%{SQL-User-Name}`,原因见「M3 实测修正记录」。)
 2. 逐标记检查(失败即 reject,并设 `reply:Class = "reason=<key>"` 与中文 Reply-Message):
    - `mac` → 该用户名下 endpoints 无此 MAC → `reason=mac-unbound`
    - `edr` → endpoints.compliance='bad' → `reason=non-compliant`
-   - `time:` → `%{Time}` 窗口外 → `reason=time-policy`
+   - `time:` → 当前时刻(UTC)窗口外 → `reason=time-policy`
    - 证书过期(eap-tls 场景)→ endpoints.cert_not_after < now → `reason=cert-expired`
 3. MAC 规范化:统一大写并把 `-`/`.` 转 `:`(SQL 函数 `public.norm_mac(text)`,Alembic 建)。
 

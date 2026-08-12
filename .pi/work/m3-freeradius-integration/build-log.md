@@ -31,3 +31,20 @@
 8. 挂载 certs 遮蔽上游 → entrypoint 自签兜底(口令 whatever 对齐上游 eap)。
 9. PG init 用 ALTER DEFAULT PRIVILEGES(public 表由 Alembic 后建)。
 10. schema 结构变更(radpostauth.class)需 down -v 重建卷 —— deploy/README 已注明。
+
+## 评审后修复(2026-08-12,reviewer 意见)
+
+- W1 radusergroup 选取限定 policy_* 前缀(startswith 自动转义),外部组行
+  不再被全量编译误删;新增回归单测。
+- W2 update_nas 改 nasname 时先按旧 nasname remove,消除孤儿客户端。
+- W3 docs/06 NAS 生命周期段改为 reload-command 机制(与实现一致);正文
+  unlang 片段同步为 LOWER('%{User-Name}') 与 UTC 时间窗写法。
+- W4 新增 tests/api/test_ops.py:reload-radius manual 模式 + 审计、compile
+  skipped 响应(trigger 与审计一致)、ops 端点 RBAC 403、health
+  radius_config 随 app settings 变化(ops 改用 get_app_settings 注入)。
+- nit:集成时间窗改为动态闭窗(消除每日 flake);_stack_available 捕获
+  TimeoutExpired;reload 超时 kill 子进程;docs/04 配置表收录
+  OPENRADIUS_RADIUS_RELOAD_COMMAND;Dockerfile 记录已测基线与升级检查项;
+  entrypoint 兜底证书补 SAN。
+- 复验:pytest 106 + integration 7 全绿;ruff 干净;bun verify 21 绿;
+  栈重建后兜底证书 SAN 实测生效。

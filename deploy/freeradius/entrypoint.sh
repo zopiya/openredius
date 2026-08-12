@@ -59,6 +59,8 @@ CERTDIR=/etc/raddb/certs
 chmod 755 "$CERTDIR" 2>/dev/null || true
 if [ ! -f "$CERTDIR/server.pem" ] || [ ! -f "$CERTDIR/server.key" ]; then
     echo "entrypoint: generating self-signed dev certificates"
+    printf "subjectAltName=DNS:localhost,IP:127.0.0.1\nbasicConstraints=CA:FALSE\n" \
+        > /tmp/openredius-san.cnf
     cd "$CERTDIR"
     # Upstream eap tls-config expects server.pem = cert + key encrypted with
     # password "whatever" (mods-available/eap, dev baseline).
@@ -69,7 +71,7 @@ if [ ! -f "$CERTDIR/server.pem" ] || [ ! -f "$CERTDIR/server.key" ]; then
         -keyout server.key.plain -out server.csr \
         -subj "/C=CN/O=OpenRedius/CN=OpenRedius-Dev" >/dev/null 2>&1
     openssl x509 -req -in server.csr -CA ca.pem -CAkey ca.key -CAcreateserial \
-        -days 825 -out server.crt >/dev/null 2>&1
+        -days 825 -out server.crt -extfile /tmp/openredius-san.cnf >/dev/null 2>&1
     openssl rsa -in server.key.plain -aes256 -passout pass:whatever \
         -out server.key >/dev/null 2>&1
     cat server.crt server.key > server.pem
