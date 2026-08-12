@@ -18,7 +18,10 @@ RUN chmod +x /entrypoint.sh && ln -sf ../mods-available/sql /etc/raddb/mods-enab
     && echo '$INCLUDE dictionary.openredius' >> /etc/raddb/dictionary \
     && sed -i -E \
         's/^([[:space:]]*)column_name[[:space:]]*=.*/\1column_name = ", class"/; \
-         s/^([[:space:]]*)reply_xlat[[:space:]]*=.*/\1reply_xlat = ", '"'"'%{reply:OpenRedius-Deny-Reason}'"'"'"/' \
+         s/^([[:space:]]*)reply_xlat[[:space:]]*=.*/\1reply_xlat = ", '"'"'%{reply:OpenRedius-Deny-Reason}'"'"'"/; \
+         s/^([[:space:]]*)packet_xlat[[:space:]]*=.*/\1packet_xlat = ", '"'"'%{Class}'"'"'"/; \
+         s/username, pass, reply, authdate/username, pass, reply, callingstationid, nasipaddress, authdate/; \
+         s/^([[:space:]]*)'"'"'%S\.%M'"'"' \\$/\1'"'"'%{Calling-Station-Id}'"'"', '"'"'%{NAS-IP-Address}'"'"', '"'"'%S.%M'"'"' \\/' \
         /etc/raddb/mods-config/sql/main/postgresql/queries.conf \
     && find -H /etc/raddb -type d -exec chmod 755 {} + \
     && find -H /etc/raddb -type f -exec chmod 644 {} +

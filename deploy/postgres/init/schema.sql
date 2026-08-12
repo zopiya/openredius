@@ -58,6 +58,8 @@ CREATE TABLE radpostauth (
     reply               varchar(32),
     calledstationid     varchar(50),
     callingstationid    varchar(50),
+    -- M4: NAS identity for log list/filter (postauth_query extended, docs/06).
+    nasipaddress        varchar(64) NOT NULL DEFAULT '',
     authdate            timestamp(0) without time zone NOT NULL DEFAULT now(),
     -- reply:Class captured by the M3 postauth_query (docs/06 failure-reason classifier).
     class               varchar(64) NOT NULL DEFAULT ''
@@ -77,7 +79,8 @@ CREATE TABLE radacct (
     nasporttype         varchar(32) DEFAULT NULL,
     acctstarttime       timestamp(0) without time zone NOT NULL DEFAULT now(),
     acctupdatetime      timestamp(0) without time zone NOT NULL DEFAULT now(),
-    acctstoptime        timestamp(0) without time zone NOT NULL DEFAULT now(),
+    -- NULL while the session is active (official FreeRADIUS schema semantics).
+    acctstoptime        timestamp(0) without time zone DEFAULT NULL,
     acctinterval        bigint NOT NULL DEFAULT 0,
     acctsessiontime     bigint NOT NULL DEFAULT 0,
     acctauthentic       varchar(32) DEFAULT NULL,
@@ -87,23 +90,28 @@ CREATE TABLE radacct (
     acctoutputoctets    bigint NOT NULL DEFAULT 0,
     calledstationid     varchar(50) NOT NULL DEFAULT '',
     callingstationid    varchar(50) NOT NULL DEFAULT '',
-    acctterminatecause  varchar(32) NOT NULL DEFAULT '',
+    -- NULL until the Stop record arrives (stock start query inserts NULL).
+    acctterminatecause  varchar(32) DEFAULT NULL,
     servicetype         varchar(32) DEFAULT NULL,
     framedprotocol      varchar(32) DEFAULT NULL,
-    framedipaddress     inet NOT NULL,
-    framedipv6address   inet NOT NULL,
-    framedipv6prefix    varchar(44) NOT NULL DEFAULT '',
+    framedipaddress     inet DEFAULT NULL,  -- NULLIF'd by stock queries
+    framedipv6address   inet DEFAULT NULL,
+    framedipv6prefix    varchar(44) DEFAULT NULL,
     framedinterfaceid   varchar(44) DEFAULT NULL,
-    delegatedipv6prefix varchar(44) NOT NULL DEFAULT '',
+    delegatedipv6prefix varchar(44) DEFAULT NULL,
     acctstartdelay      integer NOT NULL DEFAULT 0,
     acctstopdelay       integer NOT NULL DEFAULT 0,
     acctinputgigawords  bigint NOT NULL DEFAULT 0,
-    acctoutputgigawords bigint NOT NULL DEFAULT 0
+    acctoutputgigawords bigint NOT NULL DEFAULT 0,
+    -- FreeRADIUS >= 3.0.22 accounting Class carrier (queries.conf class block).
+    class               varchar(64) NOT NULL DEFAULT ''
 );
 -- 官方索引(在线会话/关闭会话/批量查询路径)
 CREATE INDEX radacct_WhosOnline ON radacct (username, nasipaddress, acctstarttime, acctstoptime);
 CREATE INDEX radacct_SessionId ON radacct (acctsessionid);
-CREATE INDEX radacct_AcctUniqueId ON radacct (acctuniqueid);
+-- UNIQUE (not plain index): the stock accounting queries upsert via
+-- ON CONFLICT (AcctUniqueId) and need a matching unique constraint.
+CREATE UNIQUE INDEX radacct_AcctUniqueId ON radacct (acctuniqueid);
 CREATE INDEX radacct_start_user_bps ON radacct
     (acctstarttime, username, acctsessiontime, acctinputoctets, acctoutputoctets);
 CREATE INDEX radacct_stop_user_bps ON radacct
