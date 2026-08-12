@@ -34,6 +34,22 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-E
     GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA radius TO openredius;
     -- Alembic 迁移在 public schema 建应用表
     GRANT USAGE, CREATE ON SCHEMA public TO openredius;
+
+    -- FreeRADIUS 的 unlang 内联 SQL(policy-openredius)以 radius 角色读
+    -- public 侧视图/函数/表;表由 openredius(Alembic)在此之后创建,
+    -- 故用 default privileges 而非直接 GRANT(docs/06)。
+    ALTER DEFAULT PRIVILEGES FOR ROLE openredius IN SCHEMA public
+        GRANT SELECT ON TABLES TO radius;
+    ALTER DEFAULT PRIVILEGES FOR ROLE openredius IN SCHEMA public
+        GRANT EXECUTE ON FUNCTIONS TO radius;
+EOSQL
+
+echo ">>> seeding dev RADIUS test client (radtest from localhost)"
+psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-EOSQL
+    SET search_path TO radius;
+    INSERT INTO nas (nasname, shortname, type, secret, description)
+    VALUES ('127.0.0.1', 'dev-radtest', 'other', 'testing123-dev',
+            'OpenRedius dev smoke-test client (radtest); managed by compose init');
 EOSQL
 
 echo ">>> postgres init complete"

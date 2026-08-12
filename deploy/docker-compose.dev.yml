@@ -29,5 +29,31 @@ services:
       timeout: 3s
       retries: 12
 
+  freeradius:
+    build: ./freeradius
+    image: openredius/freeradius
+    environment:
+      RADIUS_SQL_HOST: postgres
+      RADIUS_SQL_PORT: "5432"
+      RADIUS_SQL_USER: radius
+      RADIUS_SQL_PASSWORD: ${RADIUS_SQL_PASSWORD:-dev-only-radius-sql-password}
+      RADIUS_SQL_DB: openredius
+    ports:
+      - "1812:1812/udp"
+      - "1813:1813/udp"
+    volumes:
+      # dev 证书(gen.sh 生成;缺失时镜像内 eap 使用上游自带证书,仅 PEAP 冒烟)
+      - ./freeradius/certs:/etc/raddb/certs
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      # 配置语法校验(radiusd -CX);不探测 1812 端口,避免依赖客户端
+      test: ["CMD", "radiusd", "-CX"]
+      interval: 30s
+      timeout: 15s
+      retries: 3
+      start_period: 10s
+
 volumes:
   postgres-data:
