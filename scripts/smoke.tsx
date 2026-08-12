@@ -9,7 +9,6 @@ import { ToastProvider } from '../src/components/Toast';
 
 const paths = [
   '/login',
-  '/',
   '/dashboard',
   '/sessions',
   '/auth-logs',

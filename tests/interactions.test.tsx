@@ -7,7 +7,6 @@ import { cleanup, fireEvent, render, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import type { ReactNode } from 'react';
 import { ToastProvider } from '../src/components/Toast';
-import Launcher from '../src/pages/Launcher';
 import Dashboard from '../src/pages/Dashboard';
 import Sessions from '../src/pages/Sessions';
 import AuthLogs from '../src/pages/AuthLogs';
@@ -35,14 +34,6 @@ function toastText(container: HTMLElement) {
 }
 
 const WAIT = { timeout: 2500 };
-
-/* ── 启动页 ─────────────────────────────────────────── */
-test('Launcher:8 个页面入口卡片', () => {
-  const { container } = ui(<Launcher />);
-  const cards = container.querySelectorAll('.launch-card');
-  expect(cards.length).toBe(8);
-  expect(container.querySelector('.launch-foot')?.textContent).toContain('无计费');
-});
 
 /* ── 仪表盘 ─────────────────────────────────────────── */
 test('Dashboard:KPI / 趋势图粒度切换 / 告警深链', async () => {

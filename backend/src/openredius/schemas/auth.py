@@ -31,3 +31,8 @@ class TokenResponse(BaseModel):
     expires_in: int
     token_type: str = "bearer"
     user: AdminProfile
+
+
+class ChangePasswordRequest(BaseModel):
+    old_password: str = Field(min_length=1, max_length=128)
+    new_password: str = Field(min_length=10, max_length=128)

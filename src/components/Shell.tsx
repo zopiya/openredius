@@ -1,7 +1,12 @@
-import type { ReactNode } from 'react';
-import { NavLink } from 'react-router-dom';
-import { Activity, BarChart3, Gauge, ScrollText, Search, Server, Settings, ShieldCheck, Users } from 'lucide-react';
+import { type ReactNode, useEffect, useState, useRef } from 'react';
+import { NavLink, useNavigate } from 'react-router-dom';
+import {
+  Activity, BarChart3, Gauge, KeyRound, LogOut,
+  ScrollText, Search, Server, Settings, ShieldCheck, Users,
+} from 'lucide-react';
 import { useTitle } from '../hooks/useTitle';
+import { fetchMe, logout } from '../api/auth';
+import { MODE } from '../api/config';
 
 export const NAV_ITEMS = [
   { to: '/dashboard', label: '仪表盘', icon: Gauge },
@@ -14,8 +19,45 @@ export const NAV_ITEMS = [
   { to: '/settings', label: '系统设置', icon: Settings },
 ] as const;
 
+interface AdminInfo { username: string; display_name: string; role: string; }
+
+/** Mock admin (同步, CI 兼容) */
+const MOCK_ADMIN: AdminInfo = {
+  username: 'admin',
+  display_name: '管理员',
+  role: 'admin',
+};
+
 export default function Shell({ page, children }: { page: string; children: ReactNode }) {
   useTitle(page);
+  const nav = useNavigate();
+  const [me, setMe] = useState<AdminInfo>(MOCK_ADMIN);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [pwOpen, setPwOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (MODE === 'http') {
+      fetchMe()
+        .then((info) => setMe(info))
+        .catch(() => { /* keep mock */ });
+    }
+  }, []);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    function onDown(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, []);
+
+  const display = me.display_name || me.username;
+  const initial = display.charAt(0).toUpperCase();
+
   return (
     <>
       <aside className="sidebar" data-od-id="sidebar">
@@ -52,11 +94,27 @@ export default function Shell({ page, children }: { page: string; children: Reac
               <Search className="icon" />
               <input type="search" placeholder="搜索用户 / MAC / 设备" aria-label="搜索" />
             </div>
-            <div className="user-chip">
-              <div className="avatar">王</div>
-              <div>
-                王工<small>网络运维部</small>
-              </div>
+            <div className="user-dropdown" ref={menuRef}>
+              <button
+                type="button"
+                className="user-chip user-chip--btn"
+                onClick={() => setMenuOpen((v) => !v)}
+              >
+                <div className="avatar">{initial}</div>
+                <div>
+                  {display}<small>{me.role === 'admin' ? '管理员' : me.role === 'operator' ? '运维' : '审计'}</small>
+                </div>
+              </button>
+              {menuOpen && (
+                <div className="dropdown-menu">
+                  <button type="button" className="dropdown-item" onClick={() => { setMenuOpen(false); setPwOpen(true); }}>
+                    <KeyRound className="icon" />修改密码
+                  </button>
+                  <button type="button" className="dropdown-item" onClick={() => { logout(); nav('/login'); }}>
+                    <LogOut className="icon" />退出登录
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </header>
@@ -65,6 +123,67 @@ export default function Shell({ page, children }: { page: string; children: Reac
           {children}
         </main>
       </div>
+
+      {pwOpen && (
+        <ChangePasswordModal
+          onClose={() => setPwOpen(false)}
+        />
+      )}
     </>
+  );
+}
+
+/* ── 修改密码模态 ──────────────────────────────────────── */
+
+function ChangePasswordModal({ onClose }: { onClose: () => void }) {
+  const [oldPw, setOldPw] = useState('');
+  const [newPw, setNewPw] = useState('');
+  const [newPw2, setNewPw2] = useState('');
+  const [err, setErr] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  async function submit() {
+    setErr('');
+    if (newPw.length < 10) { setErr('新密码至少 10 位'); return; }
+    if (newPw !== newPw2) { setErr('两次输入不一致'); return; }
+    setBusy(true);
+    try {
+      const { fetchApi } = await import('../api/http');
+      await fetchApi('/api/auth/me/password', {
+        method: 'PUT',
+        body: JSON.stringify({ old_password: oldPw, new_password: newPw }),
+      });
+      onClose();
+    } catch (e: any) {
+      setErr(e.message || '修改失败');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-hd"><b>修改密码</b></div>
+        <div className="modal-bd">
+          {err && <div className="toast toast--err">{err}</div>}
+          <label><span>旧密码</span>
+            <input type="password" value={oldPw} onChange={(e) => setOldPw(e.target.value)} autoFocus />
+          </label>
+          <label><span>新密码</span>
+            <input type="password" value={newPw} onChange={(e) => setNewPw(e.target.value)} placeholder="至少 10 位" />
+          </label>
+          <label><span>确认新密码</span>
+            <input type="password" value={newPw2} onChange={(e) => setNewPw2(e.target.value)} />
+          </label>
+        </div>
+        <div className="modal-act">
+          <button type="button" className="btn" onClick={onClose} disabled={busy}>取消</button>
+          <button type="button" className="btn btn-primary" onClick={submit} disabled={busy}>
+            {busy ? '保存中…' : '保存'}
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }

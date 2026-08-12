@@ -1,6 +1,5 @@
-import { Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes } from 'react-router-dom';
 import AuthGuard from './components/AuthGuard';
-import Launcher from './pages/Launcher';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Sessions from './pages/Sessions';
@@ -20,7 +19,7 @@ export default function App() {
         element={
           <AuthGuard>
             <Routes>
-              <Route path="/" element={<Launcher />} />
+              <Route path="/" element={<Navigate to="/dashboard" replace />} />
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/sessions" element={<Sessions />} />
               <Route path="/auth-logs" element={<AuthLogs />} />

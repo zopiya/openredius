@@ -12,7 +12,6 @@ import { createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { MemoryRouter } from 'react-router-dom';
 import { ToastProvider } from '../src/components/Toast';
-import Launcher from '../src/pages/Launcher';
 import Dashboard from '../src/pages/Dashboard';
 import Sessions from '../src/pages/Sessions';
 import AuthLogs from '../src/pages/AuthLogs';
@@ -117,7 +116,6 @@ function nearMarker(protoText: string, i: number, markers: string[]): boolean {
 }
 
 const PAGES = [
-  { file: 'index.html', routes: ['/'], Comp: Launcher, title: 'Launcher' },
   { file: 'dashboard.html', routes: ['/dashboard'], Comp: Dashboard, title: 'Dashboard' },
   { file: 'sessions.html', routes: ['/sessions'], Comp: Sessions, title: 'Sessions' },
   { file: 'auth-logs.html', routes: ['/auth-logs'], Comp: AuthLogs, title: 'AuthLogs' },

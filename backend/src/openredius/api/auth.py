@@ -14,6 +14,7 @@ from openredius.core.security import parse_admin_id
 from openredius.models import AdminStatus, AdminUser
 from openredius.schemas.auth import (
     AdminProfile,
+    ChangePasswordRequest,
     LoginRequest,
     LogoutRequest,
     RefreshRequest,
@@ -107,3 +108,25 @@ async def me(admin: AdminUser = Depends(current_admin)) -> AdminProfile:
         display_name=admin.display_name,
         role=admin.role.value,
     )
+
+
+@router.put("/me/password", status_code=200)
+async def change_my_password(
+    body: ChangePasswordRequest,
+    admin: AdminUser = Depends(current_admin),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, str]:
+    if not auth_service.verify_password(admin.password_hash, body.old_password):
+        raise ApiError("bad_old_password", "旧密码不正确", 422)
+    from openredius.core.security import hash_password
+
+    admin.password_hash = hash_password(body.new_password)
+    await audit.record_audit(
+        db,
+        actor=admin.username,
+        action="auth.change_password",
+        target_type="admin_user",
+        target_id=str(admin.id),
+    )
+    await db.commit()
+    return {"status": "ok"}
