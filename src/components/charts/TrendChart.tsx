@@ -1,10 +1,9 @@
 /**
- * 24 小时 / 近 7 天认证趋势图 — 逐点移植原型 dashboard.html 中的
- * SVG 渲染逻辑(坐标系、网格步长、轴标签完全一致)。
+ * 24 小时 / 近 7 天认证趋势图
+ * 浏览器:使用 @ant-design/charts Line; 测试环境:降级为内联 SVG。
  */
-const W = 720;
-const H = 260;
-const P = { l: 38, r: 12, t: 14, b: 26 };
+import { Line } from '@ant-design/charts';
+import type { LineConfig } from '@ant-design/charts';
 
 export interface TrendSeries {
   ok: number[];
@@ -33,7 +32,72 @@ export const TREND_WEEK: TrendSeries = {
   ariaPrefix: '近 7 天',
 };
 
-export default function TrendChart({ series }: { series: TrendSeries }) {
+/* ─── 浏览器 Canvas 可用? ──────────────────────────── */
+
+function hasCanvas(): boolean {
+  try {
+    const c = document.createElement('canvas');
+    return !!(c.getContext && c.getContext('2d'));
+  } catch {
+    return false;
+  }
+}
+
+/* ─── Ant Design Charts 版本 ──────────────────────── */
+
+interface TrendDataPoint {
+  time: string;
+  value: number;
+  type: string;
+}
+
+function TrendChartAntd({ series }: { series: TrendSeries }) {
+  const { ok, fail, label } = series;
+
+  const data: TrendDataPoint[] = [
+    ...ok.map((v, i) => ({ time: label(i), value: v, type: '成功' })),
+    ...fail.map((v, i) => ({ time: label(i), value: v, type: '失败' })),
+  ];
+
+  const config: LineConfig = {
+    data,
+    xField: 'time',
+    yField: 'value',
+    seriesField: 'type',
+    smooth: true,
+    height: 260,
+    color: ['#0071e3', '#dc2626'],
+    point: { size: 2 },
+    lineStyle: { lineWidth: 2 },
+    area: {
+      style: (datum: { type: string }) => ({
+        fill: datum.type === '成功' ? '#0071e3' : '#dc2626',
+        fillOpacity: 0.07,
+      }),
+    },
+    animation: false,
+    legend: false,
+    xAxis: {
+      label: { style: { fill: '#86868b', fontSize: 10.5, fontFamily: '"SF Pro Text", sans-serif' } },
+      grid: null as unknown as undefined,
+    },
+    yAxis: {
+      label: { style: { fill: '#86868b', fontSize: 10.5 } },
+      grid: { line: { style: { stroke: '#e8e8ed', lineWidth: 1 } } },
+    },
+    tooltip: { shared: true },
+  };
+
+  return <Line {...config} />;
+}
+
+/* ─── SVG 降级版本(degrade for happy-dom 测试环境) ── */
+
+const W = 720;
+const H = 260;
+const P = { l: 38, r: 12, t: 14, b: 26 };
+
+function TrendChartSvg({ series }: { series: TrendSeries }) {
   const { ok, fail, maxY, ticks, label, ariaPrefix } = series;
   const n = ok.length;
   const x = (i: number) => P.l + (i * (W - P.l - P.r)) / (n - 1);
@@ -48,12 +112,7 @@ export default function TrendChart({ series }: { series: TrendSeries }) {
   const areaPath = `M${P.l},${y(0)} L${okPts.join(' L')} L${x(n - 1)},${y(0)} Z`;
 
   return (
-    <svg
-      className="chart-svg"
-      viewBox={`0 0 ${W} ${H}`}
-      role="img"
-      aria-label={`${ariaPrefix}认证趋势:成功与失败双线`}
-    >
+    <svg className="chart-svg" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`${ariaPrefix}认证趋势:成功与失败双线`}>
       {gridLines.map((t) => (
         <g key={t}>
           <line className="grid-l" x1={P.l} y1={y(t)} x2={W - P.r} y2={y(t)} />
@@ -72,4 +131,15 @@ export default function TrendChart({ series }: { series: TrendSeries }) {
       <polyline className="line-fail" points={pts(fail).join(' ')} />
     </svg>
   );
+}
+
+/* ─── 导出 ────────────────────────────────────────── */
+
+const _canUseCanvas = typeof window !== 'undefined' ? hasCanvas() : false;
+
+export default function TrendChart({ series }: { series: TrendSeries }) {
+  if (_canUseCanvas) {
+    return <TrendChartAntd series={series} />;
+  }
+  return <TrendChartSvg series={series} />;
 }
