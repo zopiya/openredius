@@ -95,3 +95,117 @@ async def create_admin_user(
             )
         )
         await session.commit()
+
+
+async def seed_domain() -> dict[str, dict]:
+    """Minimal domain dataset shared by M2 API tests; returns key ids."""
+    from datetime import time
+
+    from openredius.models import (
+        AccessUser,
+        Compliance,
+        EapMethod,
+        Endpoint,
+        EndpointType,
+        NasDevice,
+        PolicyGroup,
+        UserStatus,
+        Vlan,
+    )
+
+    async with get_session_factory()() as session:
+        vlan10 = Vlan(vid=10, name="办公")
+        vlan20 = Vlan(vid=20, name="研发")
+        session.add_all([vlan10, vlan20])
+        await session.flush()
+
+        staff = PolicyGroup(
+            name="办公默认策略",
+            slug="staff",
+            eap_method=EapMethod.PEAP_MSCHAPV2,
+            vlan_id=vlan10.id,
+            acl_name="acl_staff",
+            session_timeout_s=28800,
+            priority=1,
+            enabled=True,
+        )
+        rd = PolicyGroup(
+            name="研发准入策略",
+            slug="rd",
+            eap_method=EapMethod.EAP_TLS,
+            vlan_id=vlan20.id,
+            acl_name="acl_rd_std",
+            require_cert=True,
+            require_mac_bind=True,
+            time_window_enabled=True,
+            time_from=time(8, 0),
+            time_to=time(20, 0),
+            priority=2,
+            enabled=True,
+        )
+        session.add_all([staff, rd])
+        await session.flush()
+
+        wang = AccessUser(
+            account="wang.lei",
+            name="王磊",
+            dept="研发中心",
+            title="工程师",
+            status=UserStatus.ACTIVE,
+            policy_group_id=rd.id,
+        )
+        zhou = AccessUser(
+            account="zhou.ting",
+            name="周婷",
+            dept="市场部",
+            title="专员",
+            status=UserStatus.DISABLED,
+            policy_group_id=staff.id,
+        )
+        zhang = AccessUser(
+            account="zhang.wei",
+            name="张伟",
+            dept="财务部",
+            title="主管",
+            status=UserStatus.LOCKED,
+            policy_group_id=rd.id,
+        )
+        session.add_all([wang, zhou, zhang])
+        await session.flush()
+
+        nas = NasDevice(
+            name="SW-3F-01", nasname="10.99.0.11", area="3F", secret_enc="testing12345", capacity=48
+        )
+        session.add(nas)
+        session.add(
+            Endpoint(
+                mac="3C:52:82:1A:4B:01",
+                etype=EndpointType.LAPTOP,
+                compliance=Compliance.OK,
+                owner_user_id=wang.id,
+            )
+        )
+        session.add(
+            Endpoint(
+                mac="00:25:96:FF:FE:12",
+                etype=EndpointType.PRINTER,
+                compliance=Compliance.WHITE,
+                whitelisted=True,
+            )
+        )
+        await session.commit()
+        return {
+            "vlan10": vlan10.id,
+            "vlan20": vlan20.id,
+            "staff": staff.id,
+            "rd": rd.id,
+            "wang": wang.id,
+            "zhou": zhou.id,
+            "zhang": zhang.id,
+            "nas": nas.id,
+        }
+
+
+@pytest.fixture
+async def domain(client: AsyncIterator[AsyncClient]) -> dict[str, dict]:
+    return await seed_domain()
