@@ -3,12 +3,13 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "准入认证控制台 — RADIUS 802.1X 企业内网准入管理(React + TypeScript + bun)",
+  "description": "\u51c6\u5165\u8ba4\u8bc1\u63a7\u5236\u53f0 \u2014 RADIUS 802.1X \u4f01\u4e1a\u5185\u7f51\u51c6\u5165\u7ba1\u7406(React + TypeScript + bun)",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
-    "verify": "tsc -b && bun scripts/smoke.tsx && bun test && bun scripts/fidelity.tsx"
+    "verify": "tsc -b && bun scripts/smoke.tsx && bun test && bun scripts/fidelity.tsx",
+    "api:gen": "bunx openapi-typescript@6 http://localhost:8000/api/openapi.json -o src/api/schema.d.ts --enum"
   },
   "dependencies": {
     "lucide-react": "^1.28.0",
@@ -24,6 +25,7 @@
     "@types/react-dom": "^19.2.4",
     "@vitejs/plugin-react": "^6.0.5",
     "happy-dom": "^20.11.1",
+    "openapi-typescript": "^7.13.0",
     "tailwindcss": "^4.3.3",
     "typescript": "^7.0.2",
     "vite": "^8.2.0"

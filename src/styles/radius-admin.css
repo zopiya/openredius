@@ -584,3 +584,70 @@ td .truncate { max-width: 220px; }
   .g-2-1, .g-1-1, .set-grid { grid-template-columns: 1fr; }
   .launch-grid { grid-template-columns: repeat(2, 240px); }
 }
+
+/* ── Login ──────────────────────────────────── */
+.login-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface);
+}
+.login-form {
+  width: 384px;
+  background: var(--bg);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-lg);
+  padding: 32px 28px 28px;
+  box-shadow: var(--elev-raised);
+}
+.login-form .login-brand {
+  text-align: center;
+  margin-bottom: 24px;
+}
+.login-form .login-brand .side-mark {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  font-size: 18px;
+  margin: 0 auto 12px;
+}
+.login-form .login-brand h2 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+}
+.login-form label {
+  display: block;
+  margin-bottom: 14px;
+}
+.login-form label span {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  margin-bottom: 4px;
+  color: var(--ink-secondary, #555);
+}
+.login-form input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  font-size: 14px;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--ink);
+  outline: none;
+}
+.login-form input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.15);
+}
+.login-error {
+  background: #fdecea;
+  color: #b71c1c;
+  font-size: 13px;
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  margin-bottom: 16px;
+}
