@@ -46,7 +46,7 @@ echo "[backup] done — ${FILENAME} (${SIZE})"
 # Rotate: keep only the last RETENTION files.
 pushd "$BACKUP_DIR" >/dev/null
 KEEP=$((RETENTION))
-TOTAL=$(ls -1 *.dump.gz 2>/dev/null | wc -l)
+TOTAL=$(ls -1 *.dump.gz 2>/dev/null | wc -l) || TOTAL=0
 if [ "$TOTAL" -gt "$KEEP" ]; then
     DELETE=$((TOTAL - KEEP))
     echo "[backup] rotating — removing ${DELETE} old backup(s)"

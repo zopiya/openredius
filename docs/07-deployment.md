@@ -30,7 +30,6 @@ deploy/
 ├── nginx/
 │   ├── nginx.conf              # /api → backend;静态前端;安全头
 │   └── Dockerfile              # 多阶段:bun build → nginx:alpine
-├── backend.Dockerfile          # 多阶段:uv → python:3.13-slim
 └── scripts/
     ├── backup.sh               # pg_dump → backups/(保留 14 份)
     ├── restore.sh
@@ -51,7 +50,7 @@ dev compose 只含 postgres + freeradius(+ 可选 adminer:8081),
 
 ## 镜像构建要点
 
-### backend.Dockerfile
+### backend/Dockerfile
 
 ```dockerfile
 FROM python:3.13-slim AS build

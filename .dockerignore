@@ -1,0 +1,20 @@
+# OpenRedius .dockerignore — keep build contexts lean
+.git/
+.env
+*.log
+__pycache__/
+*.pyc
+
+# Node artifacts (rebuilt in container)
+node_modules/
+dist/
+
+# IDE
+.vscode/
+.idea/
+
+# Docs (not needed in any image)
+docs/
+
+# Agent config
+.pi/

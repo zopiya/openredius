@@ -25,7 +25,7 @@ deploy/
 ├── nginx/
 │   ├── nginx.conf              # /api → backend;静态前端;安全头
 │   └── Dockerfile              # 多阶段:bun build → nginx:alpine
-├── backend.Dockerfile          # 多阶段:uv → python:3.13-slim
+├── backend (../backend/)      #   后端包 + Dockerfile(多阶段:uv → python:3.13-slim)
 ├── scripts/
 │   ├── backup.sh / restore.sh  # pg_dump -Fc 备份(保留 14 份)/ 恢复
 │   └── coa_sink.py / demo_traffic.py   # CoA 接收端 / 合成流量(见 docs/06)

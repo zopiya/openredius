@@ -7,12 +7,6 @@ CERT_DIR="/etc/nginx/certs"
 CERT_FILE="$CERT_DIR/cert.pem"
 KEY_FILE="$CERT_DIR/key.pem"
 
-# Respect no-TLS override (internal-only deployments).
-if [ "${OPENREDIUS_NO_TLS:-0}" = "1" ]; then
-    echo "[nginx] OPENREDIUS_NO_TLS=1, skipping cert generation"
-    exit 0
-fi
-
 # Real certs mounted? Skip.
 if [ -f "$CERT_FILE" ] && [ -f "$KEY_FILE" ]; then
     echo "[nginx] using mounted certs at $CERT_DIR"
