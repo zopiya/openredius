@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import Shell from '../components/Shell';
 import Modal from '../components/Modal';
 import { useToast } from '../components/Toast';
+import { getAdmin } from '../api/auth';
 import { fetchSettings } from '../api/resources/settings';
 
 const SECTIONS = [
@@ -135,7 +136,7 @@ export default function Settings() {
       <div className="page-head">
         <div>
           <h1>系统设置</h1>
-          <div className="page-sub">所有配置变更即时生效并记录审计日志 · 当前操作人:王工(超级管理员)</div>
+          <div className="page-sub">所有配置变更即时生效并记录审计日志 · 当前操作人:{getAdmin()?.display_name || getAdmin()?.username || '管理员'}</div>
         </div>
       </div>
 
@@ -231,7 +232,7 @@ export default function Settings() {
           {/* 管理员与权限 */}
           <section className="card set-card" id="set-rbac" data-od-id="set-rbac">
             <div className="card-head"><div className="card-title">管理员账号与权限(RBAC)</div>
-              <div className="card-extra"><button className="btn btn-outline btn-sm" onClick={() => toast('添加管理员:从 AD 账号中选择并分配角色(演示)')}>添加管理员</button></div></div>
+              <div className="card-extra"><a className="btn btn-outline btn-sm" href="/settings/admins">管理管理员</a></div></div>
             <div className="card-body" style={{ paddingTop: 6 }}>
               <div className="tbl-wrap">
                 <table className="tbl">
