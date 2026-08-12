@@ -1,0 +1,48 @@
+# OpenRedius rlm_sql config (docs/06). Credentials are injected by the
+# entrypoint via envsubst ($RADIUS_SQL_* compose env vars).
+#
+# read_clients: the client list comes from radius.nas (written by the backend
+# NAS CRUD). v3 only reads it at startup — client changes need a restart
+# (POST /api/ops/reload-radius, docs/06「NAS 客户端生命周期」).
+
+sql {
+    dialect = "postgresql"
+    driver = "rlm_sql_postgresql"
+
+    # Attribute that holds the user's group (queries.conf reference).
+    group_attribute = "SQL-Group"
+
+    server = "$RADIUS_SQL_HOST"
+    port = $RADIUS_SQL_PORT
+    login = "$RADIUS_SQL_USER"
+    password = "$RADIUS_SQL_PASSWORD"
+    radius_db = "$RADIUS_SQL_DB"
+
+    # The radius role has search_path=radius (deploy/postgres/init), but keep
+    # table names bare — matches official defaults.
+    acct_table1 = "radacct"
+    acct_table2 = "radacct"
+    postauth_table = "radpostauth"
+    authcheck_table = "radcheck"
+    authreply_table = "radreply"
+    groupcheck_table = "radgroupcheck"
+    groupreply_table = "radgroupreply"
+    usergroup_table = "radusergroup"
+    client_table = "nas"
+
+    read_clients = yes
+
+    # Default set plus '=': failure reasons use reason=<key> (docs/06), and the
+    # stock escape would otherwise store 'reason=3D…' in radpostauth.class.
+    safe_characters = "@abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.-_: /="
+
+    # Standard query set for the dialect (authorize/group/accounting/postauth).
+    $INCLUDE ${modconfdir}/${.:name}/main/${dialect}/queries.conf
+
+    # reply:Class → radpostauth.class for the failure-reason classifier
+    # (docs/06 归类) is enabled by the queries.conf class-column patch in the
+    # Dockerfile (config sections defined before $INCLUDE cannot override it).
+    post-auth {
+        postauth = yes
+    }
+}

@@ -1,0 +1,82 @@
+# OpenRedius policy consumption (docs/06「策略消费:unlang 设计」).
+#
+# Runs in `authorize` after `sql`. The app DB (public schema) is the source
+# of truth: v_user_policy_flags returns the active policy's flags for the
+# account (mac/edr/time:HH:MM-HH:MM/cert). Each flag check rejects with
+# reply:Class = "reason=<key>" + a Chinese Reply-Message (docs/02 归类).
+#
+# Notes:
+# - Time windows compare UTC wall clock (policy times are stored UTC).
+#   Windows crossing midnight are not supported (same naive semantics as 06).
+# - cert check only enforces expiry when endpoints carry cert_not_after;
+#   endpoints without certificate data pass (dev/EAP-PEAP reality).
+# - All SQL runs through rlm_sql's %{SQL-User-Name} (escaped) against the
+#   radius role, whose search_path is radius; public objects are qualified.
+
+policy-openredius {
+    update control {
+        Tmp-String-0 := "%{sql: SELECT flags_csv FROM public.v_user_policy_flags WHERE account = LOWER('%{User-Name}')}"
+    }
+
+    # ---- MAC binding ----------------------------------------------------
+    # Only enforced when the NAS sends Calling-Station-Id (radtest sends
+    # none; real 802.1X NAS always does).
+    if ("%{control:Tmp-String-0}" =~ /(^|,)mac(,|$)/ && "%{Calling-Station-Id}" != "") {
+        update control {
+            Tmp-Integer-0 := "%{sql: SELECT count(*) FROM public.endpoint e JOIN public.access_user u ON u.id = e.owner_user_id WHERE u.account = LOWER('%{User-Name}') AND e.mac = public.norm_mac('%{Calling-Station-Id}')}"
+        }
+        if ("%{control:Tmp-Integer-0}" != "1") {
+            update reply {
+                Class := "reason=mac-unbound"
+                OpenRedius-Deny-Reason := "reason=mac-unbound"
+                Reply-Message := "拒绝接入:该终端未绑定到当前账号"
+            }
+            reject
+        }
+    }
+
+    # ---- EDR compliance -------------------------------------------------
+    if ("%{control:Tmp-String-0}" =~ /(^|,)edr(,|$)/) {
+        update control {
+            Tmp-Integer-0 := "%{sql: SELECT count(*) FROM public.endpoint e JOIN public.access_user u ON u.id = e.owner_user_id WHERE u.account = LOWER('%{User-Name}') AND e.compliance = 'bad'}"
+        }
+        if ("%{control:Tmp-Integer-0}" != "0") {
+            update reply {
+                Class := "reason=non-compliant"
+                OpenRedius-Deny-Reason := "reason=non-compliant"
+                Reply-Message := "拒绝接入:终端安全基线不合规"
+            }
+            reject
+        }
+    }
+
+    # ---- time window -----------------------------------------------------
+    if ("%{control:Tmp-String-0}" =~ /time:/) {
+        update control {
+            Tmp-Integer-0 := "%{sql: SELECT CASE WHEN to_char(now() AT TIME ZONE 'UTC', 'HH24:MI') BETWEEN regexp_replace(f, '.*time:([0-9][0-9]:[0-9][0-9])-.*', '\\1') AND regexp_replace(f, '.*time:[0-9][0-9]:[0-9][0-9]-([0-9][0-9]:[0-9][0-9]).*', '\\1') THEN 1 ELSE 0 END FROM (SELECT flags_csv AS f FROM public.v_user_policy_flags WHERE account = LOWER('%{User-Name}')) x}"
+        }
+        if ("%{control:Tmp-Integer-0}" != "1") {
+            update reply {
+                Class := "reason=time-policy"
+                OpenRedius-Deny-Reason := "reason=time-policy"
+                Reply-Message := "拒绝接入:不在允许的接入时间窗口内"
+            }
+            reject
+        }
+    }
+
+    # ---- certificate expiry ----------------------------------------------
+    if ("%{control:Tmp-String-0}" =~ /(^|,)cert(,|$)/) {
+        update control {
+            Tmp-Integer-0 := "%{sql: SELECT count(*) FROM public.endpoint e JOIN public.access_user u ON u.id = e.owner_user_id WHERE u.account = LOWER('%{User-Name}') AND e.cert_not_after IS NOT NULL AND e.cert_not_after < now()}"
+        }
+        if ("%{control:Tmp-Integer-0}" != "0") {
+            update reply {
+                Class := "reason=cert-expired"
+                OpenRedius-Deny-Reason := "reason=cert-expired"
+                Reply-Message := "拒绝接入:终端证书已过期"
+            }
+            reject
+        }
+    }
+}

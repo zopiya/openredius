@@ -32,6 +32,44 @@ deploy/
 └── backups/                    # 备份产物,已 gitignore,不入库
 ```
 
+## dev 栈(M3:postgres + freeradius)
+
+镜像基线:`freeradius/freeradius-server:latest`,构建时实测 **FreeRADIUS 3.2.10**
+(git #9071ea041);本地镜像名 `openredius/freeradius`。
+
+```bash
+docker compose -f deploy/docker-compose.dev.yml up -d --build   # 首启含 postgres 初始化
+docker compose -f deploy/docker-compose.dev.yml ps              # 全部 healthy
+
+# 应用侧:迁移 + 原型数据集(含 radius schema 编译产物)
+cd backend
+OPENRADIUS_DATABASE_URL='postgresql+asyncpg://openredius:dev-only-openredius-password@localhost:5432/openredius' \
+  uv run alembic upgrade head
+OPENRADIUS_DATABASE_URL='…同上' uv run python scripts/seed_demo.py
+
+# 认证冒烟
+docker compose -f deploy/docker-compose.dev.yml exec freeradius \
+  radtest li.na 'Demo-Radius-2026' localhost 0 testing123-dev      # Accept + VLAN 10
+# 携 MAC 的用例用 radclient(radtest 不带 Calling-Station-Id):
+docker compose -f deploy/docker-compose.dev.yml exec -T freeradius sh -c \
+  'printf "User-Name=wang.lei\nUser-Password=Demo-Radius-2026\nCalling-Station-Id=3C:52:82:1A:4B:01\n" | radclient -x 127.0.0.1:1812 auth testing123-dev'
+
+bash deploy/scripts/smoke_freeradius.sh    # radiusd -CX 配置语法校验
+```
+
+关键约定:
+
+- **口令**:seed 演示用户统一 `Demo-Radius-2026`(radcheck Cleartext-Password,
+  仅 dev);radtest 客户端密钥 `testing123-dev`(compose init 写入 radius.nas)。
+- **NAS 客户端**:全部来自 `radius.nas`(后端 NAS CRUD 写入),镜像内
+  `clients.conf` 清空静态客户端;`read_clients` 仅启动时读取,变更后用
+  `POST /api/ops/reload-radius`(或 `OPENRADIUS_RADIUS_RELOAD_COMMAND`)重启容器。
+- **证书**:挂载 `deploy/freeradius/certs/` 遮蔽上游证书目录;无证书文件时
+  entrypoint 自签兜底(口令 `whatever`,对齐上游 eap tls-config)。手工生成用
+  `deploy/freeradius/certs/gen.sh`。
+- **schema 变更后**:radius schema 由 compose 首启初始化,结构变更(如新增
+  `radpostauth.class`)需 `docker compose … down -v && up -d --build` 重建卷。
+
 ## 说明
 
 - 本地开发全程零容器:后端默认 SQLite,前端 mock/http 代理(见 07「本地开发流」)。

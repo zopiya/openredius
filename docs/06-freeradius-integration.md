@@ -60,8 +60,9 @@ post-auth 各阶段加入 `sql`,authenticate 启用 eap。
 
 - 设备管理 CRUD → 写 `radius.nas`(nasname=IP, shortname=名称, secret, type, description)。
 - **变更后必须重启 freeradius 容器**(`read_clients` 仅启动时读取)。后端流程:
-  1. 写库成功;2. 调用 `POST /api/ops/reload-radius`(docker socket 可用则自动
-  `docker restart openredius-freeradius`,否则响应提示手动重启);3. 前端 toast 说明。
+  1. 写库成功;2. 调用 `POST /api/ops/reload-radius`:配置了
+  `OPENRADIUS_RADIUS_RELOAD_COMMAND`(dev 如 `docker compose -f deploy/docker-compose.dev.yml restart freeradius`)
+  则自动执行,未配置返回 `{mode:"manual"}` 提示手动重启;3. 前端 toast 说明。
 - 删除 NAS 前校验无活跃会话(03 已定义)。
 
 ## 策略消费:unlang 设计(authorize,在 sql 之后)
@@ -70,18 +71,50 @@ post-auth 各阶段加入 `sql`,authenticate 启用 eap。
 `policy-openredius`(sites-enabled/default authorize 内,sql 之后)消费:
 
 1. 取当前用户生效策略标记(应用库 public 侧为事实来源):
-   `%{sql: SELECT flags_csv FROM public.v_user_policy_flags WHERE account = '%{SQL-User-Name}'}`
-   → 写入暂存属性 `control:Tmp-String-0`(格式 `mac,edr,time:08:00-20:00`)。
+   `%{sql: SELECT flags_csv FROM public.v_user_policy_flags WHERE account = LOWER('%{User-Name}')}`
+   → 写入暂存属性 `control:Tmp-String-0`(格式 `mac,edr,time:08:00-20:00,cert`)。
    视图 `v_user_policy_flags` 由 Alembic 维护(取 enabled、priority 最高的策略组)。
+   (用 `LOWER('%{User-Name}')` 而非 `%{SQL-User-Name}`,原因见「M3 实测修正记录」。)
 2. 逐标记检查(失败即 reject,并设 `reply:Class = "reason=<key>"` 与中文 Reply-Message):
    - `mac` → 该用户名下 endpoints 无此 MAC → `reason=mac-unbound`
    - `edr` → endpoints.compliance='bad' → `reason=non-compliant`
-   - `time:` → `%{Time}` 窗口外 → `reason=time-policy`
+   - `time:` → 当前时刻(UTC)窗口外 → `reason=time-policy`
    - 证书过期(eap-tls 场景)→ endpoints.cert_not_after < now → `reason=cert-expired`
 3. MAC 规范化:统一大写并把 `-`/`.` 转 `:`(SQL 函数 `public.norm_mac(text)`,Alembic 建)。
 
 实施注:unlang 内联 SQL 的转义与 `%{...}` 展开须在 M3 用 `radiusd -XC` 实测修正;
 本文件给出的语义是验收标准,语法细节允许调整(变更需回写本文档)。
+
+### M3 实测修正记录(语义不变,语法与实现如下)
+
+- **用户标识**:mod_authorize 结束时 rlm_sql 会 `sql_unset_user` 清掉
+  SQL-User-Name,后续模块无法引用;内联 SQL 一律改用
+  `LOWER('%{User-Name}')`(rlm_sql 的 escape 会转义引号等非法字符,账号侧
+  统一小写存储)。
+- **MAC 检查**:仅在请求携带 Calling-Station-Id 时执行(radtest 不带;真实
+  802.1X NAS 必带),缺省视为通过。
+- **时间窗**:窗口提取与比较合并在一条 SQL 内(`regexp_replace` + `BETWEEN`,
+  `now() AT TIME ZONE 'UTC'`),unlang 只做分支;正则不能写 `{2}` 量词——
+  花括号会破坏 `%{...}` 配对,用 `[0-9][0-9]` 等价替换。
+- **Class 入库**:Class 属性是 octets,rlm_sql 直接存会落 0x-hex;编译器与
+  unlang 拒绝路径同时写 string 镜像属性 `OpenRedius-Deny-Reason`
+  (dictionary.openredius,本地属性号 3001),radpostauth 的 class 列经
+  queries.conf 的 `class.column_name/reply_xlat` 机制记录该镜像值;
+  sql 模块 `safe_characters` 追加 `=`,保证 `reason=<key>` 原样入库。
+- **sql 模块配置**:必须 `$INCLUDE ${modconfdir}/sql/main/postgresql/queries.conf`
+  (否则 authorize/group 查询全部缺失);配置段定义在 include 之前无法覆盖
+  include 内同名段,需改 queries.conf 时用 Dockerfile sed。
+- **sites 补丁**:entrypoint 用分区感知 awk 向 default 站点插入
+  `sql`/`policy-openredius`(authorize `files` 后)、`sql`(accounting `detail`
+  后、post-auth 顶部与 Post-Auth-Type REJECT 内),锚点缺失即启动失败;
+  v3.2.10 的拒绝段名为 `Post-Auth-Type REJECT`(非 REJECTED)。
+- **自定义字典**:radgroupcheck 的组级标记属性 `OpenRedius-Flags`(本地属性号
+  3000,仅 control 面)需 `dictionary.openredius` 定义并经主 dictionary
+  `$INCLUDE`,否则 rlm_sql 解析组属性失败拒绝认证。
+- **其他**:镜像内二进制为 `freeradius`(补 `radiusd` 符号链接);配置目录权限
+  收紧至 755/644(FreeRADIUS 安全检查拒绝 group-writable);`clients.conf`
+  覆盖为空客户端列表(NAS 表单一来源,避免与内置 localhost 客户端冲突);
+  挂载 certs 目录遮蔽上游证书时,entrypoint 自签兜底。
 
 ## 失败原因 Class 约定(与 02 归类一致)
 

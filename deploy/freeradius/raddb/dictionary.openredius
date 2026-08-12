@@ -1,0 +1,11 @@
+# OpenRedius local dictionary (docs/04 compiler group-level markers).
+#
+# OpenRedius-Flags mirrors the policy flags (mac/edr/time/cert) into
+# radgroupcheck for operator visibility; the runtime policy enforcement
+# reads the app DB view (docs/06), so this attribute is control-only and
+# never sent on the wire.
+
+ATTRIBUTE	OpenRedius-Flags	3000	string
+# String mirror of reply:Class (Class is octets; rlm_sql would store it as
+# 0x-hex). Carries the failure reason into radpostauth.class (docs/06 归类).
+ATTRIBUTE	OpenRedius-Deny-Reason	3001	string

@@ -58,7 +58,9 @@ CREATE TABLE radpostauth (
     reply               varchar(32),
     calledstationid     varchar(50),
     callingstationid    varchar(50),
-    authdate            timestamp(0) without time zone NOT NULL DEFAULT now()
+    authdate            timestamp(0) without time zone NOT NULL DEFAULT now(),
+    -- reply:Class captured by the M3 postauth_query (docs/06 failure-reason classifier).
+    class               varchar(64) NOT NULL DEFAULT ''
 );
 CREATE INDEX radpostauth_username ON radpostauth (username);
 CREATE INDEX radpostauth_authdate ON radpostauth (authdate);

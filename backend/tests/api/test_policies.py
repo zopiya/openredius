@@ -1,4 +1,4 @@
-"""Policies API: CRUD, reorder, toggle, delete constraints, compile placeholder."""
+"""Policies API: CRUD, reorder, toggle, delete constraints, compile audit."""
 
 from __future__ import annotations
 
@@ -37,10 +37,10 @@ async def test_create_policy(client, domain, admin_headers):
     assert body["vlan_name"] == "办公"
     assert body["user_count"] == 0
 
-    # compile placeholder audit row written on save
+    # compile audit row written on save (SQLite test DB -> radius writes skipped)
     audit = (await client.get("/api/audit?action=policy.compile", headers=admin_headers)).json()
     assert len(audit["items"]) == 1
-    assert audit["items"][0]["detail"]["status"] == "placeholder"
+    assert audit["items"][0]["detail"]["status"] == "skipped"
 
 
 async def test_create_duplicate_name_or_slug_409(client, domain, admin_headers):

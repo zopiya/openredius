@@ -28,6 +28,7 @@ from openredius.models import (
     NasDevice,
     NasType,
 )
+from openredius.radius import nas_sync
 from openredius.schemas.common import Affected
 from openredius.schemas.devices import (
     EndpointCreate,
@@ -130,6 +131,8 @@ async def create_nas(
         target_id=str(device.id),
         detail={"name": device.name, "nasname": device.nasname},
     )
+    if await nas_sync.radius_available(db):
+        await nas_sync.upsert_nas_client(db, device)
     await db.commit()
     return NasWriteResult(device=_nas_out(device), reload_required=True)
 
@@ -145,6 +148,7 @@ async def update_nas(
     if device is None:
         raise ApiError("not_found", f"NAS {device_id} not found", 404)
     await _check_nas_unique(db, name=body.name, nasname=body.nasname, exclude_id=device_id)
+    old_nasname = device.nasname
     changes: dict[str, str | None] = {}
     for field, value in body.model_dump(exclude={"secret"}).items():
         if getattr(device, field) != value:
@@ -161,6 +165,10 @@ async def update_nas(
         target_id=str(device_id),
         detail={"name": device.name, "changes": changes},
     )
+    if await nas_sync.radius_available(db):
+        # Renaming nasname would otherwise orphan the old radius.nas client.
+        await nas_sync.remove_nas_client(db, old_nasname)
+        await nas_sync.upsert_nas_client(db, device)
     await db.commit()
     await db.refresh(device)
     return NasWriteResult(device=_nas_out(device), reload_required=True)
@@ -185,6 +193,8 @@ async def delete_nas(
         target_id=str(device_id),
         detail={"name": device.name, "nasname": device.nasname},
     )
+    if await nas_sync.radius_available(db):
+        await nas_sync.remove_nas_client(db, device.nasname)
     await db.commit()
 
 
