@@ -6,7 +6,7 @@
  *
  * disconnect:POST /api/sessions/disconnect
  */
-import type { SessionRow } from '../types';
+import type { SessionRow } from '../../data/sessions';
 import {
   SESSION_FILTER_OPTIONS,
   SESSION_ROWS,

@@ -4,7 +4,7 @@
  * 覆盖:
  *  1. UI 登录（成功 / 失败提示）
  *  2. 三角色菜单过滤（admin 8 / operator 5 / auditor 4）
- *  3. 8 页冒烟（真实数据渲染, 无白屏无 Console 错误）
+ *  3. 9 页冒烟（真实数据渲染, 无白屏无 Console 错误）
  *  4. 写操作 + 数据面复查（停用/启用 → 状态翻转; 策略新建/删除; Secret 查看 → audit_log）
  *  5. RBAC 越权矩阵（API 层, 三角色 × 关键端点 → 200/403 契约）
  *
@@ -126,7 +126,7 @@ async function main() {
     }
   }
 
-  // ═══ 3. 8 页冒烟(admin, 真实数据) ═══
+  // ═══ 3. 9 页冒烟(admin, 真实数据) ═══
   console.log('\n═══ 3. 页面冒烟(admin, 真实数据) ═══');
   await injectAuth(page, 'admin');
   const SMOKE = [
@@ -138,6 +138,7 @@ async function main() {
     ['/devices', '[data-od-id="device-tabs"]', '设备管理'],
     ['/reports', '[data-od-id="fail-dist"]', '报表统计'],
     ['/settings', '.ant-anchor', '系统设置'],
+    ['/audit', '[data-od-id="audit-table"]', '审计日志'],
   ];
   for (const [path, probe, name] of SMOKE) {
     const before = consoleErrors.length + pageErrors.length;

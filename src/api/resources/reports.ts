@@ -14,7 +14,7 @@ import {
   LOAD_TOP,
   REPORT_PERIODS,
 } from '../../data/reports';
-import type { PeriodData } from '../types';
+import type { PeriodData } from '../../data/reports';
 
 export { DEPT_ROWS, ETYPE_ROWS, LOAD_TOP, REPORT_PERIODS };
 export type { PeriodData };

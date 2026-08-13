@@ -10,6 +10,7 @@
     "preview": "vite preview",
     "verify": "tsc -b && bun scripts/smoke.tsx && bun test && VITE_API_MODE=http bun test tests/http.test.ts && bun scripts/fidelity.tsx",
     "e2e": "bun scripts/e2e.mjs",
+    "e2e:http": "bun scripts/e2e-http.mjs",
     "api:gen": "bunx openapi-typescript@6 http://localhost:8000/api/openapi.json -o src/api/schema.d.ts --enum"
   },
   "dependencies": {
