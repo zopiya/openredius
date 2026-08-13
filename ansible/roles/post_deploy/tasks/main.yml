@@ -2,6 +2,26 @@
 # post_deploy role —— 部署后健康检查(P5)
 # 详见 DESIGN.md §13。
 
+- name: 复核 chrony 时间同步已启用
+  ansible.builtin.command: systemctl is-active chrony
+  changed_when: false
+  register: _chrony
+
+- name: 断言时间同步已激活
+  ansible.builtin.assert:
+    that: _chrony.stdout | trim == 'active'
+    fail_msg: "chrony 未激活;RADIUS 记账、审计与 JWT 依赖可靠时钟"
+
+- name: 复核 net.ipv4.ip_forward
+  ansible.builtin.command: sysctl -n net.ipv4.ip_forward
+  changed_when: false
+  register: _ip_forward
+
+- name: 断言 ip_forward 已启用
+  ansible.builtin.assert:
+    that: _ip_forward.stdout | trim == '1'
+    fail_msg: "net.ipv4.ip_forward 未启用;Docker 网络无法可靠工作"
+
 - name: 采集容器状态
   ansible.builtin.command:
     cmd: docker compose -f "{{ openredius_deploy_root }}/docker-compose.yml" ps --format json

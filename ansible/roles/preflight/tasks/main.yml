@@ -52,10 +52,10 @@
   register: _timesync
   tags: [preflight, baseline]
 
-- name: C4 | 断言时间同步已激活
-  ansible.builtin.assert:
-    that: _timesync.stdout is match('active')
-    fail_msg: "时间同步服务未激活(chrony/timesyncd);RADIUS 记账与审计/JWT 依赖时钟"
+- name: C4 | 时间同步将在 install 阶段启用
+  ansible.builtin.debug:
+    msg: "时间同步尚未激活;common role 将安装并启动 chrony,部署后会强制复核"
+  when: _timesync.stdout is not match('active')
   tags: [preflight, baseline]
 
 # ── D · 资源与磁盘 ──────────────────────────────────────────────
@@ -121,10 +121,10 @@
   register: _ip_forward
   tags: [preflight, network]
 
-- name: F5 | 断言 ip_forward 已开启(docker 依赖)
-  ansible.builtin.assert:
-    that: _ip_forward.stdout | trim == '1'
-    fail_msg: "net.ipv4.ip_forward 未开启;执行: sysctl -w net.ipv4.ip_forward=1 并持久化"
+- name: F5 | ip_forward 将在 install 阶段启用
+  ansible.builtin.debug:
+    msg: "net.ipv4.ip_forward 未开启;docker role 将启用并持久化,部署后会强制复核"
+  when: _ip_forward.stdout | trim != '1'
   tags: [preflight, network]
 
 - name: F0 | 断言管理/NAS 网段已配置(零信任默认拒绝)
