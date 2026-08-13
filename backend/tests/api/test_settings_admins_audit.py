@@ -94,6 +94,18 @@ async def test_audit_filters_and_rbac(client, domain, admin_headers):
     assert resp.status_code == 200
 
 
+async def test_audit_export_csv_serializes_detail(client, domain, admin_headers):
+    """Regression: detail_json is a JSON column (dict); CSV export must not 500."""
+    await client.post(
+        "/api/users/status",
+        json={"accounts": ["zhou.ting"], "action": "enable"},
+        headers=admin_headers,
+    )
+    resp = await client.get("/api/audit/export.csv", headers=admin_headers)
+    assert resp.status_code == 200, resp.text
+    assert "user.status" in resp.text
+
+
 # -------------------------------------------------------------- admins ----
 
 

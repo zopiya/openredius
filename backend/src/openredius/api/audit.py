@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, Query, Response
@@ -83,7 +84,9 @@ async def export_audit_csv(
     rows = (await db.execute(stmt.limit(50_000))).scalars().all()
     lines = ["id,action,actor,target_type,target_id,detail,ip,created_at"]
     for r in rows:
-        detail_esc = (r.detail_json or "").replace('"', '""')
+        # detail_json is a JSON column → dict; serialize before CSV quoting.
+        detail = json.dumps(r.detail_json, ensure_ascii=False) if r.detail_json else ""
+        detail_esc = detail.replace('"', '""')
         # Use RFC 4180 quoting for detail (may contain commas).
         lines.append(
             f"{r.id},{r.action},{r.actor},{r.target_type or ''},{r.target_id or ''},"

@@ -98,6 +98,29 @@ class Ldap3Connector(AdConnector):
             self._conn = None
 
 
+async def bind_auth(url: str, bind_dn: str, password: str) -> bool:
+    """Verify credentials by binding to LDAP/AD as ``bind_dn``.
+
+    Returns True when the bind succeeds, False on any failure (bad password,
+    unreachable server, invalid DN). Used for delegated admin login via AD
+    (docs/08「AD 直通」).
+    """
+    import anyio
+
+    def _sync() -> bool:
+        server = Server(url, get_info=ALL)
+        try:
+            conn = Connection(
+                server, user=bind_dn, password=password, auto_bind=True, read_only=True
+            )
+            conn.unbind()
+            return True
+        except Exception:
+            return False
+
+    return await anyio.to_thread.run_sync(_sync)
+
+
 class Ldap3ConnectorCtor(AdConnectorCtor):
     """Factory that produces ``Ldap3Connector`` instances."""
 

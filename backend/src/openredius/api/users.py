@@ -2,13 +2,16 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Query
+import asyncio
+import logging
+
+from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from openredius.core.config import get_settings
-from openredius.core.db import get_db
-from openredius.core.deps import current_admin, require_role
+from openredius.core.config import Settings
+from openredius.core.db import get_db, get_session_factory
+from openredius.core.deps import current_admin, get_app_settings, require_role
 from openredius.core.errors import ApiError
 from openredius.core.listing import PageParams, apply_sort, page_envelope
 from openredius.models import (
@@ -38,6 +41,7 @@ from openredius.services import audit
 from openredius.services.compiler import compile_policies
 
 router = APIRouter()
+logger = logging.getLogger("openredius.users")
 
 _SORT_COLUMNS = {
     "account": AccessUser.account,
@@ -162,15 +166,17 @@ async def _load_accounts(db: AsyncSession, accounts: list[str]) -> list[AccessUs
 
 @router.post("/sync-ad", response_model=AdSyncResult)
 async def trigger_ad_sync(
+    request: Request,
     db: AsyncSession = Depends(get_db),
     admin: AdminUser = Depends(require_role(AdminRole.ADMIN, AdminRole.OPERATOR)),
+    settings: Settings = Depends(get_app_settings),
 ) -> AdSyncResult:
     """Trigger an incremental AD sync (async — returns immediately).
 
-    The sync runs in the background via ``anyio.to_thread``. Poll
+    The sync runs in a tracked background task on its own session so the
+    request is not held open and failures are logged. Poll
     ``GET /api/users/sync-records`` to track progress.
     """
-    settings = get_settings()
     if not settings.ad_url or not settings.ad_base_dn:
         raise ApiError(
             "ad_not_configured",
@@ -178,36 +184,34 @@ async def trigger_ad_sync(
             503,
         )
 
-    # Start sync immediately in a background task pattern.
+    async def _run_in_background() -> None:
+        from openredius.ldap_sync import run_ad_sync
+        from openredius.ldap_sync.ldap3_ import Ldap3Connector
 
-    async def _run_in_background():
-        async with db.bind.connect() as conn:
-            async with conn.begin():
-                from sqlalchemy.ext.asyncio import AsyncSession as AS
-
-                _bg_db = AS(conn)
-                from openredius.ldap_sync.ldap3_ import Ldap3Connector
-
-                connector = Ldap3Connector(
-                    settings.ad_url, settings.ad_bind_dn, settings.ad_bind_pw
+        connector = Ldap3Connector(settings.ad_url, settings.ad_bind_dn, settings.ad_bind_pw)
+        try:
+            async with get_session_factory()() as bg_db:
+                await run_ad_sync(
+                    bg_db,
+                    settings,
+                    connector,
+                    triggered_by=SyncTrigger.MANUAL,
+                    actor=admin.username,
                 )
-                try:
-                    from openredius.ldap_sync import run_ad_sync as _do_sync
+                await bg_db.commit()
+        except Exception:
+            logger.exception("manual AD sync failed")
+        finally:
+            await connector.close()
 
-                    await _do_sync(
-                        _bg_db,
-                        settings,
-                        connector,
-                        triggered_by=SyncTrigger.MANUAL,
-                        actor=admin.username,
-                    )
-                finally:
-                    await connector.close()
-
-    # Fire and forget; the job record is created synchronously first.
-    import asyncio
-
-    asyncio.ensure_future(_run_in_background())
+    # Tracked task: keeps a reference so the coroutine isn't garbage-collected,
+    # and surfaces exceptions via the done-callback discard (failures are logged).
+    task = asyncio.create_task(_run_in_background())
+    tasks = getattr(request.app.state, "ad_sync_tasks", None)
+    if tasks is None:
+        tasks = request.app.state.ad_sync_tasks = set()
+    tasks.add(task)
+    task.add_done_callback(tasks.discard)
 
     await audit.record_audit(
         db,

@@ -41,6 +41,10 @@ class AdminUser(Base):
     first_failed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     locked_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
+    # Monotonic token version; bumped on password change to invalidate all
+    # previously issued access/refresh tokens (docs/08: 改密后旧 refresh 作废).
+    token_version: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()

@@ -134,9 +134,11 @@ async def compile_all(db: AsyncSession, actor: str, trigger: str = "manual") -> 
     policies = (
         await db.execute(select(PolicyGroup, Vlan.vid).join(Vlan, PolicyGroup.vlan_id == Vlan.id))
     ).all()
+    # Outer join: users without a policy group must still get reject entries
+    # when disabled/locked (docs/02: status != active ⇒ radcheck Reject).
     users = (
         await db.execute(
-            select(AccessUser, PolicyGroup).join(
+            select(AccessUser, PolicyGroup).outerjoin(
                 PolicyGroup, AccessUser.policy_group_id == PolicyGroup.id
             )
         )
@@ -184,7 +186,7 @@ async def compile_all(db: AsyncSession, actor: str, trigger: str = "manual") -> 
 
     desired_usergroup: set[tuple] = set()
     for user, policy in users:
-        if user.status != UserStatus.ACTIVE or not policy.enabled:
+        if user.status != UserStatus.ACTIVE or policy is None or not policy.enabled:
             continue
         desired_usergroup.add((user.account, _group_name(policy.slug), policy.priority))
     summary.user_assignments = len(desired_usergroup)
@@ -305,7 +307,7 @@ async def compile_all(db: AsyncSession, actor: str, trigger: str = "manual") -> 
     return summary
 
 
-_REGELD_DESC: dict[str, str] = {
+_RULE_DESC: dict[str, str] = {
     "Tunnel-Private-Group-Id": "VLAN {}",
     "Filter-Id": "ACL: {}",
     "Session-Timeout": "会话超时 {}秒",
@@ -373,7 +375,7 @@ async def user_compiled_rules(db: AsyncSession, account: str) -> list[str]:
             )
         ).all()
         for row in rows:
-            desc = _REGELD_DESC.get(row.attribute, "{attribute} = {value}").format(
+            desc = _RULE_DESC.get(row.attribute, "{attribute} = {value}").format(
                 value=row.value,
                 attribute=row.attribute,
             )

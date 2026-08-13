@@ -171,6 +171,34 @@ async def test_disconnect_nak_reports_error_cause(client: AsyncClient, seeded, m
     assert (await client.get("/api/sessions", headers=seeded)).json()["total"] == 2
 
 
+async def test_reauthorize_ack(client: AsyncClient, seeded, monkeypatch):
+    async def fake_coa(**kwargs):
+        return CoaOutcome(status="ack")
+
+    monkeypatch.setattr("openredius.api.sessions.reauthorize_session", fake_coa)
+    resp = await client.post(
+        "/api/sessions/reauthorize",
+        headers=seeded,
+        json={"session_ids": ["U-001"], "confirm": True},
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["reauthorized"] == 1
+    assert body["failed"] == []
+    # reauthorize must NOT close the session (unlike disconnect)
+    assert (await client.get("/api/sessions", headers=seeded)).json()["total"] == 2
+    audit = (await client.get("/api/audit?action=session.reauthorize", headers=seeded)).json()
+    assert audit["total"] == 1
+
+
+async def test_reauthorize_requires_confirm(client: AsyncClient, seeded):
+    resp = await client.post(
+        "/api/sessions/reauthorize", headers=seeded, json={"session_ids": ["U-001"]}
+    )
+    assert resp.status_code == 422
+    assert resp.json()["error"]["code"] == "confirm_required"
+
+
 async def test_sessions_empty_without_radius_tables(client: AsyncClient, admin_headers, domain):
     resp = await client.get("/api/sessions", headers=admin_headers)
     assert resp.status_code == 200

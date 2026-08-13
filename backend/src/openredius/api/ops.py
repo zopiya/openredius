@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import asyncio
 import shlex
+import time
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from sqlalchemy import text
 
+from openredius import __version__
 from openredius.core.config import Settings
 from openredius.core.db import get_db, get_engine
 from openredius.core.deps import get_app_settings, require_role
@@ -23,19 +25,32 @@ _RELOAD_TIMEOUT_S = 30
 
 
 @health_router.get("/health")
-async def health(settings: Settings = Depends(get_app_settings)) -> dict[str, str]:
+async def health(request: Request, settings: Settings = Depends(get_app_settings)) -> dict:
     db_status = "ok"
     try:
         async with get_engine().connect() as conn:
             await conn.execute(text("SELECT 1"))
     except Exception:
         db_status = "error"
+    started_at = getattr(request.app.state, "started_at", None)
     return {
         "status": "ok" if db_status == "ok" else "degraded",
         "db": db_status,
         # reload command configured -> ops can restart FreeRADIUS itself (docs/06).
         "radius_config": "configured" if settings.radius_reload_command.strip() else "manual",
+        "version": __version__,
+        "uptime_s": int(time.monotonic() - started_at) if started_at is not None else None,
     }
+
+
+@health_router.get("/metrics")
+async def metrics() -> dict:
+    """Prometheus metrics exporter — reserved (docs/07「M7 之后可选」)."""
+    raise ApiError(
+        "not_implemented",
+        "Prometheus metrics exporter is reserved (docs/07); not implemented",
+        501,
+    )
 
 
 @router.post("/reload-radius")

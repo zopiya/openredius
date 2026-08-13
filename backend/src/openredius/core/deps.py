@@ -11,7 +11,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from openredius.core.config import Settings
 from openredius.core.db import get_db
 from openredius.core.errors import ApiError
-from openredius.core.security import TOKEN_TYPE_ACCESS, decode_token, parse_admin_id
+from openredius.core.security import (
+    TOKEN_TYPE_ACCESS,
+    decode_token,
+    parse_admin_id,
+    token_version_of,
+)
 from openredius.models import AdminRole, AdminStatus, AdminUser
 
 _bearer = HTTPBearer(auto_error=False)
@@ -36,6 +41,9 @@ async def current_admin(
     # Role/status are re-checked from the DB on every request (docs/08).
     if admin.status is not AdminStatus.ACTIVE:
         raise ApiError("account_disabled", "admin account is disabled", 403)
+    # Password change bumps token_version, invalidating older tokens (docs/08).
+    if token_version_of(payload) != admin.token_version:
+        raise ApiError("token_invalid", "token has been superseded", 401)
     return admin
 
 

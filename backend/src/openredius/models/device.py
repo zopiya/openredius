@@ -27,7 +27,11 @@ class NasDevice(Base):
     nasname: Mapped[str] = mapped_column(String(45), unique=True, index=True)
     type: Mapped[NasType] = mapped_column(enum_column(NasType, 8), default=NasType.SWITCH)
     area: Mapped[str] = mapped_column(String(128), default="")
-    # RADIUS shared secret (docs/08: stored in radius.nas on M3; masked in list API).
+    # RADIUS shared secret, stored as plaintext (the ``_enc`` suffix is a
+    # historical misnomer). Kept locally because CoA/Disconnect needs the NAS
+    # secret for outbound UDP 3799 even on SQLite dev where radius.nas is
+    # absent; also synced into radius.nas on PostgreSQL (docs/06, docs/08).
+    # Masked in the list API; plaintext only via the audited reveal endpoint.
     secret_enc: Mapped[str] = mapped_column(String(128), default="")
     capacity: Mapped[int | None] = mapped_column(Integer)
     baseline_enabled: Mapped[bool] = mapped_column(Boolean, default=True)

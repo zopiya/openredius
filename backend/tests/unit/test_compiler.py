@@ -151,6 +151,24 @@ async def test_locked_user_gets_reject_entries(compile_env):
         assert await _rows(db, "radreply") == []
 
 
+async def test_disabled_user_without_policy_gets_reject(compile_env):
+    """Regression: a user with NULL policy_group_id must still get the
+    Auth-Type := Reject entry (docs/02: status != active ⇒ radcheck Reject).
+    The inner join used to drop policy-less users from reject compilation."""
+    async with compile_env() as db:
+        user = AccessUser(account="orphan.user", name="无策略用户", status=UserStatus.DISABLED)
+        db.add(user)
+        await db.flush()
+        summary = await comp.compile_all(db, actor="test", trigger="t1")
+        await db.commit()
+        assert summary.reject_entries == 1
+        radcheck = {r[2]: r[4] for r in await _rows(db, "radcheck") if r[1] == "orphan.user"}
+        assert radcheck["Auth-Type"] == "Reject"
+        radreply = {r[2]: r[4] for r in await _rows(db, "radreply")}
+        assert radreply["Class"] == "reason=account-disabled"
+        assert await _rows(db, "radusergroup") == []
+
+
 async def test_external_usergroup_rows_preserved(compile_env):
     """Compiler only owns policy_* group rows (W1): foreign radusergroup entries
     (e.g. future AD-synced groups) must survive a full recompile."""

@@ -10,6 +10,8 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
+from openredius.core.errors import ApiError
+
 # key -> (Chinese label, badge tone); order doubles as documentation order.
 REASON_CLASSES: dict[str, tuple[str, str]] = {
     "account-locked": ("账号锁定", "warn"),
@@ -66,10 +68,17 @@ def classify_reason(class_value: str | None, reply_message: str | None = None) -
 
 
 def reason_key_from_param(value: str | None) -> str | None:
-    """Normalize the ``reason=`` query param (key or Chinese label) to a key."""
+    """Normalize the ``reason=`` query param (key or Chinese label) to a key.
+
+    Raises ``ApiError(422)`` for unknown values so a typo doesn't silently
+    drop the filter (consistent with the other list filter params).
+    """
     if not value:
         return None
     v = value.strip()
     if v in REASON_CLASSES or v == OTHER_KEY:
         return v
-    return _LABEL_TO_KEY.get(v)
+    key = _LABEL_TO_KEY.get(v)
+    if key is None:
+        raise ApiError("invalid_reason", f"unsupported reason filter: {value}", 422)
+    return key

@@ -88,7 +88,22 @@ async def run_ad_sync(
         return job
 
     # 3. Process users -------------------------------------------------------
-    stats = await _process_users(db, entries, actor, settings)
+    try:
+        stats = await _process_users(db, entries, actor, settings)
+    except Exception as exc:
+        job.status = SyncStatus.FAILED
+        job.error = str(exc)[:2048]
+        job.finished_at = _now()
+        await db.flush()
+        await audit.record_audit(
+            db,
+            actor=actor,
+            action="ad_sync.failed",
+            target_type="ad_sync_job",
+            target_id=str(job.id),
+            detail={"error": str(exc)[:512], "triggered_by": triggered_by.value},
+        )
+        return job
     job.added = stats["added"]
     job.updated = stats["updated"]
     job.disabled = stats["disabled"]

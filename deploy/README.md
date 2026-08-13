@@ -189,7 +189,7 @@ uv run python ../deploy/scripts/coa_sink.py --port 3799 --secret '<coa-secret>' 
 ### 生产配置
 
 后端需要的 CoA 参数:
-- `OPENRADIUS_RADIUS_COA_SECRET`:与 NAS 共享密钥一致
+- 每个 NAS 的共享密钥:在设备管理页录入,存于 `radius.nas.secret`(CoA 出向按会话目标 NAS 取用)
 - `OPENRADIUS_RADIUS_COA_PORT`:NAS 端 CoA 监听端口(默认 3799)
 - NAS 端必须启用 CoA(如 Cisco: `aaa server radius dynamic-author client ...`)
 

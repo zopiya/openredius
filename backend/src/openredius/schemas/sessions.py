@@ -52,3 +52,14 @@ class DisconnectRequest(BaseModel):
 class DisconnectResult(BaseModel):
     disconnected: int
     failed: list[DisconnectFailure]
+
+
+class ReauthorizeRequest(BaseModel):
+    # Capped like DisconnectRequest (docs/04 serial close-phase limits).
+    session_ids: list[str] = Field(min_length=1, max_length=50)
+    confirm: bool = False
+
+
+class ReauthorizeResult(BaseModel):
+    reauthorized: int
+    failed: list[DisconnectFailure]

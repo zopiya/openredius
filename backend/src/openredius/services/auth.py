@@ -49,8 +49,8 @@ async def authenticate_admin(
 
     Auth chain:
       1. admin_user.password_hash (bootstrap admin or explicit-password users)
-      2. admin_user.linked_account → access_user radcheck Cleartext-Password (local)
-      3. admin_user.linked_account → AD bind (delegated, checked last)
+      2. admin_user.linked_account → radcheck Cleartext-Password (dev) /
+         NT-Password hash (prod) / AD bind (delegated, docs/08)
     """
     now = _utcnow(now)
     admin = await find_admin_by_username(db, username)
@@ -72,13 +72,11 @@ async def authenticate_admin(
     # 1. Direct password hash (bootstrap admin or explicit-password users)
     if admin.password_hash and verify_password(admin.password_hash, password):
         authed = True
-    # 2. Linked access_user — try local RADIUS password (Cleartext-Password)
+    # 2. Linked access_user — local RADIUS password or AD bind (docs/08).
     elif admin.linked_account:
-        authed = await _verify_access_user_password(db, admin.linked_account, password)
+        authed = await _verify_linked_account(db, settings, admin.linked_account, password)
 
     if not authed:
-        _register_failure(db, settings, admin, now)
-        raise ApiError("invalid_credentials", "username or password is incorrect", 401)
         _register_failure(db, settings, admin, now)
         raise ApiError("invalid_credentials", "username or password is incorrect", 401)
 
@@ -88,26 +86,62 @@ async def authenticate_admin(
     return admin
 
 
-async def _verify_access_user_password(db: AsyncSession, account: str, password: str) -> bool:
-    """Check password against the user's radcheck Cleartext-Password row."""
+async def _verify_linked_account(
+    db: AsyncSession, settings: Settings, account: str, password: str
+) -> bool:
+    """Verify a linked access_user's credential.
+
+    Order (docs/08): radcheck ``Cleartext-Password`` (dev plaintext) →
+    ``NT-Password`` (NTLM hash) → AD bind (delegated, requires ad_url).
+    """
+    from openredius.core.ntlm import ntlm_hash
     from openredius.radius.tables import radius_readable, radius_table
 
-    if not await radius_readable(db, "radcheck"):
-        return False
-    dialect = db.get_bind().dialect.name
-    radcheck = radius_table(dialect, "radcheck")
-    row = (
-        await db.execute(
-            select(radcheck.c.value).where(
-                radcheck.c.username == account,
-                radcheck.c.attribute == "Cleartext-Password",
-                radcheck.c.op == ":=",
+    if await radius_readable(db, "radcheck"):
+        dialect = db.get_bind().dialect.name
+        radcheck = radius_table(dialect, "radcheck")
+        rows = (
+            await db.execute(
+                select(radcheck.c.attribute, radcheck.c.value).where(
+                    radcheck.c.username == account, radcheck.c.op == ":="
+                )
             )
-        )
-    ).one_or_none()
-    if row is None:
+        ).all()
+        for attr, value in rows:
+            if attr == "Cleartext-Password" and value == password:
+                return True
+            if attr == "NT-Password" and value.lower() == ntlm_hash(password):
+                return True
+    return await _verify_ad_bind(settings, account, password)
+
+
+async def _verify_ad_bind(settings: Settings, account: str, password: str) -> bool:
+    """Bind to AD as the account (docs/08「AD 直通」). Returns False if not
+    configured or the bind DN cannot be derived from the LDAP URL."""
+    bind_dn = _ad_bind_dn(settings, account)
+    if bind_dn is None:
         return False
-    return row.value == password
+    from openredius.ldap_sync.ldap3_ import bind_auth
+
+    return await bind_auth(settings.ad_url, bind_dn, password)
+
+
+def _ad_bind_dn(settings: Settings, account: str) -> str | None:
+    """Derive a UPN (``account@domain``) from the LDAP URL host."""
+    import ipaddress
+    from urllib.parse import urlparse
+
+    if not settings.ad_url:
+        return None
+    host = urlparse(settings.ad_url).hostname
+    if not host:
+        return None
+    try:
+        ipaddress.ip_address(host)
+        return None  # IP address — cannot derive a UPN domain
+    except ValueError:
+        pass
+    return f"{account}@{host}"
 
 
 def _register_failure(
@@ -129,7 +163,7 @@ def _register_failure(
 
 
 def build_token_pair(settings: Settings, admin: AdminUser) -> tuple[str, str]:
-    kwargs = {"admin_id": admin.id, "role": admin.role.value}
+    kwargs = {"admin_id": admin.id, "role": admin.role.value, "token_version": admin.token_version}
     return issue_access_token(settings, **kwargs), issue_refresh_token(settings, **kwargs)
 
 

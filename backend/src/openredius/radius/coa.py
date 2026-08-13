@@ -46,7 +46,7 @@ def _dictionary_instance() -> pyrad.dictionary.Dictionary:
     return _dictionary
 
 
-def _send_disconnect_sync(
+def _send_packet_sync(
     host: str,
     port: int,
     secret: str,
@@ -54,6 +54,7 @@ def _send_disconnect_sync(
     acct_session_id: str,
     calling_station_id: str | None,
     timeout_s: float,
+    code: int,
 ) -> CoaOutcome:
     client = pyrad.client.Client(
         server=host,
@@ -63,8 +64,11 @@ def _send_disconnect_sync(
         retries=1,
         timeout=timeout_s,
     )
-    pkt = client.CreateCoAPacket(code=pyrad.packet.DisconnectRequest)
+    pkt = client.CreateCoAPacket(code=code)
     pkt["User-Name"] = username
+    # CoA targets the NAS directly (backend → NAS, RFC 5176), independent of
+    # which FreeRADIUS instance owns it. Multi-instance scaling lives in
+    # radius.nas.server (docs/01「多 FreeRADIUS 实例」), not here.
     pkt["NAS-IP-Address"] = host
     pkt["Acct-Session-Id"] = acct_session_id
     if calling_station_id:
@@ -87,6 +91,43 @@ def _send_disconnect_sync(
     return CoaOutcome(status="nak", error_cause=cause)
 
 
+async def _send_packet(
+    host: str,
+    port: int,
+    secret: str,
+    username: str,
+    acct_session_id: str,
+    calling_station_id: str | None,
+    timeout_s: float,
+    code: int,
+) -> CoaOutcome:
+    """Send one CoA-family packet; retry once on timeout (docs/04)."""
+    outcome = await to_thread.run_sync(
+        _send_packet_sync,
+        host,
+        port,
+        secret,
+        username,
+        acct_session_id,
+        calling_station_id,
+        timeout_s,
+        code,
+    )
+    if outcome.status == "timeout":
+        outcome = await to_thread.run_sync(
+            _send_packet_sync,
+            host,
+            port,
+            secret,
+            username,
+            acct_session_id,
+            calling_station_id,
+            timeout_s,
+            code,
+        )
+    return outcome
+
+
 async def disconnect_session(
     host: str,
     port: int,
@@ -96,9 +137,8 @@ async def disconnect_session(
     calling_station_id: str | None = None,
     timeout_s: float = 3.0,
 ) -> CoaOutcome:
-    """Send Disconnect-Request; retry once on timeout (docs/04)."""
-    outcome = await to_thread.run_sync(
-        _send_disconnect_sync,
+    """Send RFC 5176 Disconnect-Request (docs/04 CoA 客户端)."""
+    return await _send_packet(
         host,
         port,
         secret,
@@ -106,16 +146,27 @@ async def disconnect_session(
         acct_session_id,
         calling_station_id,
         timeout_s,
+        code=pyrad.packet.DisconnectRequest,
     )
-    if outcome.status == "timeout":
-        outcome = await to_thread.run_sync(
-            _send_disconnect_sync,
-            host,
-            port,
-            secret,
-            username,
-            acct_session_id,
-            calling_station_id,
-            timeout_s,
-        )
-    return outcome
+
+
+async def reauthorize_session(
+    host: str,
+    port: int,
+    secret: str,
+    username: str,
+    acct_session_id: str,
+    calling_station_id: str | None = None,
+    timeout_s: float = 3.0,
+) -> CoaOutcome:
+    """Send RFC 5176 CoA-Request to trigger re-authorization (docs/01 批量 CoA)."""
+    return await _send_packet(
+        host,
+        port,
+        secret,
+        username,
+        acct_session_id,
+        calling_station_id,
+        timeout_s,
+        code=pyrad.packet.CoARequest,
+    )

@@ -18,12 +18,14 @@ from openredius.core.deps import get_app_settings, require_role
 from openredius.core.errors import ApiError
 from openredius.core.listing import PageParams
 from openredius.models import AdminRole, AdminUser
-from openredius.radius.coa import CoaOutcome, disconnect_session
+from openredius.radius.coa import CoaOutcome, disconnect_session, reauthorize_session
 from openredius.radius.tables import radius_table
 from openredius.schemas.sessions import (
     DisconnectFailure,
     DisconnectRequest,
     DisconnectResult,
+    ReauthorizeRequest,
+    ReauthorizeResult,
     SessionDetailOut,
 )
 from openredius.services import audit
@@ -193,6 +195,75 @@ async def disconnect_sessions(
         )
     await db.commit()
     return DisconnectResult(disconnected=disconnected, failed=failed)
+
+
+@router.post("/reauthorize")
+async def reauthorize_sessions(
+    body: ReauthorizeRequest,
+    db: AsyncSession = Depends(get_db),
+    admin: AdminUser = Depends(require_role(*_WRITE_ROLES)),
+    settings: Settings = Depends(get_app_settings),
+) -> ReauthorizeResult:
+    """Bulk CoA-Request to trigger re-authorization (docs/01 批量 CoA)."""
+    if not body.confirm:
+        raise ApiError("confirm_required", "reauthorize requires confirm=true", 422)
+    if not body.session_ids:
+        raise ApiError("empty_selection", "session_ids must not be empty", 422)
+    ids = list(dict.fromkeys(body.session_ids))
+    rows = await svc.fetch_sessions_by_unique_ids(db, ids)
+    found = {r.acct.acctuniqueid: r for r in rows}
+    limiter = anyio.CapacityLimiter(_DISCONNECT_CONCURRENCY)
+
+    async def send_coa(unique_id: str) -> tuple[str, CoaOutcome]:
+        joined = found[unique_id]
+        acct, nas = joined.acct, joined.nas
+        if nas is None:
+            return unique_id, CoaOutcome(status="error", error_cause="unknown-nas")
+        async with limiter:
+            outcome = await reauthorize_session(
+                host=nas.nasname,
+                port=settings.radius_coa_port,
+                secret=nas.secret_enc,
+                username=acct.username,
+                acct_session_id=acct.acctsessionid,
+                calling_station_id=acct.callingstationid or None,
+                timeout_s=settings.radius_coa_timeout,
+            )
+        return unique_id, outcome
+
+    outcomes = dict(await asyncio.gather(*(send_coa(uid) for uid in ids if uid in found)))
+
+    failed: list[DisconnectFailure] = []
+    reauthorized = 0
+    for unique_id in ids:
+        if unique_id not in found:
+            failed.append(DisconnectFailure(id=unique_id, reason="not-found-or-not-active"))
+            await audit.record_audit(
+                db,
+                actor=admin.username,
+                action="session.reauthorize",
+                detail={"acct_unique_id": unique_id, "result": "not-found-or-not-active"},
+            )
+            continue
+        outcome = outcomes[unique_id]
+        if outcome.status == "ack":
+            reauthorized += 1
+        else:
+            failed.append(
+                DisconnectFailure(id=unique_id, reason=outcome.error_cause or outcome.status)
+            )
+        await audit.record_audit(
+            db,
+            actor=admin.username,
+            action="session.reauthorize",
+            detail={
+                "acct_unique_id": unique_id,
+                "result": outcome.status,
+                "error_cause": outcome.error_cause,
+            },
+        )
+    await db.commit()
+    return ReauthorizeResult(reauthorized=reauthorized, failed=failed)
 
 
 async def _await_stop_or_close(db: AsyncSession, unique_id: str, poll_s: float) -> None:
