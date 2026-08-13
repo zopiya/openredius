@@ -2,7 +2,10 @@
 
 本目录承载 OpenRedius 的部署形态,按里程碑逐步落地:
 dev compose(M1:postgres;M3 增加 freeradius)→ prod compose 与镜像(M7)。
-设计全文见 [docs/07-deployment.md](../docs/07-deployment.md)。
+设计全文见 [docs/07-deployment.md](../docs/07-deployment.md)。目标机完全不能联网时,见
+[docs/07-deployment.md「离线部署」](../docs/07-deployment.md#离线部署github-release)——
+打 `vX.Y.Z` tag 自动发布到 GitHub Release 的离线部署包,workflow 全景见
+[docs/14-ci-cd.md](../docs/14-ci-cd.md)。
 
 > **栈集成环境:GitHub Codespaces**(经 `gh`/SSH 直连;`.devcontainer/` 声明式配置
 > 暂时回退,见 ADR-0007「更新」)。M3 起手工在 Codespace 内装好 docker 依赖后,
@@ -15,6 +18,8 @@ dev compose(M1:postgres;M3 增加 freeradius)→ prod compose 与镜像(M7)。
 deploy/
 ├── docker-compose.yml          # 生产形态(postgres/freeradius/backend/frontend 四服务)
 ├── docker-compose.dev.yml      # 开发依赖(postgres,M1 落地;freeradius 由 M3 增加)
+├── docker-compose.ghcr.yml     # 生产形态,镜像走 GHCR pull(在线,见 07)
+├── docker-compose.offline.yml  # 生产形态,镜像走本地 docker load(离线部署包内置,见 07)
 ├── .env.example                # 部署变量模板,随 compose 落地(M3/M7)
 ├── postgres/
 │   └── init/                   # 01-init.sh(radius schema + 官方表 + 双角色)+ schema.sql
@@ -28,7 +33,8 @@ deploy/
 ├── backend (../backend/)      #   后端包 + Dockerfile(多阶段:uv → python:3.13-slim)
 ├── scripts/
 │   ├── backup.sh / restore.sh  # pg_dump -Fc 备份(保留 14 份)/ 恢复
-│   └── coa_sink.py / demo_traffic.py   # CoA 接收端 / 合成流量(见 docs/06)
+│   ├── coa_sink.py / demo_traffic.py   # CoA 接收端 / 合成流量(见 docs/06)
+│   └── package-offline.sh      # 打包离线部署包(release.yml 调用,见 07/14)
 └── backups/                    # 备份产物,已 gitignore,不入库
 ```
 

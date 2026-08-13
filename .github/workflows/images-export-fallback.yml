@@ -1,0 +1,49 @@
+# OpenRedius — export GHCR images as tarballs (fallback for hosts with a
+# flaky/blocked path to ghcr.io). Run manually; downloads each image from
+# inside GitHub's network (fast/stable) and re-packs it as a gzip'd
+# `docker save` tarball artifact, so it can be `gh run download`'d and scp'd
+# straight to the target host, then `docker load`'d with no registry pull
+# needed there at all.
+#
+# Scope vs release.yml: this is an ad-hoc export of *any* tag already on
+# GHCR (including `latest`/a dev sha) — the artifact needs a GitHub login to
+# download and expires in 3 days. For an official, versioned, long-lived,
+# publicly downloadable offline bundle (images + compose + install script),
+# push a `vX.Y.Z` tag instead and let release.yml publish it to GitHub
+# Releases (see docs/07-deployment.md「离线部署」、docs/14-ci-cd.md).
+name: Images (export fallback)
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Image tag to export"
+        required: false
+        default: "latest"
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  export:
+    name: Export (${{ matrix.name }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        name: [backend, frontend, freeradius]
+    steps:
+      - name: Pull image
+        run: docker pull ghcr.io/${{ github.repository_owner }}/openredius-${{ matrix.name }}:${{ inputs.tag }}
+
+      - name: Save as tarball
+        run: |
+          docker save ghcr.io/${{ github.repository_owner }}/openredius-${{ matrix.name }}:${{ inputs.tag }} \
+            | gzip > openredius-${{ matrix.name }}.tar.gz
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: openredius-${{ matrix.name }}-image
+          path: openredius-${{ matrix.name }}.tar.gz
+          retention-days: 3

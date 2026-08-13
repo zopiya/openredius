@@ -1,0 +1,41 @@
+# OpenRedius · PR 镜像构建校验(见 docs/14-ci-cd.md)
+# PR 改了会影响三个镜像构建结果的路径时,提前 build(不 push)+ Trivy 扫描一次,
+# 而不是等合并到 main 才发现 Dockerfile/依赖改坏了构建。
+name: Images (PR check)
+
+on:
+  pull_request:
+    paths:
+      - backend/Dockerfile
+      - backend/pyproject.toml
+      - backend/uv.lock
+      - backend/**
+      - deploy/freeradius/**
+      - deploy/nginx/**
+      - src/**
+      - package.json
+      - bun.lock
+      - index.html
+      - vite.config.ts
+      - tsconfig*.json
+      - .github/workflows/images-pr-check.yml
+      - .github/workflows/_build-images.yml
+
+concurrency:
+  group: images-pr-check-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  build:
+    name: Build (no push)
+    uses: ./.github/workflows/_build-images.yml
+    with:
+      tag: pr-${{ github.event.number }}
+      push: false
+    permissions:
+      contents: read
+      security-events: write

@@ -1,0 +1,41 @@
+# OpenRedius · CodeQL 静态分析(JS/TS + Python),见 docs/14-ci-cd.md
+# 覆盖 push(main/dev)、PR,外加每周一次全量扫描(捕获无代码变化但新披露的规则)。
+name: CodeQL
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+  schedule:
+    - cron: "17 3 * * 1" # 每周一 03:17 UTC
+
+permissions:
+  contents: read
+  security-events: write
+  actions: read
+
+jobs:
+  analyze:
+    name: Analyze (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [javascript-typescript, python]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v4
+        with:
+          languages: ${{ matrix.language }}
+
+      # 两种语言都是解释型,CodeQL 无需构建产物即可分析,直接走内置 autobuild。
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v4
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v4
+        with:
+          category: "/language:${{ matrix.language }}"

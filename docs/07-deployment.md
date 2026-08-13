@@ -156,3 +156,38 @@ docker compose -f deploy/docker-compose.yml logs -f backend
 
 - 镜像打 tag(语义化版本 + git short sha);compose 引用 tag 而非 latest(prod)。
 - 回滚 = 切回旧 tag + `up -d`;数据库迁移要求向后兼容一个版本(Alembic 迁移需可回退)。
+
+## 离线部署(GitHub Release)
+
+面向**目标机完全不能访问 ghcr.io / 任何镜像仓库**的场景。每个 `vX.Y.Z` tag 会自动触发
+`.github/workflows/release.yml`,把该版本的三个应用镜像 + `postgres:17-alpine` +
+compose + 配置 + 安装脚本打成一个 `openredius-offline-<version>.tar.gz`,发布到仓库的
+GitHub Release 页面(公开可下载,长期有效,区别于 `images-export-fallback.yml` 那种
+3 天过期的应急 Actions 产物)。完整的 workflow 全景与设计边界见
+[14-ci-cd.md](./14-ci-cd.md)。
+
+目标机前提:已装好 Docker Engine ≥ 24 + compose v2 插件(这一步本包不覆盖)。
+
+```bash
+# 1. 从 GitHub Release 页面下载 openredius-offline-<version>.tar.gz(+ .sha256 校验)
+tar xzf openredius-offline-<version>.tar.gz
+cd openredius-offline-<version>
+sha256sum -c CHECKSUMS.sha256          # 完整性校验(可选但建议)
+
+# 2. 把镜像 tar 全部 docker load 回本地(全程不联网、不 pull)
+./install.sh
+
+# 3. 配置 + 启动(TAG/IMAGE_OWNER 已预填,只需改口令)
+cp .env.example .env && $EDITOR .env
+docker compose -f docker-compose.offline.yml up -d
+docker compose -f docker-compose.offline.yml ps   # 全部 healthy 为止
+
+# 4. 首次启动:迁移 + 建管理员
+docker compose -f docker-compose.offline.yml exec backend alembic upgrade head
+docker compose -f docker-compose.offline.yml exec backend \
+  python scripts/create_admin.py admin --password '<强口令>' --role admin --force
+```
+
+之后的运维(TLS 证书、备份/恢复、NAS 接入、故障排查)与「生产运行」一节完全一致——离线包
+只是换了镜像的来源(本地 tar vs. registry pull),服务清单、端口、健康检查、备份脚本都是
+同一套。升级新版本 = 下载新的 offline 包、重复第 2–3 步(数据库迁移向后兼容,见上「升级与回滚」)。

@@ -24,6 +24,7 @@
 | [11-ui-migration.md](./11-ui-migration.md) | Ant Design 迁移计划(阶段 0–4,已升级至 v6) | 已完成 |
 | [12-post-mvp-operating-model.md](./12-post-mvp-operating-model.md) | 后 MVP 能力排序、运行模型、角色演进 | 已评审(2026-08-13) |
 | [13-operational-sop.md](./13-operational-sop.md) | 生产运行 SOP、变更与事件处置 | 已评审(2026-08-13) |
+| [14-ci-cd.md](./14-ci-cd.md) | CI/CD workflow 全景、版本/发布策略、离线部署包 | 已评审(2026-08-13) |
 | [decisions/](./decisions/) | ADR 架构决策记录(只增不改) | 持续 |
 
 ## 如何配合 `/goal` 使用

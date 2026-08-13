@@ -1,0 +1,47 @@
+# OpenRedius CI · backend(M1 起启用,见 docs/09-testing-quality.md「命令清单 · 后端」/
+# docs/10-roadmap.md M1 / docs/14-ci-cd.md)
+# 拆自原 ci.yml:只在 backend/** 变化时跑,避免纯前端改动空跑这个 job。
+name: CI (backend)
+
+on:
+  push:
+    branches: [main, dev]
+    paths:
+      - backend/**
+      - .github/workflows/ci-backend.yml
+  pull_request:
+    paths:
+      - backend/**
+      - .github/workflows/ci-backend.yml
+
+concurrency:
+  group: ci-backend-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend (uv + ruff + pytest)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Ruff check
+        run: uv run ruff check .
+
+      - name: Ruff format check
+        run: uv run ruff format --check .
+
+      - name: Test
+        run: uv run pytest -q
