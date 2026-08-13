@@ -1,0 +1,112 @@
+# OpenRedius production stack — offline bundle variant (docs/07, docs/14-ci-cd.md).
+#
+# Same 4 services as docker-compose.yml/docker-compose.ghcr.yml, but this file is
+# meant to run from inside an extracted `openredius-offline-<version>` bundle
+# (see docs/07-deployment.md「离线部署」) on a host with NO connection to
+# ghcr.io at all:
+#
+#   1. Download openredius-offline-<version>.tar.gz from the GitHub Release page.
+#   2. tar xzf openredius-offline-<version>.tar.gz && cd openredius-offline-<version>
+#   3. ./install.sh                      # `docker load`s images/*.tar.gz
+#   4. cp .env.example .env && $EDITOR .env   # TAG is already pinned to this version
+#   5. docker compose -f docker-compose.offline.yml up -d
+#
+# `docker save`/`docker load` round-trips preserve the original `repo:tag`, so
+# once install.sh has loaded the images, `up -d` resolves them straight out of
+# the local image cache — it never attempts to reach any registry.
+#
+# All passwords come from .env (or environment); no defaults that would work
+# in production.
+
+name: openredius
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: openredius
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?}
+      OPENRADIUS_DB_PASSWORD: ${OPENRADIUS_DB_PASSWORD:?}
+      RADIUS_SQL_PASSWORD: ${RADIUS_SQL_PASSWORD:?}
+    volumes:
+      - ./postgres/init:/docker-entrypoint-initdb.d:ro
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d openredius"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  freeradius:
+    image: ghcr.io/${IMAGE_OWNER:-zopiya}/openredius-freeradius:${TAG:?}
+    restart: unless-stopped
+    environment:
+      RADIUS_SQL_HOST: postgres
+      RADIUS_SQL_PORT: "5432"
+      RADIUS_SQL_USER: radius
+      RADIUS_SQL_PASSWORD: ${RADIUS_SQL_PASSWORD:?}
+      RADIUS_SQL_DB: openredius
+      OPENRADIUS_ENV: ${OPENRADIUS_ENV:-prod}
+    ports:
+      - "${NAS_UDP_EXPOSE:-1812-1813}:1812-1813/udp"
+    volumes:
+      - ./freeradius/certs:/etc/raddb/certs:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "radiusd", "-CX"]
+      interval: 30s
+      timeout: 15s
+      retries: 3
+      start_period: 10s
+
+  backend:
+    image: ghcr.io/${IMAGE_OWNER:-zopiya}/openredius-backend:${TAG:?}
+    restart: unless-stopped
+    environment:
+      OPENRADIUS_ENV: prod
+      OPENRADIUS_DATABASE_URL: postgresql+asyncpg://openredius:${OPENRADIUS_DB_PASSWORD:?}@postgres:5432/openredius
+      OPENRADIUS_JWT_SECRET: ${OPENRADIUS_JWT_SECRET:?}
+      OPENRADIUS_JWT_ACCESS_TTL: ${OPENRADIUS_JWT_ACCESS_TTL:-15m}
+      OPENRADIUS_JWT_REFRESH_TTL: ${OPENRADIUS_JWT_REFRESH_TTL:-7d}
+      OPENRADIUS_BOOTSTRAP_ADMIN_USER: ${OPENRADIUS_BOOTSTRAP_ADMIN_USER:-admin}
+      OPENRADIUS_BOOTSTRAP_ADMIN_PASSWORD: ${OPENRADIUS_BOOTSTRAP_ADMIN_PASSWORD:-}
+      OPENRADIUS_RADIUS_RELOAD_COMMAND: ${OPENRADIUS_RADIUS_RELOAD_COMMAND:-docker kill -s HUP openredius-freeradius-1 2>/dev/null || true}
+      OPENRADIUS_RADIUS_COA_PORT: ${OPENRADIUS_RADIUS_COA_PORT:-3799}
+      OPENRADIUS_AD_URL: ${OPENRADIUS_AD_URL:-}
+      OPENRADIUS_AD_BIND_DN: ${OPENRADIUS_AD_BIND_DN:-}
+      OPENRADIUS_AD_BIND_PW: ${OPENRADIUS_AD_BIND_PW:-}
+      OPENRADIUS_AD_BASE_DN: ${OPENRADIUS_AD_BASE_DN:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8000/api/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  frontend:
+    image: ghcr.io/${IMAGE_OWNER:-zopiya}/openredius-frontend:${TAG:?}
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_HTTP_PORT:-80}:80"
+      - "${FRONTEND_HTTPS_PORT:-443}:443"
+    volumes:
+      - ./nginx/certs:/etc/nginx/certs:ro
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:80/ >/dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+
+volumes:
+  postgres-data:

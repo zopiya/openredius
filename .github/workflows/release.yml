@@ -1,0 +1,68 @@
+# OpenRedius · 发布流水线(打 tag 触发,见 docs/07-deployment.md「离线部署」/ docs/14-ci-cd.md)
+#
+# push 一个 vX.Y.Z tag ->
+#   1. 复用 _build-images.yml 构建三个应用镜像,额外打上这个版本号 tag 推到 GHCR
+#      (latest/sha 两个 tag 继续只由 images-build.yml 维护,互不干扰)。
+#   2. 把这一版镜像(含 postgres:17-alpine)+ compose + 配置 + 安装脚本打包成
+#      openredius-offline-<version>.tar.gz,连同 .sha256 一起发布到 GitHub Release,
+#      供完全断网的目标机下载后 `install.sh` -> `docker compose up -d`。
+name: Release
+
+on:
+  push:
+    tags: ["v*.*.*"]
+
+permissions:
+  contents: read
+  packages: write
+  security-events: write
+
+jobs:
+  build:
+    name: Build & push versioned images
+    uses: ./.github/workflows/_build-images.yml
+    with:
+      tag: ${{ github.ref_name }}
+      push: true
+    permissions:
+      contents: read
+      packages: write
+      security-events: write
+
+  package:
+    name: Package offline bundle & publish release
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # 发 GitHub Release
+      packages: read # 拉刚推送的镜像
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Pull versioned images
+        run: |
+          set -euo pipefail
+          for name in backend frontend freeradius; do
+            docker pull "ghcr.io/${{ github.repository_owner }}/openredius-${name}:${{ github.ref_name }}"
+          done
+          docker pull postgres:17-alpine
+
+      - name: Package offline bundle
+        run: |
+          deploy/scripts/package-offline.sh \
+            "${{ github.ref_name }}" \
+            "${{ github.repository_owner }}" \
+            dist-offline
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          version="${{ github.ref_name }}"
+          gh release create "${version}" \
+            --title "OpenRedius ${version}" \
+            --generate-notes \
+            "dist-offline/openredius-offline-${version}.tar.gz" \
+            "dist-offline/openredius-offline-${version}.tar.gz.sha256"
