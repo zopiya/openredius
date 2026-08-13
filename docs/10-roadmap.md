@@ -29,7 +29,7 @@ SLO、责任人、依赖系统和验收命令细化为本文件同等粒度的�
 
 | 里程碑 | 优先级 | 目标 | 前置条件 |
 |---|---|---|---|
-| M8 | P0 | 指标/SLO、告警响应、恢复验证、HTTP E2E 基线 | 确认服务负责人和值班方式 |
+| M8 | P0 | 指标/SLO、告警响应、恢复验证;HTTP E2E 基线已由 v0.1.0 收尾(见 09),M8 负责纳入发布门禁 | 确认服务负责人和值班方式 |
 | M9 | P0 | 策略/NAS/核心设置的预演、审批、灰度和回退 | M8 的观测与证据闭环 |
 | M10 | P1 | OIDC/SAML、终端生命周期、SIEM/工单 webhook | 已确定 IdP 与外部系统边界 |
 | M11 | P2 | 多站点、RADIUS 池、调度高可用与灾备 | 有明确容量或单点风险触发条件 |
@@ -215,7 +215,7 @@ cd backend && uv run pytest -q && uv run pytest -m integration -q
 - [x] `bun run api:gen`(openapi-typescript)+ schema 快照入库;契约测试
 - [x] vite dev proxy /api → :8000
 - [ ] http 模式 8 页走查脚本/清单(含深链 4 例)
-- [x] 保真审计、21 交互测试、冒烟在 mock 模式恒绿
+- [x] 保真审计、20 交互测试、冒烟在 mock 模式恒绿
 
 **验收**:
 

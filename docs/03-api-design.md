@@ -23,6 +23,7 @@
 | `POST /api/auth/refresh` `{refresh_token}` → 同上 | 刷新 | 公开 |
 | `POST /api/auth/logout` | 作废 refresh(jti 黑名单) | 登录 |
 | `GET /api/auth/me` → `{username, display_name, role}` | 当前管理员 | 登录 |
+| `PUT /api/auth/me/password` `{old_password, new_password}` | 修改自己的密码;成功后旧 refresh 全量作废(见 08) | 登录 |
 | `GET/POST /api/auth/admins`、`PATCH/DELETE /api/auth/admins/{id}` | 管理员账户 CRUD(设置页) | admin |
 
 ## 仪表盘
@@ -31,16 +32,17 @@
 |---|---|---|
 | `GET /api/dashboard/kpis` | `{ online_sessions, auth_today, auth_success_rate_today, nas_online, nas_total, locked_users }` | KPI 卡片 |
 | `GET /api/dashboard/trend?range=today|7d` | `{ buckets: [{t, accept, reject}] }` | today=10 分钟粒度;7d=1 小时 |
-| `GET /api/dashboard/alerts?limit=20` | `AlertEvent[]`(含 `link` 深链,与原型 `to` 一致) | 告警流 |
+| `GET /api/dashboard/alerts?limit=20` | `{ items: AlertEvent[] }`(含 `link` 深链,与原型 `to` 一致) | 告警流 |
 | `POST /api/dashboard/alerts/{id}/read` | 标记已读 | operator+ |
 
 ## 在线会话
 
 | 方法 路径 | 前端映射 | 说明 |
 |---|---|---|
-| `GET /api/sessions?dept=&method=&nas=&vlan=&auth=&q=` | `fetchSessions` | active radacct 组装 `SessionRow[]`;筛选服务端执行 |
-| `GET /api/sessions/{acct_unique_id}` | 详情(RADIUS 属性) | 含完整属性 |
+| `GET /api/sessions?dept=&method=&nas=&vlan=&auth=&q=` | `fetchSessions` | active radacct 组装信封 `{ items: SessionRow[], total, page, size }`;筛选服务端执行 |
+| `GET /api/sessions/{acct_unique_id}` | 详情(RADIUS 属性) | 含完整属性(前端列表行内数据已够用,详情端点保留给深度排查) |
 | `POST /api/sessions/disconnect` `{ session_ids: string[], confirm: true }` | `disconnectSessions` | 逐个发 CoA Disconnect;返回 `{ disconnected, failed: [{id, reason}] }` |
+| `POST /api/sessions/reauthorize` `{ session_ids: string[], confirm: true }` | 批量重认证(01 预留的批量 CoA) | 逐个发 CoA-Request;返回 `{ reauthorized, failed: [{id, reason}] }`;admin/operator |
 | `GET /api/sessions/export.csv?...` | CSV 导出 | 同筛选参数 |
 
 `session_ids` 使用 radacct 的 `acctuniqueid`(稳定唯一)。
@@ -49,15 +51,15 @@
 
 | 方法 路径 | 说明 |
 |---|---|
-| `GET /api/auth-logs?result=&nas=&user=&reason=&eap=&from=&to=&page=&size=` | radpostauth 组装 `LogRow[]`;`reason` 用 02 的归类键 |
-| `GET /api/auth-logs/{id}` | 详情模态数据(请求/回复属性) |
+| `GET /api/auth-logs?result=&nas=&user=&reason=&eap=&from=&to=&page=&size=` | radpostauth 组装信封 `{ items: LogRow[], total, page, size }`;`reason` 用 02 的归类键 |
+| `GET /api/auth-logs/{id}` | 详情模态数据(请求/回复属性;前端列表行内数据已够用,保留给深度排查) |
 | `GET /api/auth-logs/export.csv?...` | 导出 |
 
 ## 用户管理
 
 | 方法 路径 | 前端映射 | 说明 |
 |---|---|---|
-| `GET /api/users?dept=&status=&policy=&q=` | `fetchUsers` | `UserRow[]` |
+| `GET /api/users?dept=&status=&policy=&q=` | `fetchUsers` | 信封 `{ items: UserRow[], total, page, size }`;含 `last_auth`(最近 radpostauth) |
 | `GET /api/users/{account}` | 用户抽屉 | 含最近认证(`recent_auth`,最近 5 条 radpostauth)、终端列表、策略下发规则 |
 | `POST /api/users/status` `{ accounts: [], action: "enable"|"disable" }` | `updateUserStatus` | 联动 radcheck |
 | `POST /api/users/policy` `{ accounts: [], policy_id }` | `assignUserPolicy` | 改 radusergroup |
@@ -69,7 +71,7 @@
 
 | 方法 路径 | 说明 |
 |---|---|
-| `GET /api/policies` | `PolicyRow[]`(按 priority) |
+| `GET /api/policies` | 信封 `{ items: PolicyRow[], total, page, size }`(按 priority) |
 | `GET /api/policies/{id}` | `PolicyForm` + 下发规则预览(编译后的 FreeRADIUS 属性清单) |
 | `POST /api/policies` / `PUT /api/policies/{id}` | 新建/保存(保存即编译下发;名称必填等服务端校验) |
 | `PATCH /api/policies/{id}` `{enabled}` | 启停(停用=编译产物移除,保留定义) |
@@ -80,13 +82,13 @@
 
 | 方法 路径 | 说明 |
 |---|---|
-| `GET /api/devices/nas?type=&area=&status=` | `NasRow[]`(`status=online/offline/high-load`、`active_sessions`、`load_pct`、`last_seen` 由 radpostauth/radacct 实时派生——M4 起生效) |
+| `GET /api/devices/nas?type=&area=&status=` | 信封 `{ items: NasRow[], total, page, size }`(`status=online/offline/high-load`、`active_sessions`、`load_pct`、`last_seen` 由 radpostauth/radacct 实时派生——M4 起生效) |
 | `POST /api/devices/nas` / `PATCH /api/devices/nas/{id}` | 增改(写 radius.nas;触发 freeradius 重启流程,返回 `reload_required`) |
 | `DELETE /api/devices/nas/{id}` | 移除客户端(校验无活跃会话) |
 | `GET /api/devices/nas/{id}/secret` | 明文 Secret(强制审计,见 08) |
 | `GET /api/devices/nas/{id}/ports` | 端口抽屉数据(按会话聚合) |
 | `GET /api/devices/nas/{id}/ssids` | SSID 抽屉数据 |
-| `GET /api/devices/endpoints?type=&comp=&q=` | `EndpointRow[]` |
+| `GET /api/devices/endpoints?type=&comp=&q=` | 信封 `{ items: EndpointRow[], total, page, size }` |
 | `POST /api/devices/endpoints` / `PATCH /api/devices/endpoints/{mac}` | 录入/编辑(白名单、绑定用户) |
 | `POST /api/devices/endpoints/import` `{ macs: [] }` | 批量导入 MAC |
 | `DELETE /api/devices/endpoints/{mac}/whitelist` | 移出白名单 |
@@ -113,18 +115,19 @@
 
 | 方法 路径 | 说明 |
 |---|---|
-| `GET /api/audit?action=&actor=&from=&to=&page=` | 审计查询(auditor+) |
+| `GET /api/audit?action=&actor=&from=&to=&page=` | 审计查询(auditor+),信封 `{ items, total, page, size }` |
+| `GET /api/audit/export.csv?...` | 审计 CSV 导出(与查询同筛选) |
 
 ## 运维
 
 | 方法 路径 | 说明 |
 |---|---|
-| `GET /api/health` | `{status:"ok", db, radius_config}`(无鉴权) |
+| `GET /api/health` | `{status:"ok"\|"degraded", db, radius_config, version, uptime_s}`(无鉴权) |
 | `POST /api/ops/reload-radius` | 触发 freeradius 容器重启(仅 admin);命令由 `OPENRADIUS_RADIUS_RELOAD_COMMAND` 提供,未配置返回 `{mode:"manual"}`(M3 实现) |
 | `POST /api/ops/compile` | 全量幂等重编策略/用户 → radius schema,返回编译摘要(仅 admin;M3 新增) |
 
 ## OpenAPI → 前端类型
 
 后端响应 schema 命名与本文档 DTO 一致(`SessionRowOut` 等);`bun run api:gen` 生成
-`src/api/schema.d.ts`,资源层做映射,**页面使用的 `src/api/types.ts` 类型签名保持不变**
-(保真度测试依赖它们)。
+`src/api/schema.d.ts`,资源层做映射;页面使用的类型统一由 `src/data/*` 定义(mock 数据源与
+类型单一来源,见 05)。

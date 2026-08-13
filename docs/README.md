@@ -22,8 +22,8 @@
 | [09-testing-quality.md](./09-testing-quality.md) | 测试策略、验证命令、CI、验收流程 | 定稿 |
 | [10-roadmap.md](./10-roadmap.md) | **里程碑 M0–M7 任务分解( `/goal` 的输入)** | 定稿 |
 | [11-ui-migration.md](./11-ui-migration.md) | Ant Design 迁移计划(阶段 0–4,已升级至 v6) | 已完成 |
-| [12-post-mvp-operating-model.md](./12-post-mvp-operating-model.md) | 后 MVP 能力排序、运行模型、角色演进 | 待评审 |
-| [13-operational-sop.md](./13-operational-sop.md) | 生产运行 SOP、变更与事件处置 | 待评审 |
+| [12-post-mvp-operating-model.md](./12-post-mvp-operating-model.md) | 后 MVP 能力排序、运行模型、角色演进 | 已评审(2026-08-13) |
+| [13-operational-sop.md](./13-operational-sop.md) | 生产运行 SOP、变更与事件处置 | 已评审(2026-08-13) |
 | [decisions/](./decisions/) | ADR 架构决策记录(只增不改) | 持续 |
 
 ## 如何配合 `/goal` 使用
@@ -44,11 +44,13 @@
 - 文档语言:中文;代码标识符、命令、配置键:英文。
 - 引用版本号以 2026-08 调研为准(见各文档"版本基线"小节);升级需在 roadmap 中立项。
 
-## 项目当前状态(2026-08-12)
+## 项目当前状态(2026-08-13)
 
-- M0–M7 全部完成:前端 8 页高保真移植(21 交互测试 + 冒烟 + 保真审计);后端
-  FastAPI 全栈(JWT/RBAC/策略编译/CoA/会话/日志/报表/仪表盘/告警/AD 同步);
-  FreeRADIUS 集成(radtest 闭环);生产部署(3 Dockerfile + 4 服务 compose +
-  TLS 安全头 + backup/restore);158 后端单测/API + 9 集成全绿;CI green。
-- 版本:v0.1.0(root README 和 pyproject.toml/package.json)。
+- M0–M7 全部完成:前端 9 页(原型 8 页 + 审计日志)antd 6 高保真实现(20 交互测试 + 14 路由
+  冒烟 + 保真审计 + 两套 Playwright E2E);后端 FastAPI 全栈(JWT/RBAC/策略编译/CoA/会话/
+  日志/报表/仪表盘/告警/AD 同步);FreeRADIUS 集成(radtest 闭环);生产部署(3 Dockerfile +
+  4 服务 compose + Ansible 零信任子系统 + TLS 安全头 + backup/restore);173 后端单测/API +
+  9 集成全绿;CI green(frontend + backend job)。
+- 版本:v0.1.0(root README 和 pyproject.toml/package.json;main 分支 tag `v0.1.0`)。
+- 分支:主线 `dev`(集成日常开发);`main` 发布线;无其他活跃分支(2026-08-13 项目审计清理)。
 - 开发环境:GitHub Codespaces,经 `gh`/SSH 直连(ADR-0007)。

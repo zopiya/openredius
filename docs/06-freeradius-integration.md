@@ -60,7 +60,8 @@ post-auth 各阶段加入 `sql`,authenticate 启用 eap。
 
 - 设备管理 CRUD → 写 `radius.nas`(nasname=IP, shortname=名称, secret, type, description)。
 - **变更后必须重启 freeradius 容器**(`read_clients` 仅启动时读取)。后端流程:
-  1. 写库成功;2. 调用 `POST /api/ops/reload-radius`:配置了
+  1. 写库成功,响应携带 `reload_required=true`(后端不自动重启);
+  2. 由操作方(前端 toast 引导或运维)调用 `POST /api/ops/reload-radius`:配置了
   `OPENRADIUS_RADIUS_RELOAD_COMMAND`(dev 如 `docker compose -f deploy/docker-compose.dev.yml restart freeradius`)
   则自动执行,未配置返回 `{mode:"manual"}` 提示手动重启;3. 前端 toast 说明。
 - 删除 NAS 前校验无活跃会话(03 已定义)。

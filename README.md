@@ -6,7 +6,7 @@ OpenRedius 是一个企业内网 **RADIUS / 802.1X 准入管理后台**,提供�
 后端:Python 3.13 + FastAPI + SQLAlchemy 2(PostgreSQL) \
 前端:React 19 + TypeScript + Vite(高保真 HTML 原型移植) \
 打包:后端 uv / 前端 bun · 全栈 Docker Compose 一键部署 \
-测试:158 后端单测/API + 9 集成 + 21 前端交互 · ruff clean · CI 绿
+测试:173 后端单测/API + 9 集成 + 20 前端交互 · ruff clean · CI 绿
 
 ## 文档
 
@@ -23,11 +23,11 @@ OpenRedius 是一个企业内网 **RADIUS / 802.1X 准入管理后台**,提供�
 | [04-backend-design](./docs/04-backend-design.md) | 后端架构与设计决策 |
 | [05-frontend-design](./docs/05-frontend-design.md) | 前端设计 |
 | [06-freeradius-integration](./docs/06-freeradius-integration.md) | FreeRADIUS 集成 |
-| [07-deployment](./docs/07-deployment.md) | 部署设计(Docker Compose) |
+| [07-deployment](./docs/07-deployment.md) | 部署设计(Docker Compose + Ansible) |
 | [08-security](./docs/08-security.md) | 安全设计与验收清单 |
 | [09-testing-quality](./docs/09-testing-quality.md) | 测试策略与质量门禁 |
-| [12-post-mvp-operating-model](./docs/12-post-mvp-operating-model.md) | 后续能力与运行模型 |
-| [13-operational-sop](./docs/13-operational-sop.md) | 生产运行 SOP |
+| [12-post-mvp-operating-model](./docs/12-post-mvp-operating-model.md) | 后续能力与运行模型(已评审) |
+| [13-operational-sop](./docs/13-operational-sop.md) | 生产运行 SOP(已评审) |
 | [decisions/](./docs/decisions/) | 架构决策记录(ADR) |
 
 ## 快速开始
@@ -82,10 +82,11 @@ openredius/
 │   ├── postgres/init/          #   schema.sql + 角色初始化
 │   ├── scripts/                #   backup.sh / restore.sh / coa_sink.py / demo_traffic.py
 │   └── README.md               #   生产运维手册
+├── ansible/                    # Ansible 零信任部署子系统(8 playbook,受控主机交付)
 ├── src/                        # 前端(React 19 + TypeScript + Vite)
-│   ├── pages/                  #   8 功能页(仪表盘/会话/日志/用户/策略/设备/报表/设置)
-│   ├── api/                    #   API 层(config/http/auth/resources)
-│   └── components/             #   Shell/Toast/Modal/Drawer/charts
+│   ├── pages/                  #   9 功能页(仪表盘/会话/日志/用户/策略/设备/报表/设置/审计)
+│   ├── api/                    #   API 层(config/http/auth/resources,mock↔http 双轨)
+│   └── components/             #   Shell/Toast/PageHeader/charts
 ├── docs/                       # 项目文档
 ├── .pi/                        # Coding agent 配置(skills/agents/prompts)
 └── AGENTS.md                   # Agent 协作规则(自动加载)
@@ -109,10 +110,12 @@ openredius/
 ## 验证与质量
 
 ```bash
-bun run verify              # tsc + 14 路由冒烟 + 21 交互测试 + 保真度审计
+bun run verify              # tsc + 14 路由冒烟 + 20 交互测试 + 保真度审计
 (cd backend && uv run ruff check . && uv run ruff format --check .)
-(cd backend && uv run pytest -q)             # 158 单测/API
+(cd backend && uv run pytest -q)             # 173 单测/API
 (cd backend && uv run pytest -m integration -q) # 9 集成
+bun run e2e                  # Playwright E2E(mock 模式)
+bun run e2e:http             # Playwright E2E(http 模式,需完整栈)
 ```
 
 ## 许可

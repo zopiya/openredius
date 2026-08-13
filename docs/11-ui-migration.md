@@ -23,7 +23,7 @@
 | 图表 | 内联 SVG(手算坐标点) | 趋势图/环形图代码量 200+ 行、不可配置 |
 | 冻结件 | `components/ui/*`(shadcn Badge/Button/Card/Table/Toast/States) | 从未接入页面、样式与业务脱节 |
 
-### 1.2 页面清单(8+2)
+### 1.2 页面清单(9+2)
 
 | 路由 | 页面 | 核心组件 | 复杂度 |
 |---|---|---|---|
@@ -36,6 +36,7 @@
 | `/devices` | 设备管理 | Tabs(NAS/终端) + Table + 端口/SSID 抽屉 + Secret 明文 Modal + 批量导入 | 高 |
 | `/reports` | 报表统计 | DonutChart + Table + 导出按钮 + 3 时段切换 | 中 |
 | `/settings` | 系统设置 | 子导航 scrollspy + Form + AlertRules + AdminSection(表格+授权 Modal) | 高 |
+| `/audit` | 审计日志(M7 后新增) | Table(动作/操作人/时间筛选) + CSV 导出 | 中 |
 
 ---
 
@@ -233,11 +234,11 @@ Ant Design 5 的 **Design Token** 机制允许精确映射现有 CSS 变量到 a
 
 | 测试类型 | 影响 | 对策 |
 |---|---|---|
-| 交互测试(21 用例) | class 选择器可能失效 | 适配 antd DOM 结构、或改用 `data-testid` |
+| 交互测试(20 用例) | class 选择器可能失效 | 适配 antd DOM 结构、或改用 `data-testid` |
 | 烟雾测试(14 路由) | 页面可以 SSR 渲染 | 保持，antd 组件 SSR 兼容 |
 | 保真度审计 | class 名/文案变化 | 更新审计基线，接受可控偏差 |
 | API 契约测试 | 无影响 | 不动 |
-| 后端 158+9 用例 | 无影响 | 不动 |
+| 后端 173+9 用例 | 无影响 | 不动 |
 
 ---
 

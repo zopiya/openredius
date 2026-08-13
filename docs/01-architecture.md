@@ -51,7 +51,7 @@ flowchart LR
    Accounting-Stop(radacct 关闭)。
 4. **策略变更**:管理端写 `public.policy_group` 等 → 策略编译器同步生成
    `radius.radgroupreply/radgroupcheck/radusergroup` 行(单事务)→ 新认证即刻生效;
-   存量会话按策略要求可选触发批量 CoA(M6+)。
+   存量会话按策略要求可选触发批量 CoA(`POST /api/sessions/reauthorize`,见 03)。
 5. **NAS 增删**:backend 写 `radius.nas` → **重启 freeradius 容器**(rlm_sql 仅启动时
    `read_clients`,见 06)→ 新 NAS 可接入。
 6. **AD 同步**:定时/手动 → ldap3 拉取增量(whenChanged)→ upsert `public.access_user` →

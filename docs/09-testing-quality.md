@@ -7,9 +7,9 @@
 | 单元 | 服务/编译器/归类器/同步器 | pytest(asyncio) | 每次提交 |
 | API 集成 | FastAPI 路由 + SQLite 内存库(app 表) | pytest + httpx AsyncClient | 每次提交 |
 | 栈集成 | 真实 PostgreSQL + FreeRADIUS(radtest/CoA sink) | pytest -m integration(Codespaces docker-in-docker 执行,ADR-0007) | 里程碑验收 |
-| 前端回归 | 21 交互 + 冒烟 + 保真审计(mock 模式) | bun test / scripts | 每次提交 |
-| 前端契约 | OpenAPI schema vs types.ts | bun test | 每次提交 |
-| E2E(可选) | http 模式 8 页走查 | 手工/脚本 | M5 验收 |
+| 前端回归 | 20 交互 + 14 路由冒烟 + 保真审计(mock 模式) | bun test / scripts | 每次提交 |
+| 前端契约 | OpenAPI schema 与前端类型形状断言 | bun test | 每次提交 |
+| E2E | mock 模式(`bun run e2e`)/ http 模式(`bun run e2e:http`,需完整栈:登录/三角色菜单/9 页冒烟/写操作/RBAC 越权矩阵) | Playwright 脚本 | 里程碑验收/发布前 |
 
 ## 命令清单(验证命令唯一来源)
 
@@ -17,11 +17,13 @@
 
 ```bash
 bun run build        # tsc 类型检查 + 生产构建
-bun test             # 交互测试(≥21)
-bun run verify       # tsc + 13 路由冒烟 + 交互测试 + 保真审计
+bun test             # 交互测试(20)+ 契约测试
+bun run verify       # tsc + 14 路由冒烟 + 交互测试 + 保真审计
                      # 保真审计需要原型静态 HTML(设计机路径或 OPENRADIUS_PROTO_DIR);
                      # 缺失时打印告警并跳过,不阻断其余检查(CI 即此路径)
 bun run api:gen      # 从后端 OpenAPI 生成类型(M5 起)
+bun run e2e          # Playwright mock 模式 E2E(需先 bun run dev)
+bun run e2e:http     # Playwright http 模式 E2E(需完整栈:backend:8000 + frontend:5173 http 模式)
 ```
 
 ### 后端(backend/)
@@ -66,16 +68,16 @@ docker compose -f deploy/docker-compose.dev.yml exec freeradius \
 
 前端:
 
-14. mock 模式全绿(既有 21 + 冒烟 + 保真)。
-15. http 模式:未登录 → /login;登录 → 8 页渲染真实数据;深链参数生效。
+14. mock 模式全绿(既有 20 + 冒烟 + 保真)。
+15. http 模式:未登录 → /login;登录 → 9 页渲染真实数据;深链参数生效。
 
 ## CI(GitHub Actions,M0 落地)
 
-.github/workflows/ci.yml(M0 落地 frontend + backend 占位):
+.github/workflows/ci.yml:
 
 - `frontend`:oven-sh/setup-bun → `bun install --frozen-lockfile` → `bun run verify`。
-- `backend`:M0 为占位 job,M1 起启用:astral-sh/setup-uv → `uv sync` → ruff → `uv run pytest -q`。
-- `audit`(允许失败但标注):pip-audit + bun audit,随 M7「依赖审计」任务增补。
+- `backend`:astral-sh/setup-uv → `uv sync --frozen` → ruff → `uv run pytest -q`(M1 起启用,已生效)。
+- `audit`(pip-audit + bun audit):尚未落地,作为后续项(见 roadmap 未列项,启动前需立项)。
 
 栈集成不进 GitHub Actions CI(耗时/资源开销大,不适合每次提交都跑),
 由里程碑验收在 Codespaces 内人工触发并记录结果到 roadmap。

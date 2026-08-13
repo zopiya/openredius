@@ -36,6 +36,15 @@ deploy/
     └── coa_sink.py / demo_traffic.py(见 06)
 ```
 
+### Ansible 运维子系统(零信任部署,ansible/)
+
+`ansible/` 是部署到受控主机的完整运维入口(8 playbook:preflight/site/deploy/verify/
+upgrade/backup/restore/teardown,详见 `ansible/README.md` 与 `ansible/DESIGN.md`):
+
+- 与 `deploy/` 的关系:Ansible 只读引用 deploy/ 现有文件(env.j2/compose.j2 渲染),
+  **不另维护一份部署逻辑**;backup/restore playbook 调用 `deploy/scripts/` 原版脚本。
+- 适用场景:有 SSH 权限的受控主机;无 SSH 时仍可用本节 Docker 流程手工部署。
+
 ## 服务清单(prod compose)
 
 | 服务 | 镜像 | 端口 | 依赖 | 健康检查 |
@@ -133,6 +142,8 @@ docker compose -f deploy/docker-compose.yml logs -f backend
 - `deploy/scripts/backup.sh`:`pg_dump -Fc`(含 radius+public 两 schema),gzip,
   按日期命名,保留 14 份;建议 crontab 每日。
 - `restore.sh`:先停 backend/freeradius → `pg_restore --clean --if-exists` → 重启。
+- 自动化入口:Ansible playbook(`ansible/playbooks/backup.yml` / `restore.yml`)封装同样的
+  deploy/scripts 脚本(见上「Ansible 运维子系统」),无 SSH 环境用 crontab + 脚本即可。
 - M7 验收包含一次完整备份/恢复演练记录。
 
 ## 日志与监控

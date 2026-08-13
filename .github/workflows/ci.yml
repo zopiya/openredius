@@ -3,7 +3,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, dev]
   pull_request:
 
 jobs:
@@ -20,11 +20,11 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      # tsc 类型检查 + 13 路由冒烟 + 21 交互测试 + 原型保真度审计
+      # tsc 类型检查 + 14 路由冒烟 + 20 交互测试 + 原型保真度审计
       - name: Verify
         run: bun run verify
 
-  # backend job:M1(后端骨架与基础设施)起启用。
+  # backend job:M1(后端骨架与基础设施)起启用(已生效)。
   # 见 docs/09-testing-quality.md「命令清单 · 后端」与 docs/10-roadmap.md M1。
   backend:
     name: Backend (uv + ruff + pytest)
