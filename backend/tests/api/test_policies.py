@@ -116,7 +116,7 @@ async def test_operator_cannot_write_policies(client, domain):
     await create_admin_user("op1", OPERATOR_PW, AdminRole.OPERATOR)
     login = await client.post("/api/auth/login", json={"username": "op1", "password": OPERATOR_PW})
     headers = {"Authorization": f"Bearer {login.json()['access_token']}"}
-    assert (await client.get("/api/policies", headers=headers)).status_code == 200
+    assert (await client.get("/api/policies", headers=headers)).status_code == 403
     payload = dict(_POLICY, vlan_id=domain["vlan10"])
     resp = await client.post("/api/policies", json=payload, headers=headers)
     assert resp.status_code == 403

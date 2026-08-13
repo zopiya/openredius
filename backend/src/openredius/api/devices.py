@@ -15,7 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from openredius.core.config import Settings
 from openredius.core.db import get_db
-from openredius.core.deps import current_admin, get_app_settings, require_role
+from openredius.core.deps import get_app_settings, require_role
 from openredius.core.errors import ApiError
 from openredius.core.listing import PageParams, apply_sort, page_envelope
 from openredius.core.mac import normalize_mac
@@ -111,7 +111,7 @@ async def list_nas(
         description="online/offline/high-load; derived from radpostauth/radacct (docs/02)",
     ),
     db: AsyncSession = Depends(get_db),
-    _admin: AdminUser = Depends(current_admin),
+    _admin: AdminUser = Depends(require_role(AdminRole.ADMIN)),
     settings: Settings = Depends(get_app_settings),
 ) -> dict:
     if status is not None and status not in {"online", "offline", "high-load"}:
@@ -265,7 +265,7 @@ async def reveal_nas_secret(
 async def nas_ports(
     device_id: int,
     db: AsyncSession = Depends(get_db),
-    _admin: AdminUser = Depends(current_admin),
+    _admin: AdminUser = Depends(require_role(AdminRole.ADMIN)),
 ) -> list[dict]:
     device = await db.get(NasDevice, device_id)
     if device is None:
@@ -277,7 +277,7 @@ async def nas_ports(
 async def nas_ssids(
     device_id: int,
     db: AsyncSession = Depends(get_db),
-    _admin: AdminUser = Depends(current_admin),
+    _admin: AdminUser = Depends(require_role(AdminRole.ADMIN)),
 ) -> list[dict]:
     device = await db.get(NasDevice, device_id)
     if device is None:
@@ -330,7 +330,7 @@ async def list_endpoints(
     comp: Compliance | None = None,
     q: str | None = None,
     db: AsyncSession = Depends(get_db),
-    _admin: AdminUser = Depends(current_admin),
+    _admin: AdminUser = Depends(require_role(AdminRole.ADMIN)),
 ) -> dict:
     stmt = select(Endpoint)
     if type is not None:

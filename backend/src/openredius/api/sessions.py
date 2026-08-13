@@ -172,6 +172,8 @@ async def disconnect_sessions(
                 db,
                 actor=admin.username,
                 action="session.disconnect",
+                target_type="session",
+                target_id=unique_id,
                 detail={"acct_unique_id": unique_id, "result": "not-found-or-not-active"},
             )
             continue
@@ -187,6 +189,8 @@ async def disconnect_sessions(
             db,
             actor=admin.username,
             action="session.disconnect",
+            target_type="session",
+            target_id=unique_id,
             detail={
                 "acct_unique_id": unique_id,
                 "result": outcome.status,

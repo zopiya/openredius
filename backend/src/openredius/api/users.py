@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from openredius.core.config import Settings
 from openredius.core.db import get_db, get_session_factory
-from openredius.core.deps import current_admin, get_app_settings, require_role
+from openredius.core.deps import get_app_settings, require_role
 from openredius.core.errors import ApiError
 from openredius.core.listing import PageParams, apply_sort, page_envelope
 from openredius.models import (
@@ -84,7 +84,7 @@ async def list_users(
     size: int = Query(default=50, ge=1),
     sort: str | None = None,
     db: AsyncSession = Depends(get_db),
-    _admin: AdminUser = Depends(current_admin),
+    _admin: AdminUser = Depends(require_role(AdminRole.ADMIN, AdminRole.OPERATOR)),
 ) -> dict:
     counts = (
         select(Endpoint.owner_user_id, func.count(Endpoint.id).label("cnt"))
@@ -119,7 +119,7 @@ async def list_users(
 async def get_user(
     account: str,
     db: AsyncSession = Depends(get_db),
-    _admin: AdminUser = Depends(current_admin),
+    _admin: AdminUser = Depends(require_role(AdminRole.ADMIN, AdminRole.OPERATOR)),
 ) -> UserDetail:
     user = (
         await db.execute(select(AccessUser).where(AccessUser.account == account.lower()))
@@ -233,7 +233,7 @@ async def list_sync_records(
     page: int = Query(default=1, ge=1),
     size: int = Query(default=20, ge=1),
     db: AsyncSession = Depends(get_db),
-    _admin: AdminUser = Depends(current_admin),
+    _admin: AdminUser = Depends(require_role(AdminRole.ADMIN, AdminRole.OPERATOR)),
 ) -> dict:
     """List AD sync job history (latest first)."""
     from openredius.core.listing import PageParams, page_envelope
@@ -267,7 +267,7 @@ async def list_sync_records(
 async def get_sync_record(
     job_id: int,
     db: AsyncSession = Depends(get_db),
-    _admin: AdminUser = Depends(current_admin),
+    _admin: AdminUser = Depends(require_role(AdminRole.ADMIN, AdminRole.OPERATOR)),
 ) -> AdSyncJobOut:
     """Detail of a single AD sync job (includes error text)."""
     job = await db.get(AdSyncJob, job_id)

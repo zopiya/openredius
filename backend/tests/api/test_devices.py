@@ -174,7 +174,7 @@ async def test_devices_writes_admin_only(client, domain):
     await create_admin_user("op1", OPERATOR_PW, AdminRole.OPERATOR)
     login = await client.post("/api/auth/login", json={"username": "op1", "password": OPERATOR_PW})
     headers = {"Authorization": f"Bearer {login.json()['access_token']}"}
-    assert (await client.get("/api/devices/nas", headers=headers)).status_code == 200
+    assert (await client.get("/api/devices/nas", headers=headers)).status_code == 403
     assert (
         await client.post(
             "/api/devices/nas",
