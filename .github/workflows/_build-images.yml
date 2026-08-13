@@ -87,7 +87,7 @@ jobs:
       # 非阻断:先建立可见性(SARIF 上报到 Security 标签页),是否转硬阻断留到看过几轮真实
       # 扫描结果之后再定(见 docs/14-ci-cd.md)。
       - name: Trivy scan
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: ${{ steps.meta.outputs.local_tag }}
           format: sarif
@@ -97,7 +97,7 @@ jobs:
 
       - name: Upload Trivy results to Security tab
         if: always()
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: trivy-${{ matrix.name }}.sarif
           category: trivy-${{ matrix.name }}
