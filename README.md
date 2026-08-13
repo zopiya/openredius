@@ -6,7 +6,7 @@ OpenRedius 是一个企业内网 **RADIUS / 802.1X 准入管理后台**,提供�
 后端:Python 3.13 + FastAPI + SQLAlchemy 2(PostgreSQL) \
 前端:React 19 + TypeScript + Vite(高保真 HTML 原型移植) \
 打包:后端 uv / 前端 bun · 全栈 Docker Compose 一键部署 \
-测试:173 后端单测/API + 9 集成 + 20 前端交互 · ruff clean · CI 绿
+测试:184 后端单测/API + 9 集成 + 20 前端交互 · ruff clean · CI 绿
 
 ## 文档
 
@@ -112,7 +112,7 @@ openredius/
 ```bash
 bun run verify              # tsc + 14 路由冒烟 + 20 交互测试 + 保真度审计
 (cd backend && uv run ruff check . && uv run ruff format --check .)
-(cd backend && uv run pytest -q)             # 173 单测/API
+(cd backend && uv run pytest -q)             # 184 单测/API
 (cd backend && uv run pytest -m integration -q) # 9 集成
 bun run e2e                  # Playwright E2E(mock 模式)
 bun run e2e:http             # Playwright E2E(http 模式,需完整栈)

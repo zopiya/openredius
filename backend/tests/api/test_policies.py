@@ -24,7 +24,7 @@ _POLICY = {
 async def test_list_ordered_by_priority_desc(client, domain, admin_headers):
     resp = await client.get("/api/policies", headers=admin_headers)
     assert resp.status_code == 200
-    slugs = [p["slug"] for p in resp.json()]
+    slugs = [p["slug"] for p in resp.json()["items"]]
     assert slugs == ["rd", "staff"]
 
 
@@ -87,7 +87,7 @@ async def test_reorder(client, domain, admin_headers):
         headers=admin_headers,
     )
     assert resp.status_code == 200
-    assert [(p["slug"], p["priority"]) for p in resp.json()] == [("staff", 2), ("rd", 1)]
+    assert [(p["slug"], p["priority"]) for p in resp.json()["items"]] == [("staff", 2), ("rd", 1)]
 
 
 async def test_reorder_requires_full_set(client, domain, admin_headers):

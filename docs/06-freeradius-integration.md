@@ -83,6 +83,11 @@ post-auth 各阶段加入 `sql`,authenticate 启用 eap。
    - 证书过期(eap-tls 场景)→ endpoints.cert_not_after < now → `reason=cert-expired`
 3. MAC 规范化:统一大写并把 `-`/`.` 转 `:`(SQL 函数 `public.norm_mac(text)`,Alembic 建)。
 
+**radius 角色授权(项目审计 2026-08-13 修复)**:unlang 内联 SQL 以 radius 角色执行,
+需要 `public.endpoint`/`public.access_user` 的 SELECT、`public.v_user_policy_flags` 的
+SELECT 与 `public.norm_mac` 的 EXECUTE。01-init.sh 的 default privileges 只覆盖**表**,
+不覆盖视图;迁移 `a1b2c3d4e5f6` 显式补齐这三个授权(新库与存量库都会执行)。
+
 实施注:unlang 内联 SQL 的转义与 `%{...}` 展开须在 M3 用 `radiusd -XC` 实测修正;
 本文件给出的语义是验收标准,语法细节允许调整(变更需回写本文档)。
 

@@ -350,7 +350,7 @@ export default function AuthLogs() {
         {view === 'ready' && visible.length > 0 && (
           <Table
            
-            rowKey={(r) => r.time + r.user}
+            rowKey={(r) => r.id ?? `${r.time}|${r.user}|${r.mac}`}
             dataSource={visible}
             columns={columns}
             data-od-id="log-table"

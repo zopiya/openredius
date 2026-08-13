@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from openredius.core.db import get_db
 from openredius.core.deps import require_role
 from openredius.core.errors import ApiError
+from openredius.core.listing import PageParams, page_envelope
 from openredius.models import AccessUser, AdminRole, AdminUser, PolicyGroup, Vlan
 from openredius.radius.compiler import policy_compiled_rules
 from openredius.schemas.policies import (
@@ -78,13 +79,15 @@ async def _check_name_slug_free(
 async def list_policies(
     db: AsyncSession = Depends(get_db),
     _admin: AdminUser = Depends(require_role(AdminRole.ADMIN)),
-) -> list[PolicyOut]:
+) -> dict:
+    """Envelope per docs/03 通用约定(列表统一信封)。"""
     policies = (
         (await db.execute(select(PolicyGroup).order_by(PolicyGroup.priority.desc())))
         .scalars()
         .all()
     )
-    return [await _policy_out(db, p) for p in policies]
+    items = [await _policy_out(db, p) for p in policies]
+    return page_envelope(items, len(items), PageParams(1, max(len(items), 1)))
 
 
 @router.get("/{policy_id}")
@@ -190,7 +193,7 @@ async def reorder_policies(
     body: PolicyReorder,
     db: AsyncSession = Depends(get_db),
     admin: AdminUser = Depends(require_role(AdminRole.ADMIN)),
-) -> list[PolicyOut]:
+) -> dict:
     policies = (
         (await db.execute(select(PolicyGroup).where(PolicyGroup.id.in_(body.order))))
         .scalars()

@@ -49,7 +49,7 @@
 - M0–M7 全部完成:前端 9 页(原型 8 页 + 审计日志)antd 6 高保真实现(20 交互测试 + 14 路由
   冒烟 + 保真审计 + 两套 Playwright E2E);后端 FastAPI 全栈(JWT/RBAC/策略编译/CoA/会话/
   日志/报表/仪表盘/告警/AD 同步);FreeRADIUS 集成(radtest 闭环);生产部署(3 Dockerfile +
-  4 服务 compose + Ansible 零信任子系统 + TLS 安全头 + backup/restore);173 后端单测/API +
+  4 服务 compose + Ansible 零信任子系统 + TLS 安全头 + backup/restore);184 后端单测/API +
   9 集成全绿;CI green(frontend + backend job)。
 - 版本:v0.1.0(root README 和 pyproject.toml/package.json;main 分支 tag `v0.1.0`)。
 - 分支:主线 `dev`(集成日常开发);`main` 发布线;无其他活跃分支(2026-08-13 项目审计清理)。

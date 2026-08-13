@@ -42,6 +42,7 @@ function mapLog(raw: any): LogRow {
   const reply = raw.reply ?? '';
   const tone = raw.rtag_tone;
   return {
+    id: raw.id != null ? String(raw.id) : undefined,
     time: raw.time ?? '',
     user: raw.user ?? '',
     name: raw.name ?? '',
