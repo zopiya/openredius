@@ -38,7 +38,7 @@ jobs:
       packages: read # 拉刚推送的镜像
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Pull versioned images
         run: |

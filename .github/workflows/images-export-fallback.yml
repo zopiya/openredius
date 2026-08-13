@@ -42,7 +42,7 @@ jobs:
             | gzip > openredius-${{ matrix.name }}.tar.gz
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: openredius-${{ matrix.name }}-image
           path: openredius-${{ matrix.name }}.tar.gz
