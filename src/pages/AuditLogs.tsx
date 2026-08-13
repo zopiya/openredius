@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Table, Button, Select, Space, Tag, Empty, Skeleton, Result, Typography, Card } from 'antd';
-import type { ColumnsType } from 'antd/es/table/interface';
+import type { TableColumnsType } from 'antd';
 import Shell from '../components/Shell';
 import PageHeader from '../components/PageHeader';
 import { useToast } from '../components/Toast';
@@ -67,7 +67,7 @@ export default function AuditLogs() {
 
   useEffect(() => { load(); }, [action]);
 
-  const columns: ColumnsType<AuditRow> = useMemo(() => [
+  const columns: TableColumnsType<AuditRow> = useMemo(() => [
     { title: '时间', dataIndex: 'createdAt', key: 'createdAt', width: 170, render: (v: string) => <Text code style={{ fontSize: 12 }}>{v ? v.replace('T', ' ').slice(0, 19) : '—'}</Text> },
     { title: '操作者', dataIndex: 'actor', key: 'actor', width: 130, render: (v: string) => <b>{v}</b> },
     { title: '动作', dataIndex: 'action', key: 'action', width: 130, render: (v: string) => <Tag color="blue">{actionLabel(v)}</Tag> },

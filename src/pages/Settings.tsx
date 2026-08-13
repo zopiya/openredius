@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Anchor, Card, Input, Select, Switch, Checkbox, Button, Space, Table, Modal, Typography, Tag, Radio, Descriptions, theme, Form, Row, Col, Flex, App } from 'antd';
-import type { ColumnsType } from 'antd/es/table/interface';
+import type { TableColumnsType } from 'antd';
 import Shell from '../components/Shell';
 import PageHeader from '../components/PageHeader';
 import { useToast } from '../components/Toast';
@@ -284,7 +284,7 @@ function AdminSection() {
     });
   }
 
-  const adminCols: ColumnsType<AdminRow> = [
+  const adminCols: TableColumnsType<AdminRow> = [
     { title: '账号', key: 'user', render: (_v, a) => <><b>{a.username}</b>{me?.username === a.username ? ' (当前)' : ''}<Typography.Text type="secondary" style={{ fontSize: 12, fontFamily: 'monospace' }}>{a.display_name || '-'}</Typography.Text></> },
     { title: '来源', key: 'source', render: (_v, a) => <Typography.Text type="secondary" style={{ fontSize: 12 }}>{a.linked_account ? `关联用户:${a.linked_account}` : '独立账号'}</Typography.Text> },
     { title: '角色', key: 'role', render: (_v, a) => me?.username === a.username ? <Tag color="blue">{ROLE_LABELS[a.role] || a.role}</Tag> : <Select size="small" value={a.role} onChange={(v) => changeRole(a.id, v, a.role)} options={['admin','operator','auditor'].map((r) => ({ label: ROLE_LABELS[r], value: r }))} style={{ width: 100 }} /> },

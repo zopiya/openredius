@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Eye, Laptop, Server } from 'lucide-react';
+import { EyeOutlined, LaptopOutlined, CloudServerOutlined } from '@ant-design/icons';
 import { Table, Button, Modal, Drawer, Select, Input, Tabs, Tag, Skeleton, Empty, Result, Card, Typography, theme, Divider, Flex, Space, Alert } from 'antd';
-import type { ColumnsType } from 'antd/es/table/interface';
+import type { TableColumnsType } from 'antd';
 import Shell from '../components/Shell';
 import PageHeader from '../components/PageHeader';
 import { FilterField } from '../components/TableToolbar';
@@ -71,7 +71,7 @@ export default function Devices() {
     const kv: Record<string, string> = {};
     h.split('&').forEach((p) => { const i = p.indexOf('='); kv[p.slice(0, i)] = p.slice(i + 1); });
     if (kv.tab === 'ep') setTab('ep');
-  }, []);
+  }, [location.hash]);
 
   useEffect(() => {
     if (nasView !== 'loading') return;
@@ -146,7 +146,7 @@ export default function Devices() {
 
   const nasRetry = useCallback(() => { setNasView('loading'); fetchNas().then((d) => { setNasRows(d); setNasView('ready'); }).catch(() => setNasView('error')); }, []);
 
-  const nasCols: ColumnsType<NasRow> = [
+  const nasCols: TableColumnsType<NasRow> = [
     { title: '设备名称', key: 'name', render: (_v, r) => <b>{r.name}</b> },
     { title: '类型', key: 'type', render: (_v, r) => <Tag>{r.typeLabel}</Tag> },
     { title: 'IP 地址', dataIndex: 'ip', key: 'ip', render: (v) => <span style={{ fontFamily: 'monospace', fontSize: '12.5px' }}>{v}</span> },
@@ -154,7 +154,7 @@ export default function Devices() {
     { title: 'Shared Secret', key: 'secret', render: (_v, r) => r.secret ? (
       <span>
         {secretShown.has(r.name) ? <span style={{ fontFamily: 'monospace', fontSize: '12.5px' }}>{secrets[r.name] ?? r.secret}</span> : '••••••••'}
-        <Button type="link" size="small" icon={<Eye size={13} />} onClick={() => toggleSecret(r, !secretShown.has(r.name))} />
+        <Button type="link" size="small" icon={<EyeOutlined style={{ fontSize: 13 }} />} onClick={() => toggleSecret(r, !secretShown.has(r.name))} />
       </span>
     ) : '—' },
     { title: '状态', key: 'status', render: (_v, r) => <Tag color={r.statusBadge === 'bg-success' ? 'green' : r.statusBadge === 'bg-danger' ? 'red' : 'default'}>{r.statusLabel}</Tag> },
@@ -169,8 +169,8 @@ export default function Devices() {
     { title: '操作', key: 'actions', render: (_v, r) => <a href="#" onClick={(e) => { e.preventDefault(); setDrawerDevice(r); }}>{r.opLabel}</a> },
   ];
 
-  const epCols: ColumnsType<EndpointRow> = [
-    { title: '终端 MAC', dataIndex: 'mac', key: 'mac', render: (v) => <span style={{ fontFamily: 'monospace', fontSize: '12.5px' }}>{v}</span> },
+  const epCols: TableColumnsType<EndpointRow> = [
+    { title: '终端 MAC', dataIndex: 'mac', key: 'mac', width: 172, render: (v) => <Typography.Text code>{v}</Typography.Text> },
     { title: '证书指纹(SHA-256)', dataIndex: 'fingerprint', key: 'fingerprint', render: (v) => <span style={{ fontFamily: 'monospace', fontSize: '12.5px' }}>{v}</span> },
     { title: '绑定用户', key: 'user', render: (_v, r) => <>{r.userName}<Typography.Text type="secondary" style={{ display: 'block', fontFamily: 'monospace' }}>{r.userSub}</Typography.Text></> },
     { title: '终端类型', dataIndex: 'etype', key: 'etype' },
@@ -215,7 +215,7 @@ export default function Devices() {
                 </Flex>
                 {nasView === 'loading' && <div style={{ padding: 40 }}><Skeleton active paragraph={{ rows: 8 }} /></div>}
                 {nasView === 'ready' && nasVisible.length > 0 && <Table rowKey="name" dataSource={nasVisible} columns={nasCols} data-od-id="nas-table" pagination={false} size="middle" />}
-                {nasView === 'ready' && nasVisible.length === 0 && <Empty image={<Server style={{ width: 64, height: 64, color: token.colorTextQuaternary }} />} description="没有符合条件的设备" style={{ padding: '56px 24px' }}><Button onClick={() => { setNasForm(DEFAULT_NAS_FILTERS); setNasApplied(DEFAULT_NAS_FILTERS); }}>清空筛选条件</Button></Empty>}
+                {nasView === 'ready' && nasVisible.length === 0 && <Empty image={<CloudServerOutlined style={{ width: 64, height: 64, color: token.colorTextQuaternary }} />} description="没有符合条件的设备" style={{ padding: '56px 24px' }}><Button onClick={() => { setNasForm(DEFAULT_NAS_FILTERS); setNasApplied(DEFAULT_NAS_FILTERS); }}>清空筛选条件</Button></Empty>}
                 {nasView === 'error' && <Result status="error" title="设备数据加载失败" subTitle="无法获取 NAS 清单(NDEV-API 502)。" extra={<Button onClick={nasRetry}>重试</Button>} />}
               </div>
             )},
@@ -232,7 +232,7 @@ export default function Devices() {
                   <Button onClick={() => toast('已导出 endpoints-20260727.csv(1,642 条)')}>导出清单</Button>
                 </Flex>
                 {epVisible.length > 0 && <Table rowKey="mac" dataSource={epVisible} columns={epCols} data-od-id="ep-table" pagination={false} size="middle" />}
-                {epVisible.length === 0 && <Empty image={<Laptop style={{ width: 64, height: 64, color: token.colorTextQuaternary }} />} description="没有符合条件的终端" style={{ padding: '56px 24px' }}><Button onClick={() => { setEpForm(DEFAULT_EP_FILTERS); setEpApplied(DEFAULT_EP_FILTERS); }}>清空筛选条件</Button></Empty>}
+                {epVisible.length === 0 && <Empty image={<LaptopOutlined style={{ width: 64, height: 64, color: token.colorTextQuaternary }} />} description="没有符合条件的终端" style={{ padding: '56px 24px' }}><Button onClick={() => { setEpForm(DEFAULT_EP_FILTERS); setEpApplied(DEFAULT_EP_FILTERS); }}>清空筛选条件</Button></Empty>}
               </div>
             )},
           ]}

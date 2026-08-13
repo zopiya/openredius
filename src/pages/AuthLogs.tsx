@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { FileSearch } from 'lucide-react';
+import { FileSearchOutlined } from '@ant-design/icons';
 import { Table, Select, Button, Space, Modal, Input, Tag, Empty, Skeleton, Result, Descriptions, Typography, theme, Flex, Card } from 'antd';
-import type { ColumnsType } from 'antd/es/table/interface';
+import type { TableColumnsType } from 'antd';
 import Shell from '../components/Shell';
 import PageHeader from '../components/PageHeader';
 import TableToolbar, { FilterField } from '../components/TableToolbar';
@@ -115,12 +115,12 @@ export default function AuthLogs() {
     }, 450);
   }
 
-  const columns: ColumnsType<LogRow> = [
+  const columns: TableColumnsType<LogRow> = [
     {
       title: '时间',
       dataIndex: 'time',
       key: 'time',
-      width: 80,
+      width: 110,
       render: (v) => <Typography.Text code>{v}</Typography.Text>,
     },
     {
@@ -137,7 +137,7 @@ export default function AuthLogs() {
       title: '终端 MAC',
       dataIndex: 'mac',
       key: 'mac',
-      width: 150,
+      width: 172,
       render: (v) => <Typography.Text code>{v}</Typography.Text>,
     },
     {
@@ -342,7 +342,7 @@ export default function AuthLogs() {
         )}
         {view === 'ready' && visible.length === 0 && (
           <Empty
-            image={<FileSearch style={{ width: 64, height: 64, color: token.colorTextQuaternary }} />}
+            image={<FileSearchOutlined style={{ width: 64, height: 64, color: token.colorTextQuaternary }} />}
             description="没有符合条件的认证记录"
             style={{ padding: '56px 24px' }}
           >

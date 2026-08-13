@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Inbox } from 'lucide-react';
+import { InboxOutlined } from '@ant-design/icons';
 import { Table, Select, Button, Space, Modal, Tag, Checkbox, Dropdown, Empty, Skeleton, Result, Card, Descriptions, Typography, theme } from 'antd';
-import type { ColumnsType, TableRowSelection } from 'antd/es/table/interface';
+import type { TableColumnsType, TableProps } from 'antd';
 import Shell from '../components/Shell';
 import PageHeader from '../components/PageHeader';
 import TableToolbar, { FilterField } from '../components/TableToolbar';
@@ -125,7 +125,7 @@ export default function Sessions() {
   const kickIsBatch = (kickTarget?.length ?? 0) > 1;
 
   // Row selection config
-  const rowSelection: TableRowSelection<SessionRow> = {
+  const rowSelection: TableProps<SessionRow>['rowSelection'] = {
     selectedRowKeys: Array.from(selected).filter((id) => visible.some((r) => r.session === id)),
     onSelect: (r, on) => {
       setSelected((prev) => {
@@ -144,8 +144,8 @@ export default function Sessions() {
   };
 
   // Columns definition
-  const columns: ColumnsType<SessionRow> = useMemo(() => {
-    const cols: ColumnsType<SessionRow> = [
+  const columns: TableColumnsType<SessionRow> = useMemo(() => {
+    const cols: TableColumnsType<SessionRow> = [
       {
         title: '用户名',
         dataIndex: 'name',
@@ -165,7 +165,7 @@ export default function Sessions() {
         dataIndex: 'mac',
         key: 'mac',
         hidden: !colVis.mac,
-        width: 150,
+        width: 172,
         render: (v) => <Typography.Text code>{v}</Typography.Text>,
       },
       {
@@ -427,7 +427,7 @@ export default function Sessions() {
         )}
         {view === 'ready' && visible.length === 0 && (
           <Empty
-            image={<Inbox style={{ width: 64, height: 64, color: token.colorTextQuaternary }} />}
+            image={<InboxOutlined style={{ width: 64, height: 64, color: token.colorTextQuaternary }} />}
             description="当前没有在线会话"
           >
             <Typography.Text type="secondary">
@@ -456,6 +456,7 @@ export default function Sessions() {
               showSizeChanger: true,
               showTotal: (_total, range) => `共 1,286 条在线会话,本页显示 ${range[0]}-${range[1]} 条`,
             }}
+            scroll={{ x: 'max-content' }}
             size="middle"
             data-od-id="session-table"
             locale={{ emptyText: null }}

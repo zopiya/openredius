@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Check, Users } from 'lucide-react';
+import { CheckOutlined, TeamOutlined } from '@ant-design/icons';
 import { Table, Select, Button, Space, Modal, Input, Tag, Empty, Skeleton, Result, Drawer, Card, Descriptions, Typography, theme, Divider } from 'antd';
-import type { ColumnsType, TableRowSelection } from 'antd/es/table/interface';
+import type { TableColumnsType, TableProps } from 'antd';
 import Shell from '../components/Shell';
 import PageHeader from '../components/PageHeader';
 import TableToolbar, { FilterField } from '../components/TableToolbar';
@@ -166,7 +166,7 @@ export default function UsersPage() {
 
   const drawerRule = drawerUser ? (POLICY_RULES[drawerUser.policy] ?? '—') : '—';
 
-  const rowSelection: TableRowSelection<UserRow> = {
+  const rowSelection: TableProps<UserRow>['rowSelection'] = {
     selectedRowKeys: Array.from(selected).filter((id) => visible.some((r) => r.account === id)),
     onSelect: (r, on) => {
       setSelected((prev) => {
@@ -184,7 +184,7 @@ export default function UsersPage() {
     },
   };
 
-  const columns: ColumnsType<UserRow> = [
+  const columns: TableColumnsType<UserRow> = [
     {
       title: '姓名 / 账号',
       key: 'name',
@@ -266,7 +266,7 @@ export default function UsersPage() {
         data-od-id="ad-sync-status"
         style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '13px 16px', marginBottom: 16, border: `1px solid ${token.colorBorderSecondary}`, borderRadius: 12, background: token.colorBgLayout, color: token.colorTextSecondary }}
       >
-        <Check style={{ width: 16, height: 16, color: token.colorSuccess, flexShrink: 0 }} />
+        <CheckOutlined style={{ width: 16, height: 16, color: token.colorSuccess, flexShrink: 0 }} />
         <div style={{ flex: 1 }}>
           AD 域 <b>corp.example.com</b> · 上次同步 <b>{syncLast}</b>{' '}
           <Tag color={syncState === 'success' ? 'green' : 'blue'}>{syncState === 'success' ? '成功' : '同步中'}</Tag>
@@ -329,7 +329,7 @@ export default function UsersPage() {
           />
         )}
         {view === 'ready' && visible.length === 0 && (
-          <Empty image={<Users style={{ width: 64, height: 64, color: token.colorTextQuaternary }} />} description="没有符合条件的用户" style={{ padding: '56px 24px' }}>
+          <Empty image={<TeamOutlined style={{ width: 64, height: 64, color: token.colorTextQuaternary }} />} description="没有符合条件的用户" style={{ padding: '56px 24px' }}>
             <Typography.Text type="secondary">当前筛选条件下无账号。可放宽部门 / 状态 / 策略组条件,或修改关键词。</Typography.Text>
             <br /><Button style={{ marginTop: 12 }} onClick={() => resetFilters()}>清空筛选条件</Button>
           </Empty>

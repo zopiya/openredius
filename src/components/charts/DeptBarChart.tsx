@@ -35,21 +35,13 @@ function DeptBarAntd({ rows }: { rows: DeptStat[] }) {
     data,
     xField: 'dept',
     yField: 'value',
-    seriesField: 'type',
-    isGroup: true,
+    colorField: 'type',
+    group: true,
     height: 240,
     color: [OK_COLOR, FAIL_COLOR],
-    legend: false,
+    legend: { color: { position: 'top' } },
     animation: false,
     columnStyle: { radiusTopLeft: 4, radiusTopRight: 4 },
-    xAxis: {
-      label: { style: { fill: 'rgba(0,0,0,0.45)', fontSize: 11, fontFamily: 'sans-serif' } },
-      grid: null as unknown as undefined,
-    },
-    yAxis: {
-      label: { style: { fill: 'rgba(0,0,0,0.45)', fontSize: 10.5 } },
-      grid: { line: { style: { stroke: '#f0f0f0', lineWidth: 1 } } },
-    },
     tooltip: { shared: true },
   };
 

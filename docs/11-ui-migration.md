@@ -1,5 +1,8 @@
 # 11 · Ant Design 5 迁移计划
 
+> **执行注记**: 本计划实际落地为 **Ant Design 6**(2026-08,见 docs/05-frontend-design.md「现状盘点」)。
+> 保留原文作为历史计划记录;所有 antd 5 专属 API 与 `v5-patch-for-react-19` 均已在代码中清除。
+
 **版本**: v0.1.0-草案  \
 **依赖**: M0–M7 全部完成 · ADR-0005(Tailwind 迁移保留) \
 **目标**: 在保留现有布局排版的前提下，将全部 UI 从自定义 CSS 迁移到 Ant Design 5，

@@ -63,7 +63,7 @@ function TrendChartAntd({ series }: { series: TrendSeries }) {
     data,
     xField: 'time',
     yField: 'value',
-    seriesField: 'type',
+    colorField: 'type',
     smooth: true,
     height: 260,
     color: ['#1677ff', '#ff4d4f'],
@@ -78,13 +78,8 @@ function TrendChartAntd({ series }: { series: TrendSeries }) {
     },
     animation: false,
     legend: false,
-    xAxis: {
-      label: { style: { fill: 'rgba(0,0,0,0.45)', fontSize: 10.5, fontFamily: 'sans-serif' } },
-      grid: null as unknown as undefined,
-    },
-    yAxis: {
-      label: { style: { fill: 'rgba(0,0,0,0.45)', fontSize: 10.5 } },
-      grid: { line: { style: { stroke: '#f0f0f0', lineWidth: 1 } } },
+    axis: {
+      x: { labelAutoRotate: false },
     },
     tooltip: { shared: true },
   };

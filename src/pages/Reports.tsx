@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Card, Row, Col, Segmented, Button, Typography, Table, Tabs, Flex, Progress, theme } from 'antd';
-import type { ColumnsType } from 'antd/es/table/interface';
+import type { TableColumnsType } from 'antd';
 import Shell from '../components/Shell';
 import PageHeader from '../components/PageHeader';
 import Donut, { DonutLegend } from '../components/charts/Donut';
@@ -42,7 +42,7 @@ export default function Reports() {
     return () => { cancelled = true; };
   }, [period]);
 
-  const deptCols: ColumnsType<typeof deptRows[number]> = [
+  const deptCols: TableColumnsType<typeof deptRows[number]> = [
     { title: '部门', dataIndex: 'dept', key: 'dept' },
     { title: '在线 / 账号', dataIndex: 'online', key: 'online', render: (v) => <Typography.Text code>{v}</Typography.Text> },
     { title: '认证成功', dataIndex: 'ok', key: 'ok', render: (v) => <Typography.Text code>{v}</Typography.Text> },

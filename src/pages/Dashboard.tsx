@@ -195,7 +195,7 @@ export default function Dashboard() {
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <span style={{ width: 118, flexShrink: 0 }}>办公 WiFi</span>
-                <Progress percent={38} size="small" strokeColor={token.colorText} style={{ flex: 1, margin: 0 }} />
+                <Progress percent={38} size="small" strokeColor="#13c2c2" style={{ flex: 1, margin: 0 }} />
                 <span style={{ width: 64, textAlign: 'right', color: token.colorTextSecondary, fontVariantNumeric: 'tabular-nums', fontSize: '12.5px' }}>488 · 38%</span>
               </div>
             </Space>

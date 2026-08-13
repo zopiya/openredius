@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Table, Button, Space, Modal, Drawer, Input, Select, Switch, Radio, Checkbox, Typography, Steps, Form, Card, theme, Alert, App } from 'antd';
-import type { ColumnsType } from 'antd/es/table/interface';
+import type { TableColumnsType } from 'antd';
 import Shell from '../components/Shell';
 import PageHeader from '../components/PageHeader';
 import { useToast } from '../components/Toast';
@@ -121,7 +121,7 @@ export default function Policies() {
   // sort rows by current order
   const sortedRows = order.map((id) => rowById(id));
 
-  const columns: ColumnsType<PolicyRow> = [
+  const columns: TableColumnsType<PolicyRow> = [
     {
       title: '优先级',
       key: 'priority',

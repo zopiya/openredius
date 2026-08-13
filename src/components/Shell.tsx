@@ -1,10 +1,11 @@
 import { type ReactNode, useEffect, useState, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
-  Activity, BarChart3, FileSearch, Gauge, KeyRound, LogOut,
-  ScrollText, Search, Server, Settings, ShieldCheck, Users,
-} from 'lucide-react';
-import { Layout, Menu, Button, Dropdown, Input, Modal, Form, App, Breadcrumb, Avatar, Badge, Tag, Typography, theme } from 'antd';
+  AuditOutlined, BarChartOutlined, CloudServerOutlined, DashboardOutlined,
+  FileSearchOutlined, KeyOutlined, LineChartOutlined, LogoutOutlined,
+  SafetyCertificateOutlined, SearchOutlined, SettingOutlined, TeamOutlined,
+} from '@ant-design/icons';
+import { Layout, Menu, Button, Dropdown, Input, Modal, Form, App, Avatar, Badge, Tag, Typography, theme } from 'antd';
 import type { MenuProps } from 'antd';
 import { useTitle } from '../hooks/useTitle';
 import { fetchMe, logout } from '../api/auth';
@@ -19,15 +20,15 @@ const ROLE_META: Record<string, { label: string; color: string }> = {
 };
 
 const ALL_ITEMS = [
-  { key: '/dashboard', label: '仪表盘', icon: Gauge, roles: ['admin', 'operator', 'auditor'] },
-  { key: '/sessions', label: '在线会话', icon: Activity, roles: ['admin', 'operator', 'auditor'] },
-  { key: '/auth-logs', label: '认证日志', icon: ScrollText, roles: ['admin', 'operator', 'auditor'] },
-  { key: '/users', label: '用户管理', icon: Users, roles: ['admin', 'operator'] },
-  { key: '/policies', label: '策略管理', icon: ShieldCheck, roles: ['admin'] },
-  { key: '/devices', label: '设备管理', icon: Server, roles: ['admin'] },
-  { key: '/reports', label: '报表统计', icon: BarChart3, roles: ['admin', 'operator', 'auditor'] },
-  { key: '/audit', label: '审计日志', icon: FileSearch, roles: ['admin', 'auditor'] },
-  { key: '/settings', label: '系统设置', icon: Settings, roles: ['admin'] },
+  { key: '/dashboard', label: '仪表盘', icon: DashboardOutlined, roles: ['admin', 'operator', 'auditor'] },
+  { key: '/sessions', label: '在线会话', icon: LineChartOutlined, roles: ['admin', 'operator', 'auditor'] },
+  { key: '/auth-logs', label: '认证日志', icon: AuditOutlined, roles: ['admin', 'operator', 'auditor'] },
+  { key: '/users', label: '用户管理', icon: TeamOutlined, roles: ['admin', 'operator'] },
+  { key: '/policies', label: '策略管理', icon: SafetyCertificateOutlined, roles: ['admin'] },
+  { key: '/devices', label: '设备管理', icon: CloudServerOutlined, roles: ['admin'] },
+  { key: '/reports', label: '报表统计', icon: BarChartOutlined, roles: ['admin', 'operator', 'auditor'] },
+  { key: '/audit', label: '审计日志', icon: FileSearchOutlined, roles: ['admin', 'auditor'] },
+  { key: '/settings', label: '系统设置', icon: SettingOutlined, roles: ['admin'] },
 ];
 
 interface AdminInfo { username: string; display_name: string; role: string; }
@@ -63,7 +64,7 @@ export default function Shell({ page, children }: { page: string; children: Reac
     () =>
       ALL_ITEMS.filter((item) => item.roles.includes(me.role)).map(({ key, label, icon: Icon }) => ({
         key,
-        icon: <Icon size={17} strokeWidth={1.75} />,
+        icon: <Icon style={{ fontSize: 17 }} />,
         label,
       })),
     [me.role],
@@ -85,14 +86,14 @@ export default function Shell({ page, children }: { page: string; children: Reac
   const dropdownItems: MenuProps['items'] = [
     {
       key: 'password',
-      icon: <KeyRound size={16} />,
+      icon: <KeyOutlined style={{ fontSize: 16 }} />,
       label: '修改密码',
       onClick: () => setPwOpen(true),
     },
     { type: 'divider' },
     {
       key: 'logout',
-      icon: <LogOut size={16} />,
+      icon: <LogoutOutlined style={{ fontSize: 16 }} />,
       label: '退出登录',
       onClick: handleLogout,
     },
@@ -185,15 +186,10 @@ export default function Shell({ page, children }: { page: string; children: Reac
             lineHeight: '57px',
           }}
         >
-          <Breadcrumb
-            items={[{ title: '首页' }, { title: page }]}
-            style={{ fontSize: 12.5, lineHeight: 'normal' }}
-          />
-
           <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 14 }}>
             {/* 搜索 */}
             <Input
-              prefix={<Search size={14} strokeWidth={2} style={{ color: token.colorTextTertiary }} />}
+              prefix={<SearchOutlined style={{ fontSize: 14, color: token.colorTextTertiary }} />}
               placeholder="搜索用户 / MAC / 设备"
               aria-label="搜索"
               style={{ width: 240 }}
@@ -226,7 +222,7 @@ export default function Shell({ page, children }: { page: string; children: Reac
           </div>
         </Header>
 
-        <Content data-od-id="main" style={{ padding: '26px 28px 72px', maxWidth: 1440, width: '100%' }}>
+        <Content data-od-id="main" style={{ padding: '26px 28px 72px', maxWidth: 1920, marginInline: 'auto', width: '100%' }}>
           {children}
         </Content>
       </Layout>
