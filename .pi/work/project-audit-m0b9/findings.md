@@ -96,3 +96,41 @@
 
 - **e2e-full-audit/**:26 项未勾,但 findings.md 显示 R1/R2 已完成、e2e-http 41/41 全绿;实际剩余 R3(全量回归+验收报告)。→ 本审计 Phase 8 勾完并归档。
 - **post-mvp-operating-model-p3a7/**:1 项未勾("评审并确认 M8 范围/SLO/责任人")→ 按 Q5 处置;docs/12、13 状态"待评审"随 Q5 更新。
+
+## F. 处置汇总(2026-08-13,全部闭环)
+
+- **B1** ✅ 改代码:audit.enabled/alerts.master 接入 record_audit 与 DbAlertSink.emit;开/关两态测试。
+- **B2** ✅ 改代码:GET /api/policies/{id} 返回 PolicyDetail.compiled_rules(复用 _desired_group_rows)+ 测试。
+- **B3/B4/D02/D03** ✅ 改文档:03 补 reauthorize、me/password、audit/export.csv。
+- **B5** ✅ 改文档:02 admin_user 字段表补 token_version/fail_count/first_failed_at/locked_until/linked_account;删 last_login_at。
+- **B6** ✅ 改代码:GET /api/users 列表带 last_auth(subquery 批量)+ 测试。
+- **B7** ✅ 改文档:04 CoA 兜底标记为 connectinfo_stop(class 不动,保 reason 标记)。
+- **B8/B9** ✅ 改文档:08 secret_enc 双写如实说明;refresh 作废机制改为 token_version + revoked_refresh_token 描述。
+- **B10/B11** ✅ 改文档:02 ERD 删 endpoint↔vlan、policy_group↔acl_profile 关系;acl_name 直引。
+- **B12/B13/B18** ✅ 改文档:04 依赖表补 openpyxl/reportlab;模块布局对齐实际;diff 键四元组。
+- **B14/B15/D27** ✅ 改文档:03 列表形状统一信封;alerts {items};health 契约扩展。
+- **B16** ✅ 改文档:06 NAS 变更流程改为"后端不自动重启,操作方调用 reload-radius"。
+- **B17** ✅ 改代码:endpoints/import 逐条 audit_log + 测试。
+- **B19** ✅ ①改代码(锁定文案 Account locked);②改代码(NAS_HIGH_LOAD_RATIO 配置)+ 测试;③改代码(EndpointOut.cert_serial)+ 测试。
+- **D01** ✅ 改文档:00/11/README 功能地图 8→9 页(审计日志页)。
+- **D04/D05/D06/D07/D08** ✅ 改代码:用户抽屉/同步记录/端口抽屉/NAS CRUD/告警规则全部接线(Q3 决策)。
+- **D09/D11/D12/D24** ✅ 改文档:20 交互/14 冒烟/css 描述。
+- **D10** ✅ 改代码:四页列表服务端筛选(含标签→枚举映射)。
+- **D13/D14** ✅ 改代码:smoke/e2e/e2e-http 补 /audit;menuCount 8→9。
+- **D15/D17** ✅ 改代码:Dashboard 告警点击标已读;locked_users 并入告警卡 footer。
+- **D16** ✅ 改代码:Dashboard 30s / Sessions 15s 轮询(http 模式);mock 文案改"演示数据"。
+- **D18** ✅ 改代码:设置页渲染告警/审计总开关(与后端开关联动)。
+- **D19** ✅ 改代码:两导出带当前筛选参数。
+- **D20** ✅ 改文档:03 详情端点标注"列表行内数据已够用,保留给深度排查"。
+- **D21/D22** ✅ 改代码:api-contract.test.ts 真实形状断言;类型收敛 src/data;schema.d.ts 重新生成。
+- **D23/D28/D29/S1/S2** ✅ 删文件:Launcher、api/mock 六文件、types.ts、useApi、utils。
+- **D25** ✅ 改文档:00 注明设置页证书/AD-LDAP 为原型占位,后续立项。
+- **D26** ✅ 改代码:移除 Users/Devices『导出清单』按钮(03 无端点,不新增未契约功能)。
+- **S3** ✅ e2e:http 收编进 package.json + docs/09 登记。
+- **S4/S5/S6** ✅ 删除:visual-audit 脚本、audit-screenshots/、UI-效果报告.html、dist、tsbuildinfo。
+- **S7/S10/S12** ✅ 确认无需处置(certs 未入库/portal 有意占位/alembic 单 head)。
+- **S8** ✅ docs/07 + README 登记 ansible/;backup/restore j2 改薄封装调用 deploy/scripts 正典。
+- **S9** ✅ docs/09 CI 段按事实(backend job 已启用;audit job 标注后续项);ci.yml push 监听补 dev。
+- **G1/G2/G3/G5** ✅ 本地 5 分支 + 远程 6 分支删除;main 快进 dev;v0.1.0 tag(用户确认)。
+- **G4** ✅ AGENTS.md 项目段:dev 主线 / main 发布线 / 验证命令现状。
+- **E** ✅ e2e-full-audit 勾完归档(见其 report.md);post-mvp 定稿(Q5)。
