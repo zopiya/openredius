@@ -7,7 +7,7 @@ import Shell from '../components/Shell';
 import PageHeader from '../components/PageHeader';
 import TableToolbar, { FilterField } from '../components/TableToolbar';
 import { useToast } from '../components/Toast';
-import { assignUserPolicy, fetchUsers, POLICY_RULES, syncAdNow, updateUserStatus, USER_FILTER_OPTIONS, USER_ROWS, type UserRow } from '../api/resources/users';
+import { assignUserPolicy, fetchSyncRecords, fetchUserDetail, fetchUsers, POLICY_RULES, syncAdNow, updateUserStatus, USER_FILTER_OPTIONS, USER_ROWS, type SyncRecordRow, type UserDetailData, type UserRow } from '../api/resources/users';
 import { fetchPolicies } from '../api/resources/policies';
 import { MODE } from '../api/config';
 
@@ -53,6 +53,8 @@ export default function UsersPage() {
   const [applied, setApplied] = useState<Filters>(DEFAULT_FILTERS);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [drawerUser, setDrawerUser] = useState<UserRow | null>(null);
+  const [detail, setDetail] = useState<UserDetailData | null>(null);
+  const [syncRecords, setSyncRecords] = useState<{ total: number; items: SyncRecordRow[] } | null>(null);
   const [modal, setModal] = useState<ModalKind>(null);
   const [policyPick, setPolicyPick] = useState<number | undefined>(undefined);
   const [policies, setPolicies] = useState<{ id: number; name: string }[]>([]);
@@ -89,13 +91,49 @@ export default function UsersPage() {
     else toast('用户 ' + m[1] + ' 不在当前页,请通过关键词搜索定位');
   }, [rows]);
 
-  const visible = useMemo(() => rows.filter((r) => matches(r, applied)), [rows, applied]);
+  // docs/03:用户抽屉在 http 模式拉真实详情(recent_auth/终端/下发规则)。
+  useEffect(() => {
+    if (!drawerUser) return;
+    setDetail(null);
+    if (MODE !== 'http') return;
+    let cancelled = false;
+    fetchUserDetail(drawerUser.account)
+      .then((d) => { if (!cancelled && d) setDetail(d); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [drawerUser]);
+
+  const visible = useMemo(
+    () => (MODE === 'http' ? rows : rows.filter((r) => matches(r, applied))),
+    [rows, applied],
+  );
   const selectedVisible = visible.filter((r) => selected.has(r.account));
+
+  function applyFilters() {
+    setApplied(form);
+    if (MODE !== 'http') return;
+    setView('loading');
+    fetchUsers({ dept: form.dept, status: form.status, policy: form.policy, q: form.kw })
+      .then((data) => { setRows(data); setView('ready'); })
+      .catch(() => setView('error'));
+  }
 
   function resetFilters(silent = false) {
     setForm(DEFAULT_FILTERS);
     setApplied(DEFAULT_FILTERS);
+    if (MODE === 'http') {
+      setView('loading');
+      fetchUsers().then((data) => { setRows(data); setView('ready'); }).catch(() => setView('error'));
+    }
     if (!silent) toast('已清空筛选条件');
+  }
+
+  function openSyncLog() {
+    setModal({ kind: 'sync-log' });
+    if (MODE !== 'http') return;
+    fetchSyncRecords()
+      .then((d) => setSyncRecords(d))
+      .catch(() => {});
   }
 
   async function startSync() {
@@ -252,12 +290,9 @@ export default function UsersPage() {
         title="用户管理"
         subtitle={<>共 <b>1,472</b> 个账号,源自 AD 域同步 · 正常 1,408 / 停用 52 / 锁定 12</>}
         extra={
-          <>
-            <Button onClick={() => toast('已导出 users-20260727.csv(1,472 条)')}>导出清单</Button>
-            <Button type="primary" data-od-id="sync-now" disabled={syncing} onClick={startSync}>
-              {syncing ? '同步中…' : '立即同步 AD'}
-            </Button>
-          </>
+          <Button type="primary" data-od-id="sync-now" disabled={syncing} onClick={startSync}>
+            {syncing ? '同步中…' : '立即同步 AD'}
+          </Button>
         }
       />
 
@@ -272,7 +307,7 @@ export default function UsersPage() {
           <Tag color={syncState === 'success' ? 'green' : 'blue'}>{syncState === 'success' ? '成功' : '同步中'}</Tag>
           {syncSummary},下次同步 <b>11:00</b> · 周期 60 分钟 · <Link to="/settings">对接配置</Link>
         </div>
-        <a href="#" onClick={(e) => { e.preventDefault(); setModal({ kind: 'sync-log' }); }}>同步记录</a>
+        <a href="#" onClick={(e) => { e.preventDefault(); openSyncLog(); }}>同步记录</a>
       </div>
 
       {/* 主卡片 */}
@@ -301,7 +336,7 @@ export default function UsersPage() {
             <Input id="fu-kw" placeholder="姓名 / 账号" value={form.kw} onChange={(e) => setForm((f) => ({ ...f, kw: e.target.value }))} style={{ width: 140 }} />
           </FilterField>
           <Space>
-            <Button type="primary" size="small" onClick={() => setApplied(form)}>筛选</Button>
+            <Button type="primary" size="small" onClick={applyFilters}>筛选</Button>
             <Button size="small" onClick={() => resetFilters()}>重置</Button>
           </Space>
         </TableToolbar>
@@ -365,7 +400,7 @@ export default function UsersPage() {
                 { key: 'dept', label: '所属部门 / 职位', children: `${drawerUser.dept} · ${drawerUser.title}` },
                 { key: 'status', label: '账号状态', children: drawerUser.status },
                 { key: 'src', label: '账号来源', children: 'AD 同步(corp.example.com)' },
-                { key: 'last', label: '最近认证', children: '2026-07-27,SW-3F-01 · EAP-TLS' },
+                { key: 'last', label: '最近认证', children: detail ? (detail.recentAuth[0] ? `${detail.recentAuth[0].time},${detail.recentAuth[0].nas} · ${detail.recentAuth[0].result === '失败' ? '拒绝' : '接受'}` : '—') : '2026-07-27,SW-3F-01 · EAP-TLS' },
               ]}
             />
             <Divider titlePlacement="start" plain>所属策略组</Divider>
@@ -374,15 +409,15 @@ export default function UsersPage() {
               size="small"
               items={[
                 { key: 'policy', label: '当前策略组', children: drawerUser.policy },
-                { key: 'rule', label: '下发规则', children: drawerRule },
+                { key: 'rule', label: '下发规则', children: detail ? detail.policyRules.join('; ') || '—' : drawerRule },
               ]}
             />
-            <Divider titlePlacement="start" plain>绑定终端(2)</Divider>
+            <Divider titlePlacement="start" plain>绑定终端({detail ? detail.endpoints.length : 2})</Divider>
             <Table
               rowKey="mac"
               size="small"
               pagination={false}
-              dataSource={[
+              dataSource={detail ? detail.endpoints : [
                 { mac: '3C:52:82:1A:4B:01', fp: '9F:2A:…:71:C0', comp: '合规' },
                 { mac: 'A4:83:E7:22:9C:7E', fp: 'B1:08:…:3E:9A', comp: '证书 30 天内到期' },
               ]}
@@ -392,12 +427,12 @@ export default function UsersPage() {
                 { title: '合规', dataIndex: 'comp', key: 'comp', render: (v: string) => <Tag color={v === '合规' ? 'green' : 'orange'}>{v}</Tag> },
               ]}
             />
-            <Divider titlePlacement="start" plain>历史认证记录(最近 5 条)</Divider>
+            <Divider titlePlacement="start" plain>历史认证记录({detail ? `最近 ${detail.recentAuth.length} 条` : '最近 5 条'})</Divider>
             <Table
               rowKey="time"
               size="small"
               pagination={false}
-              dataSource={[
+              dataSource={detail ? detail.recentAuth : [
                 { time: '07-27 10:24', nas: 'SW-3F-01 · Gi1/0/12', result: '成功' },
                 { time: '07-27 06:12', nas: 'SW-3F-01 · Gi1/0/12', result: '成功' },
                 { time: '07-26 18:02', nas: 'AC-HQ-01 · AP-3F-012', result: '成功' },
@@ -446,15 +481,28 @@ export default function UsersPage() {
         {modal?.kind === 'disable' && <p>停用 <b>{modal.row.name}({modal.row.account})</b> 后,该账号所有认证请求将被拒绝,在线会话立即断开。此操作可随时通过「启用」恢复。</p>}
         {modal?.kind === 'sync-log' && (
           <>
-            <p>共 168 次同步:<b>167 次成功 / 1 次失败</b>。</p>
-            <div style={{ background: token.colorBgLayout, borderRadius: 8, padding: '10px 12px', marginTop: 10, fontFamily: 'monospace', fontSize: 12 }}>
-              今日 10:00 · 成功 · 新增 12 / 更新 3 / 停用 1<br />
-              今日 09:00 · 成功 · 无变更<br />
-              今日 08:00 · 成功 · 新增 1 / 更新 2<br />
-              昨天 22:00 · <b style={{ color: token.colorError }}>失败</b> · dc01 连接超时(已回退){' '}
-              <a href="#" onClick={(e) => { e.preventDefault(); setModal({ kind: 'sync-error' }); }}>查看原因</a><br />
-              昨天 21:00 · 成功 · 无变更
-            </div>
+            {MODE === 'http' ? (
+              <>
+                <p>共 {syncRecords?.total ?? '…'} 次同步。</p>
+                <div style={{ background: token.colorBgLayout, borderRadius: 8, padding: '10px 12px', marginTop: 10, fontFamily: 'monospace', fontSize: 12, maxHeight: 200, overflow: 'auto' }}>
+                  {syncRecords?.items.map((r, i) => (
+                    <span key={i}>{r.time} · {r.status === '失败' ? <b style={{ color: token.colorError }}>失败</b> : r.status} · {r.detail}{r.error ? ` · ${r.error}` : ''}<br /></span>
+                  )) ?? <span>加载中…</span>}
+                </div>
+              </>
+            ) : (
+              <>
+                <p>共 168 次同步:<b>167 次成功 / 1 次失败</b>。</p>
+                <div style={{ background: token.colorBgLayout, borderRadius: 8, padding: '10px 12px', marginTop: 10, fontFamily: 'monospace', fontSize: 12 }}>
+                  今日 10:00 · 成功 · 新增 12 / 更新 3 / 停用 1<br />
+                  今日 09:00 · 成功 · 无变更<br />
+                  今日 08:00 · 成功 · 新增 1 / 更新 2<br />
+                  昨天 22:00 · <b style={{ color: token.colorError }}>失败</b> · dc01 连接超时(已回退){' '}
+                  <a href="#" onClick={(e) => { e.preventDefault(); setModal({ kind: 'sync-error' }); }}>查看原因</a><br />
+                  昨天 21:00 · 成功 · 无变更
+                </div>
+              </>
+            )}
           </>
         )}
         {modal?.kind === 'sync-error' && (

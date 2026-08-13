@@ -2,7 +2,9 @@
  * 设备管理 API(mock ↔ http 双轨)。
  *
  * http:
- *   GET /api/devices/nas?type&area&status → NasRow[]
+ *   GET /api/devices/nas?type&area&status → 信封 → NasRow[]
+ *   POST /api/devices/nas / PATCH|DELETE /api/devices/nas/{id}(NAS CRUD)
+ *   GET /api/devices/nas/{id}/ports|ssids(抽屉)
  *   GET /api/devices/endpoints?type&comp&q → EndpointRow[]
  *   POST /api/devices/endpoints/import
  *   DELETE /api/devices/endpoints/{mac}/whitelist
@@ -52,7 +54,7 @@ function mapNas(raw: any): NasRow {
     typeLabel: raw.type === 'ac' ? '无线 AC' : raw.type === 'ap' ? 'AP' : '交换机',
     ip: raw.nasname ?? '',
     area: raw.area ?? '',
-    status: status === 'online' ? 'online' : 'offline',
+    status: status === 'online' || status === 'high-load' ? 'online' : 'offline',
     statusLabel: status === 'online' ? '在线' : status === 'high-load' ? '高负载' : `离线`,
     statusBadge: (STATUS_BADGE[status] ?? 'danger') as any,
     secret: raw.secret_masked,
@@ -75,6 +77,26 @@ const COMP_LABEL: Record<string, string> = {
   warn: '证书临期',
   bad: '不合规',
 };
+const ETYPE_LABEL: Record<string, string> = {
+  laptop: '笔记本',
+  phone: '手机',
+  printer: '打印机',
+  camera: '摄像头',
+  other: '其他',
+};
+const ETYPE_ENUM: Record<string, string> = {
+  笔记本: 'laptop',
+  手机: 'phone',
+  打印机: 'printer',
+  摄像头: 'camera',
+  其他: 'other',
+};
+const COMP_ENUM: Record<string, string> = {
+  合规: 'ok',
+  证书临期: 'warn',
+  不合规: 'bad',
+  白名单: 'white',
+};
 
 function mapEndpoint(raw: any): EndpointRow {
   const comp = raw.compliance ?? 'ok';
@@ -83,7 +105,7 @@ function mapEndpoint(raw: any): EndpointRow {
     fingerprint: raw.fingerprint ?? '',
     userName: raw.owner_name ?? '',
     userSub: raw.owner_account ?? '',
-    etype: raw.etype ?? '其他',
+    etype: ETYPE_LABEL[raw.etype] ?? raw.etype ?? '其他',
     comp: comp,
     compLabel: raw.comp_detail ?? (COMP_LABEL[comp] ?? '合规'),
     compBadge: (COMP_BADGE[comp] ?? 'success') as any,
@@ -110,8 +132,8 @@ function _nasTypeParam(label: string): string {
 
 async function httpFetchEndpoints(filters?: Record<string, string>): Promise<EndpointRow[]> {
   const params = new URLSearchParams();
-  if (filters?.type && filters.type !== '全部类型') params.set('type', filters.type);
-  if (filters?.comp && filters.comp !== '全部') params.set('comp', filters.comp);
+  if (filters?.type && filters.type !== '全部类型') params.set('type', ETYPE_ENUM[filters.type] ?? filters.type);
+  if (filters?.comp && filters.comp !== '全部') params.set('comp', COMP_ENUM[filters.comp] ?? filters.comp);
   if (filters?.q) params.set('q', filters.q);
   const qs = params.toString();
   const { items } = await fetchItems(`/api/devices/endpoints${qs ? '?' + qs : ''}`);
@@ -151,4 +173,57 @@ export async function removeWhitelist(mac: string): Promise<void> {
 export async function revokeCert(mac: string): Promise<void> {
   if (MODE !== 'http') return;
   await fetchApi(`/api/devices/endpoints/${encodeURIComponent(mac)}/revoke-cert`, { method: 'POST' });
+}
+
+// ── NAS 端口/SSID 抽屉(docs/03) ──────────────────
+export interface NasPortRow { port: string; mac: string; user: string; vlan: string; }
+export interface NasSsidRow { ssid: string; auth: string; count: string; vlan: string; }
+
+export async function fetchNasPorts(id: string): Promise<NasPortRow[]> {
+  if (MODE !== 'http') return SWITCH_PORT_DETAIL;
+  return (await fetchApi(`/api/devices/nas/${id}/ports`)) as NasPortRow[];
+}
+
+export async function fetchNasSsids(id: string): Promise<NasSsidRow[]> {
+  if (MODE !== 'http') return SSID_ROWS;
+  return (await fetchApi(`/api/devices/nas/${id}/ssids`)) as NasSsidRow[];
+}
+
+// ── NAS CRUD(docs/00 功能地图 / docs/03 设备管理) ──
+export interface NasFormPayload {
+  name: string;
+  nasname: string;
+  type: string;
+  area: string;
+  capacity: number | null;
+  notes: string;
+  secret?: string;
+}
+
+export async function createNas(
+  payload: NasFormPayload,
+): Promise<{ reloadRequired: boolean }> {
+  if (MODE !== 'http') return { reloadRequired: false };
+  const body: any = await fetchApi('/api/devices/nas', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+  return { reloadRequired: body.reload_required ?? false };
+}
+
+export async function updateNas(
+  id: string,
+  payload: NasFormPayload,
+): Promise<{ reloadRequired: boolean }> {
+  if (MODE !== 'http') return { reloadRequired: false };
+  const body: any = await fetchApi(`/api/devices/nas/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  });
+  return { reloadRequired: body.reload_required ?? false };
+}
+
+export async function deleteNas(id: string): Promise<void> {
+  if (MODE !== 'http') return;
+  await fetchApi(`/api/devices/nas/${id}`, { method: 'DELETE' });
 }
