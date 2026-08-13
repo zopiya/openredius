@@ -3,7 +3,7 @@
  *
  * 覆盖:
  *  1. UI 登录（成功 / 失败提示）
- *  2. 三角色菜单过滤（admin 8 / operator 5 / auditor 4）
+ *  2. 三角色菜单过滤（admin 9 / operator 5 / auditor 5）
  *  3. 9 页冒烟（真实数据渲染, 无白屏无 Console 错误）
  *  4. 写操作 + 数据面复查（停用/启用 → 状态翻转; 策略新建/删除; Secret 查看 → audit_log）
  *  5. RBAC 越权矩阵（API 层, 三角色 × 关键端点 → 200/403 契约）

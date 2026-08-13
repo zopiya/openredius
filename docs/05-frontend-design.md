@@ -19,7 +19,7 @@ M0–M7 阶段已完成 Ant Design 5 UI 迁移计划(docs/11-ui-migration.md)，
 - `src/theme.ts` 回归 antd 默认，仅保留深色 Sider/Menu 最小配置。
 - `src/providers/AntdProvider.tsx` 提供全局 ConfigProvider + App(useApp)。
 - 图表使用 `@ant-design/charts`(浏览器) + SVG 降级(测试环境)。
-- `src/styles/radius-admin.css` 仅保留 antd 无对应组件的三类场景：图表 SVG 降级、端口接入网格、表格排版微调(约 40 行)；
+- `src/styles/radius-admin.css` 仅保留 antd 无对应组件的三类场景：图表 SVG 降级、端口接入网格、表格排版微调(34 行)；
   `src/styles/index.css`(Tailwind v4) 已删除。
 - 旧自定义组件(`Modal.tsx`/`Drawer.tsx`/`states.tsx`/`components/ui/*`)已删除；
   `Toast.tsx` 内部已切换至 `App.useApp().message`。

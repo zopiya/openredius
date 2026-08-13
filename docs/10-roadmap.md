@@ -203,7 +203,7 @@ cd backend && uv run pytest -q && uv run pytest -m integration -q
 
 ## M5 · 前端接入真实 API
 
-**目标**:8 页在 http 模式下渲染真实数据;mock 模式回归全绿;登录闭环。
+**目标**:8 页(当时页面数)在 http 模式下渲染真实数据;mock 模式回归全绿;登录闭环。
 
 **必读文档**:05(全部)、03、09(前端)。
 
@@ -214,14 +214,14 @@ cd backend && uv run pytest -q && uv run pytest -m integration -q
 - [x] 既有 sessions/logs/users 资源切 http(双轨开关,签名不变)
 - [x] `bun run api:gen`(openapi-typescript)+ schema 快照入库;契约测试
 - [x] vite dev proxy /api → :8000
-- [ ] http 模式 8 页走查脚本/清单(含深链 4 例)
+- [x] http 模式 9 页走查脚本/清单(含深链 4 例)——`bun run e2e:http`(项目审计收编,42 项断言,见 09)
 - [x] 保真审计、20 交互测试、冒烟在 mock 模式恒绿
 
 **验收**:
 
 ```bash
 bun run verify                                   # mock 模式全绿
-VITE_API_BASE=http://localhost:8000 bun run dev  # 8 页真实数据走查记录
+VITE_API_BASE=http://localhost:8000 bun run dev  # 真实数据走查记录(现由 bun run e2e:http 自动化,9 页)
 ```
 
 ---
