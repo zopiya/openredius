@@ -132,8 +132,9 @@ ansible/
 
 ## 6. 零信任 preflight 检查矩阵(核心)
 
-preflight role 是零信任的落地载体。分七组断言,顺序执行,失败即停。每一项都带
-`assert` + `fail_msg`(说明现状/期望/修复命令)。全部断言在 `--check` 下也可跑。
+preflight role 是零信任的落地载体。配置、资源和安全条件以断言 fail-fast;由后续
+install role 负责安装的 chrony 与 `ip_forward` 仅提示,并在 post-deploy 强制复核。
+全部检查在 `--check` 下也可跑。
 
 ### A. 控制器侧(本地,delegate_to: localhost)
 
@@ -158,7 +159,7 @@ preflight role 是零信任的落地载体。分七组断言,顺序执行,失败
 | C1 | OS family/版本在支持矩阵内 | 不支持即 fail |
 | C2 | 架构 x86_64/arm64 | 与镜像多架构 tag 匹配 |
 | C3 | hostname 非 `localhost`、可解析 | 影响审计/JWT |
-| C4 | 时间同步 active(chrony/timesyncd)且时钟偏差 < 阈值 | RADIUS/审计/JWT 依赖 |
+| C4 | 时间同步状态提示;install 后强制 active | 新主机由 common role 安装 chrony |
 | C5 | 时区可配置(默认 UTC,可在 vars 覆盖) | 日志一致性 |
 
 ### D. 资源与磁盘
@@ -189,7 +190,7 @@ preflight role 是零信任的落地载体。分七组断言,顺序执行,失败
 | F2 | 80/443 对管理网段开放 | 白名单 |
 | F3 | 1812/1813 udp 仅对 NAS 网段开放 | 非全 0.0.0.0 |
 | F4 | 5432/8000/3799 未对外暴露 | 内部网络断言 |
-| F5 | `net.ipv4.ip_forward=1`(docker 需要) | 内核参数 |
+| F5 | `ip_forward` 状态提示;install 后强制为 1 | 新主机由 docker role 持久化 |
 
 ### G. 密钥与安全姿态(零信任核心)
 
@@ -320,6 +321,7 @@ preflight(零信任门禁,fail-fast)
 5. 端口暴露面符合白名单(`ss -lntup` 复核)
 6. 备份 cron 已安装、备份目录可写
 7. (可选)radtest 冒烟:从 freeradius 容器对本地认证(需先经控制台注册 NAS + 用户)
+8. chrony 已激活且 `net.ipv4.ip_forward=1`
 
 **验收标准(整体交付)**:
 - `ansible-playbook -i inventory/hosts.yml playbooks/site.yml --check` 全绿(干跑)
