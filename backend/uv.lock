@@ -687,7 +687,7 @@ requires-dist = [
     { name = "pyrad", specifier = "==2.5.4" },
     { name = "reportlab", specifier = ">=5.0.0" },
     { name = "sqlalchemy", extras = ["asyncio"], specifier = ">=2.0,<2.1" },
-    { name = "uvicorn", extras = ["standard"], specifier = ">=0.52,<0.53" },
+    { name = "uvicorn", extras = ["standard"], specifier = ">=0.52.1,<0.53" },
 ]
 
 [package.metadata.requires-dev]
