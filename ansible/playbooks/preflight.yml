@@ -1,0 +1,8 @@
+---
+# 零信任前置检查(纯检查,零改动)
+# 用法:ansible-playbook playbooks/preflight.yml [--check]
+- name: OpenRedius 零信任前置检查
+  hosts: openredius
+  gather_facts: true
+  roles:
+    - role: preflight

@@ -1,0 +1,30 @@
+---
+# OpenRedius 一键部署入口
+# 用法:
+#   ansible-playbook playbooks/site.yml                 # 全流程
+#   ansible-playbook playbooks/site.yml --check         # 零信任干跑(preflight 全量断言)
+#   ansible-playbook playbooks/site.yml --tags deploy   # 仅部署
+# 密钥:group_vars/all/vault.yml(ansible-vault 加密)自动加载。
+
+- name: OpenRedius 一键部署(零信任全流程)
+  hosts: openredius
+  gather_facts: true
+  any_errors_fatal: true
+
+  roles:
+    - role: preflight
+      tags: [preflight, always]
+    - role: common
+      tags: [install, common]
+    - role: docker
+      tags: [install, docker]
+    - role: firewall
+      tags: [install, firewall]
+    - role: certs
+      tags: [deploy, certs]
+    - role: deploy
+      tags: [deploy]
+    - role: backup
+      tags: [backup]
+    - role: post_deploy
+      tags: [verify, post_deploy]

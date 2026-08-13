@@ -1,0 +1,173 @@
+---
+# 零信任 preflight —— 先证后做(Verify-before-Act)
+# 七组断言见 DESIGN.md §6;全部幂等、只读,任何失败立即中止,可用 --check 干跑。
+
+# ── A · 控制器侧 ────────────────────────────────────────────────
+- name: A1 | 控制器 ansible-core 版本
+  ansible.builtin.assert:
+    that: ansible_version.full is version('2.16', '>=')
+    fail_msg: "控制器 ansible-core 需 >= 2.16(当前 {{ ansible_version.full }});升级: pip install -U ansible-core"
+  run_once: true
+  delegate_to: localhost
+  tags: [preflight, controller]
+
+# ── B · 连通与访问 ──────────────────────────────────────────────
+- name: B2 | 采集 sudo 免密状态
+  ansible.builtin.command: sudo -n true
+  changed_when: false
+  failed_when: false
+  register: _sudo_check
+  tags: [preflight, access]
+
+- name: B2 | 断言 sudo 免密可用
+  ansible.builtin.assert:
+    that: _sudo_check.rc == 0
+    fail_msg: "部署用户需 sudo 免密(sudo -n true 失败);请在 sudoers 配置 NOPASSWD 后重试"
+  tags: [preflight, access]
+
+# ── C · 主机基线 ────────────────────────────────────────────────
+- name: C1 | 断言 OS 在支持矩阵内
+  ansible.builtin.assert:
+    that:
+      - ansible_os_family == 'Debian'
+      - ansible_distribution in ['Debian', 'Ubuntu']
+    fail_msg: "仅支持 Debian/Ubuntu 家族(当前 {{ ansible_distribution }} {{ ansible_distribution_version }});RHEL 系首版明确拒绝"
+  tags: [preflight, baseline]
+
+- name: C2 | 断言架构
+  ansible.builtin.assert:
+    that: ansible_architecture in ['x86_64', 'aarch64']
+    fail_msg: "仅支持 x86_64/arm64(当前 {{ ansible_architecture }})"
+  tags: [preflight, baseline]
+
+- name: C4 | 采集时间同步服务状态
+  ansible.builtin.shell: |
+    for s in chronyd chrony systemd-timesyncd; do
+      if systemctl is-active "$s" 2>/dev/null | grep -q '^active'; then
+        echo active; exit 0
+      fi
+    done
+    echo inactive
+  changed_when: false
+  register: _timesync
+  tags: [preflight, baseline]
+
+- name: C4 | 断言时间同步已激活
+  ansible.builtin.assert:
+    that: _timesync.stdout is match('active')
+    fail_msg: "时间同步服务未激活(chrony/timesyncd);RADIUS 记账与审计/JWT 依赖时钟"
+  tags: [preflight, baseline]
+
+# ── D · 资源与磁盘 ──────────────────────────────────────────────
+- name: D1/D2 | 断言 CPU 与内存基线
+  ansible.builtin.assert:
+    that:
+      - ansible_processor_vcpus >= 2
+      - ansible_memtotal_mb >= 2048
+    fail_msg: "资源不足(docs/07 基线 2C/2G):CPU={{ ansible_processor_vcpus }} RAM={{ ansible_memtotal_mb }}MB"
+  tags: [preflight, resources]
+
+- name: D3 | 采集 /opt 与 /var/lib/docker 空闲空间
+  ansible.builtin.shell: |
+    set -euo pipefail
+    for d in /opt /var/lib/docker; do
+      mkdir -p "$d" 2>/dev/null || true
+      avail=$(df -B1G --output=avail "$d" | tail -1 | tr -d ' ')
+      [ "$avail" -ge 5 ] || { echo "INSUFFICIENT:$d:${avail}G"; exit 1; }
+    done
+  changed_when: false
+  failed_when: false
+  register: _disk_check
+  tags: [preflight, resources]
+
+- name: D3 | 断言磁盘空间
+  ansible.builtin.assert:
+    that: _disk_check.rc == 0
+    fail_msg: "磁盘空间不足(需 /opt 与 /var/lib/docker 各 >= 5GB):{{ _disk_check.stderr }}"
+  tags: [preflight, resources]
+
+# ── E · 运行时依赖与端口 ────────────────────────────────────────
+- name: E1/E2 | 采集 Docker 与 compose 插件状态
+  ansible.builtin.shell: |
+    command -v docker >/dev/null 2>&1 || { echo "docker:absent"; exit 0; }
+    docker --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+' | head -1
+    docker compose version >/dev/null 2>&1 && echo "compose:ok" || echo "compose:missing"
+  changed_when: false
+  register: _docker_state
+  tags: [preflight, runtime]
+
+- name: E1/E2 | Docker 状态(absent 时由 install 阶段自动安装)
+  ansible.builtin.debug:
+    msg: "Docker 状态:{{ _docker_state.stdout_lines | join(' / ') }}"
+  tags: [preflight, runtime]
+
+- name: E4 | 采集端口占用(80/443/5432/1812/1813/3799)
+  ansible.builtin.shell: |
+    ss -lntup | awk '{print $5}' | grep -Eo ':(80|443|5432|1812|1813|3799)$' | sort -u || true
+  changed_when: false
+  register: _ports
+  tags: [preflight, runtime]
+
+- name: E4 | 断言端口无冲突
+  ansible.builtin.assert:
+    that: _ports.stdout | length == 0
+    fail_msg: "以下端口已被占用,请先释放或调整端口变量:{{ _ports.stdout_lines }}"
+  tags: [preflight, runtime]
+
+# ── F · 网络与防火墙 ────────────────────────────────────────────
+- name: F5 | 采集 ip_forward 状态
+  ansible.builtin.shell: cat /proc/sys/net/ipv4/ip_forward
+  changed_when: false
+  register: _ip_forward
+  tags: [preflight, network]
+
+- name: F5 | 断言 ip_forward 已开启(docker 依赖)
+  ansible.builtin.assert:
+    that: _ip_forward.stdout | trim == '1'
+    fail_msg: "net.ipv4.ip_forward 未开启;执行: sysctl -w net.ipv4.ip_forward=1 并持久化"
+  tags: [preflight, network]
+
+- name: F0 | 断言管理/NAS 网段已配置(零信任默认拒绝)
+  ansible.builtin.assert:
+    that:
+      - openredius_admin_cidr | length > 0
+      - openredius_nas_cidr | length > 0
+    fail_msg: "必须在 group_vars/all/main.yml 配置 openredius_admin_cidr 与 openredius_nas_cidr"
+  tags: [preflight, network]
+
+- name: F1 | 采集防火墙工具存在性
+  ansible.builtin.shell: |
+    for t in ufw firewalld nft; do command -v "$t" >/dev/null 2>&1 && { echo "$t"; exit 0; }; done; echo none
+  changed_when: false
+  register: _fw_tool
+  tags: [preflight, network]
+
+# ── G · 密钥与安全姿态 ──────────────────────────────────────────
+- name: G5 | 采集 docker TCP socket 暴露情况
+  ansible.builtin.shell: "ss -lnt | grep -E ':(2375|2376)\\b' || true"
+  changed_when: false
+  register: _docker_tcp
+  tags: [preflight, security]
+
+- name: G5 | 断言 docker 未暴露 TCP socket
+  ansible.builtin.assert:
+    that: _docker_tcp.stdout | length == 0
+    fail_msg: "docker 暴露 TCP socket(2375/2376)属高危攻击面,请关闭"
+  tags: [preflight, security]
+
+- name: G1/G2 | 断言密钥非默认且强度达标
+  ansible.builtin.assert:
+    that:
+      - "(vault_jwt_secret | default('')) | length >= 32"
+      - "'change-me' not in (vault_postgres_password | default(''))"
+      - "'change-me' not in (vault_openredius_db_password | default(''))"
+      - "'change-me' not in (vault_radius_sql_password | default(''))"
+      - "'dev-only' not in (vault_jwt_secret | default(''))"
+    fail_msg: "存在默认/弱密钥或 JWT 密钥 <32;完善 vault.yml 并用 ansible-vault encrypt 加密"
+  tags: [preflight, security]
+
+- name: F1 | 防火墙工具缺失提示(非阻断,由 install 阶段安装)
+  ansible.builtin.debug:
+    msg: "未检测到防火墙工具(ufw/firewalld/nft),install 阶段将安装 ufw"
+  when: _fw_tool.stdout == 'none'
+  tags: [preflight, network]

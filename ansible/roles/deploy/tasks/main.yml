@@ -1,0 +1,105 @@
+---
+# deploy role —— 部署核心(P3)
+# 只读引用 deploy/、backend/ 现有文件;变化经 templates/ 渲染。
+# 流程:目录 → 资产同步 → 渲染 .env/compose → 起栈 → 迁移。
+
+- name: 计算仓库根路径(控制器侧)
+  ansible.builtin.set_fact:
+    _repo_root: "{{ playbook_dir }}/../.."
+
+- name: 确保目标机目录结构
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0750"
+  loop:
+    - "{{ openredius_deploy_root }}"
+    - "{{ openredius_deploy_root }}/postgres/init"
+    - "{{ openredius_deploy_root }}/freeradius/certs"
+    - "{{ openredius_deploy_root }}/nginx/certs"
+    - "{{ openredius_deploy_root }}/backups"
+
+- name: 同步 postgres 初始化脚本(schema + 双角色)
+  ansible.builtin.copy:
+    src: "{{ _repo_root }}/deploy/postgres/init/"
+    dest: "{{ openredius_deploy_root }}/postgres/init/"
+    mode: preserve
+  tags: [assets]
+
+- name: 同步 FreeRADIUS EAP 证书(生产需替换 dev 证书,见 README)
+  ansible.builtin.copy:
+    src: "{{ _repo_root }}/deploy/freeradius/certs/"
+    dest: "{{ openredius_deploy_root }}/freeradius/certs/"
+    mode: preserve
+  tags: [assets]
+
+- name: 打包源码(git archive 干净导出,仅 build 策略,控制器侧)
+  ansible.builtin.command:
+    cmd: git -C "{{ _repo_root }}" archive --format=tar.gz -o /tmp/openredius-source.tar.gz HEAD
+  delegate_to: localhost
+  run_once: true
+  changed_when: false
+  when: openredius_deploy_strategy == 'build'
+  tags: [assets, source]
+
+- name: 上传源码包
+  ansible.builtin.copy:
+    src: /tmp/openredius-source.tar.gz
+    dest: /tmp/openredius-source.tar.gz
+    mode: "0644"
+  when: openredius_deploy_strategy == 'build'
+  tags: [assets, source]
+
+- name: 解压源码到 .source(build 上下文)
+  ansible.builtin.unarchive:
+    src: /tmp/openredius-source.tar.gz
+    dest: "{{ openredius_deploy_root }}/.source"
+    remote_src: true
+    creates: "{{ openredius_deploy_root }}/.source/package.json"
+  when: openredius_deploy_strategy == 'build'
+  tags: [assets, source]
+
+- name: 渲染 .env(600,含全部密钥)
+  ansible.builtin.template:
+    src: env.j2
+    dest: "{{ openredius_deploy_root }}/.env"
+    mode: "0600"
+  no_log: true
+  tags: [env]
+
+- name: 渲染 docker-compose.yml(镜像/策略参数化)
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ openredius_deploy_root }}/docker-compose.yml"
+    mode: "0640"
+  tags: [compose]
+
+- name: 起栈(幂等;build/pull 按策略;等待 healthy)
+  community.docker.docker_compose_v2:
+    project_src: "{{ openredius_deploy_root }}"
+    state: present
+    build: "{{ 'always' if openredius_deploy_strategy == 'build' else 'never' }}"
+    pull: "{{ 'always' if openredius_deploy_strategy == 'pull' else 'missing' }}"
+    wait: true
+    wait_timeout: 300
+    remove_orphans: true
+  register: _compose
+  tags: [up]
+
+- name: 数据库迁移(alembic upgrade head)
+  ansible.builtin.command:
+    argv:
+      - docker
+      - compose
+      - -f
+      - "{{ openredius_deploy_root }}/docker-compose.yml"
+      - exec
+      - -T
+      - backend
+      - alembic
+      - upgrade
+      - head
+  register: _migrate
+  changed_when: "'already up to date' not in _migrate.stdout"
+  when: openredius_db_migrate_on_deploy | bool
+  tags: [migrate]

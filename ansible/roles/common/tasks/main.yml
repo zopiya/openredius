@@ -1,0 +1,31 @@
+---
+# common role —— 目标机基线(P2)
+# 基础包 + 时区 + 时间同步(chrony)。
+
+- name: 安装基础包(rsync 供 synchronize、openssl 供自签证书)
+  ansible.builtin.apt:
+    name:
+      - rsync
+      - ca-certificates
+      - curl
+      - gnupg
+      - openssl
+      - apt-transport-https
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: 设置时区(默认 UTC)
+  community.general.timezone:
+    name: "{{ openredius_timezone | default('UTC') }}"
+
+- name: 安装 chrony(时间同步)
+  ansible.builtin.apt:
+    name: chrony
+    state: present
+
+- name: 启用并启动 chrony
+  ansible.builtin.systemd:
+    name: chrony
+    state: started
+    enabled: true

@@ -1,0 +1,34 @@
+# OpenRedius 通用变量(非密钥)
+# 密钥类变量在 vault.yml(加密),见 vault.yml.example。
+
+# ---------- 部署根与运行模式 ----------
+openredius_deploy_root: /opt/openredius
+openredius_env: prod
+openredius_deploy_strategy: build        # build(占位期) | pull(正式镜像发布后)
+
+# ---------- 镜像占位(正式镜像确定后在此更新) ----------
+openredius_images:
+  postgres: "postgres:17-alpine"
+  freeradius_base: "freeradius/freeradius-server:3.2"   # 构建基底,暂占位
+  freeradius: "ghcr.io/openredius/freeradius:0.1.0"    # 占位
+  backend: "ghcr.io/openredius/backend:0.1.0"           # 占位
+  frontend: "ghcr.io/openredius/frontend:0.1.0"         # 占位
+
+# ---------- 端口与网络(零信任:默认拒绝,白名单化) ----------
+openredius_frontend_http_port: 80
+openredius_frontend_https_port: 443
+openredius_nas_udp_expose: "1812-1813"
+openredius_admin_cidr: []               # 必填:管理网段,如 ["203.0.113.0/24"]
+openredius_nas_cidr: []                 # 必填:NAS 网段,如 ["198.51.100.0/24"]
+
+# ---------- TLS ----------
+openredius_tls_allow_self_signed: false # prod 默认拒绝自签
+openredius_tls_cert_src: ""             # 控制器侧 cert.pem 路径(空=自签/占位)
+openredius_tls_key_src: ""              # 控制器侧 key.pem 路径
+
+# ---------- 备份 ----------
+openredius_backup_retention: 14
+openredius_backup_cron: "0 3 * * *"
+
+# ---------- 部署行为 ----------
+openredius_db_migrate_on_deploy: true   # 部署后自动 alembic upgrade head

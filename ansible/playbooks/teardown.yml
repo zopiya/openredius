@@ -1,0 +1,15 @@
+---
+# 卸载(默认停栈、保留数据卷)
+# 彻底清空:--extra-vars "openredius_teardown_volumes=true"
+- name: OpenRedius 卸载
+  hosts: openredius
+  gather_facts: true
+  vars:
+    openredius_teardown_volumes: "{{ openredius_teardown_volumes | default(false) | bool }}"
+  tasks:
+    - name: 停止并移除容器栈
+      community.docker.docker_compose_v2:
+        project_src: "{{ openredius_deploy_root }}"
+        state: absent
+        remove_volumes: "{{ openredius_teardown_volumes }}"
+      tags: [stop, volumes]
