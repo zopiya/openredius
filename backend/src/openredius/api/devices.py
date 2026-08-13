@@ -217,7 +217,15 @@ async def delete_nas(
     device = await db.get(NasDevice, device_id)
     if device is None:
         raise ApiError("not_found", f"NAS {device_id} not found", 404)
-    # M6 enforces "no active sessions" via radacct; M2 has no session source.
+    # docs/03: 移除客户端前校验无活跃会话(radacct 派生)。
+    activity = await sessions.nas_activity(db)
+    active = activity.get(device.nasname)
+    if active is not None and active.active_sessions > 0:
+        raise ApiError(
+            "nas_in_use",
+            f"NAS {device.name} has {active.active_sessions} active session(s)",
+            409,
+        )
     await db.delete(device)
     await audit.record_audit(
         db,

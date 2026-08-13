@@ -11,6 +11,7 @@ from openredius.api.devices import router as devices_router
 from openredius.api.ops import health_router
 from openredius.api.ops import router as ops_router
 from openredius.api.policies import router as policies_router
+from openredius.api.portal import router as portal_router
 from openredius.api.reports import router as reports_router
 from openredius.api.sessions import router as sessions_router
 from openredius.api.settings import router as settings_router
@@ -30,3 +31,4 @@ api_router.include_router(settings_router, prefix="/settings", tags=["settings"]
 api_router.include_router(audit_router, prefix="/audit", tags=["audit"])
 api_router.include_router(health_router, tags=["ops"])
 api_router.include_router(ops_router, prefix="/ops", tags=["ops"])
+api_router.include_router(portal_router, prefix="/portal", tags=["portal"])

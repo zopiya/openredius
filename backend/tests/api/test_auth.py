@@ -154,3 +154,21 @@ async def test_disabled_admin_token_stops_working(client, db_session):
     )
     assert resp.status_code == 403
     assert resp.json()["error"]["code"] == "account_disabled"
+
+
+async def test_change_password_revokes_existing_tokens(client, admin_headers, admin_tokens):
+    """docs/08: 改密后旧 refresh 作废 (token_version bump)."""
+    resp = await client.put(
+        "/api/auth/me/password",
+        json={"old_password": BOOTSTRAP_PASSWORD, "new_password": "New-Password-12345"},
+        headers=admin_headers,
+    )
+    assert resp.status_code == 200, resp.text
+
+    # Old refresh token is rejected after password change.
+    replay = await client.post("/api/auth/refresh", json={"refresh_token": admin_tokens["refresh"]})
+    assert replay.status_code == 401
+
+    # Old access token is superseded too.
+    me = await client.get("/api/auth/me", headers=admin_headers)
+    assert me.status_code == 401

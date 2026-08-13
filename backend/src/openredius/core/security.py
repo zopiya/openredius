@@ -37,12 +37,14 @@ def _issue_token(
     admin_id: int,
     role: str,
     ttl_seconds: int,
+    token_version: int,
 ) -> str:
     now = datetime.now(UTC)
     payload: dict[str, Any] = {
         "sub": str(admin_id),
         "role": role,
         "type": token_type,
+        "ver": token_version,
         "jti": uuid.uuid4().hex,
         "iat": now,
         "exp": now + timedelta(seconds=ttl_seconds),
@@ -50,23 +52,25 @@ def _issue_token(
     return jwt.encode(payload, settings.jwt_secret, algorithm="HS256")
 
 
-def issue_access_token(settings: Settings, *, admin_id: int, role: str) -> str:
+def issue_access_token(settings: Settings, *, admin_id: int, role: str, token_version: int) -> str:
     return _issue_token(
         settings,
         token_type=TOKEN_TYPE_ACCESS,
         admin_id=admin_id,
         role=role,
         ttl_seconds=settings.jwt_access_ttl_seconds,
+        token_version=token_version,
     )
 
 
-def issue_refresh_token(settings: Settings, *, admin_id: int, role: str) -> str:
+def issue_refresh_token(settings: Settings, *, admin_id: int, role: str, token_version: int) -> str:
     return _issue_token(
         settings,
         token_type=TOKEN_TYPE_REFRESH,
         admin_id=admin_id,
         role=role,
         ttl_seconds=settings.jwt_refresh_ttl_seconds,
+        token_version=token_version,
     )
 
 
@@ -88,3 +92,11 @@ def parse_admin_id(payload: dict[str, Any]) -> int:
         return int(payload["sub"])
     except (KeyError, TypeError, ValueError):
         raise ApiError("token_invalid", "token subject is invalid", 401) from None
+
+
+def token_version_of(payload: dict[str, Any]) -> int:
+    """Token's embedded ``ver`` claim (0 for legacy tokens without one)."""
+    try:
+        return int(payload.get("ver", 0))
+    except (TypeError, ValueError):
+        return 0

@@ -10,7 +10,7 @@ from openredius.core.db import get_db
 from openredius.core.deps import current_admin, get_app_settings
 from openredius.core.errors import ApiError
 from openredius.core.ratelimit import SlidingWindowRateLimiter
-from openredius.core.security import parse_admin_id
+from openredius.core.security import hash_password, parse_admin_id, token_version_of
 from openredius.models import AdminStatus, AdminUser
 from openredius.schemas.auth import (
     AdminProfile,
@@ -76,6 +76,9 @@ async def refresh(
         raise ApiError("unauthorized", "admin not found", 401)
     if admin.status is not AdminStatus.ACTIVE:
         raise ApiError("account_disabled", "admin account is disabled", 403)
+    # Password change bumps token_version; stale refresh tokens are rejected.
+    if token_version_of(payload) != admin.token_version:
+        raise ApiError("token_revoked", "refresh token has been revoked", 401)
     # Rotation: the presented refresh token is single-use.
     await auth_service.revoke_refresh_token(db, settings, body.refresh_token)
     await db.commit()
@@ -118,9 +121,9 @@ async def change_my_password(
 ) -> dict[str, str]:
     if not auth_service.verify_password(admin.password_hash, body.old_password):
         raise ApiError("bad_old_password", "旧密码不正确", 422)
-    from openredius.core.security import hash_password
-
     admin.password_hash = hash_password(body.new_password)
+    # Invalidate all previously issued tokens for this admin (docs/08).
+    admin.token_version += 1
     await audit.record_audit(
         db,
         actor=admin.username,

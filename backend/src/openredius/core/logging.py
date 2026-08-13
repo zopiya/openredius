@@ -16,7 +16,11 @@ client_ip_var: contextvars.ContextVar[str | None] = contextvars.ContextVar(
 
 
 class JsonFormatter(logging.Formatter):
-    """Single-line JSON log records; sensitive values never logged here."""
+    """Single-line JSON log records; sensitive values never logged here.
+
+    Includes ``request_id`` when set; client IP is carried via
+    ``client_ip_var`` for the audit writer (docs/08) rather than echoed here.
+    """
 
     def format(self, record: logging.LogRecord) -> str:
         payload: dict[str, object] = {

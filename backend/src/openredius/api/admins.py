@@ -124,6 +124,8 @@ async def update_admin(
         target.status = body.status
     if body.password is not None:
         target.password_hash = hash_password(body.password)
+        # Password change invalidates all previously issued tokens (docs/08).
+        target.token_version += 1
         changes["password"] = "<changed>"
     await audit.record_audit(
         db,

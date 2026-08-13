@@ -9,11 +9,15 @@ from openredius.core.db import get_db
 from openredius.core.deps import require_role
 from openredius.core.errors import ApiError
 from openredius.models import AdminRole, AdminUser
+from openredius.services import audit
+from openredius.services import report_export as exporter
 from openredius.services import reports as svc
 
 router = APIRouter()
 
 _ROLES = (AdminRole.ADMIN, AdminRole.OPERATOR, AdminRole.AUDITOR)
+
+_XLSX_MEDIA = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
 
 @router.get("/summary")
@@ -47,24 +51,42 @@ async def report_export(
     format: str = Query(...),  # noqa: A002 — matches docs/03 query param
     period: str = Query("today"),
     db: AsyncSession = Depends(get_db),
-    _admin: AdminUser = Depends(require_role(*_ROLES)),
-) -> dict | Response:
-    if format in ("csv",):
+    admin: AdminUser = Depends(require_role(*_ROLES)),
+) -> Response:
+    fmt = format.strip().lower()
+    if fmt == "csv":
         items = await svc.departments(db, period)
-        lines = ["department,success,fail,total,rate"]
-        for d in items:
-            total = d.get("success", 0) + d.get("fail", 0)
-            rate = f"{d.get('success', 0) / total * 100:.1f}%" if total else "-"
-            lines.append(
-                f"{d.get('dept', '')},{d.get('success', 0)},{d.get('fail', 0)},{total},{rate}"
-            )
-        return Response(
-            "\n".join(lines),
-            media_type="text/csv",
-            headers={"Content-Disposition": f"attachment; filename=report-{period}.csv"},
+        content = exporter.build_csv(items)
+        media_type, ext = "text/csv", "csv"
+    elif fmt == "xlsx":
+        summary = await svc.summary(db, period)
+        types = await svc.endpoint_types(db)
+        depts = await svc.departments(db, period)
+        content = exporter.build_xlsx(summary, types, depts, period=period)
+        media_type, ext = _XLSX_MEDIA, "xlsx"
+    elif fmt == "pdf":
+        summary = await svc.summary(db, period)
+        types = await svc.endpoint_types(db)
+        depts = await svc.departments(db, period)
+        content = exporter.build_pdf(summary, types, depts, period=period)
+        media_type, ext = "application/pdf", "pdf"
+    else:
+        raise ApiError(
+            "not_implemented",
+            f"format={format} not supported; use csv, xlsx or pdf",
+            501,
         )
-    raise ApiError(
-        "not_implemented",
-        f"format={format} not yet supported; use csv",
-        501,
+
+    await audit.record_audit(
+        db,
+        actor=admin.username,
+        action="report.export",
+        target_type="report",
+        detail={"format": fmt, "period": period},
+    )
+    await db.commit()
+    return Response(
+        content,
+        media_type=media_type,
+        headers={"Content-Disposition": f"attachment; filename=report-{period}.{ext}"},
     )

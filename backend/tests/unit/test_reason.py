@@ -45,10 +45,19 @@ def test_account_disabled_bucket():
 
 
 def test_reason_param_normalization():
+    from openredius.core.errors import ApiError
+
     assert reason_key_from_param("账号锁定") == "account-locked"
     assert reason_key_from_param("账号已停用") == "account-disabled"
     assert reason_key_from_param("account-locked") == "account-locked"
     assert reason_key_from_param("其他") == "other"
-    assert reason_key_from_param("unknown-thing") is None
     assert reason_key_from_param(None) is None
     assert reason_key_from_param("") is None
+    # Unknown values are rejected (422) instead of silently dropping the filter.
+    try:
+        reason_key_from_param("unknown-thing")
+    except ApiError as exc:
+        assert exc.code == "invalid_reason"
+        assert exc.status_code == 422
+    else:  # pragma: no cover
+        raise AssertionError("expected ApiError for unknown reason")

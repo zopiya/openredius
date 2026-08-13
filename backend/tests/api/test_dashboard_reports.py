@@ -114,6 +114,23 @@ async def test_report_departments(client: AsyncClient, data):
     assert by_dept["财务部"]["rate"] == "0.0%"
 
 
-async def test_report_export_501(client: AsyncClient, data):
-    resp = await client.get("/api/reports/export?format=pdf", headers=data)
-    assert resp.status_code == 501
+async def test_report_export_formats(client: AsyncClient, data):
+    # xlsx (zip container starts with PK)
+    resp = await client.get("/api/reports/export?format=xlsx&period=today", headers=data)
+    assert resp.status_code == 200, resp.text
+    assert "spreadsheet" in resp.headers["content-type"]
+    assert resp.content[:2] == b"PK"
+
+    # pdf
+    resp = await client.get("/api/reports/export?format=pdf&period=today", headers=data)
+    assert resp.status_code == 200, resp.text
+    assert resp.headers["content-type"] == "application/pdf"
+    assert resp.content.startswith(b"%PDF")
+
+    # csv (department table)
+    resp = await client.get("/api/reports/export?format=csv&period=today", headers=data)
+    assert resp.status_code == 200, resp.text
+    assert "部门" in resp.text
+
+    # unknown format still 501
+    assert (await client.get("/api/reports/export?format=bogus", headers=data)).status_code == 501

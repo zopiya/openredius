@@ -3,11 +3,16 @@
 Each function is a self-contained unit of work run by the scheduler on its own
 session. Alert creation is de-duplicated per (rule_key, subject) within
 ``alerts_dedup_window_s`` so a flapping NAS doesn't spam the feed.
+
+The alert delivery seam is ``AlertSink``: the default ``DbAlertSink`` persists
+to ``alert_event`` (docs/01「事件总线」轮询起步); a future push sink
+(webhook/WebSocket/消息队列) can replace it without touching the job logic.
 """
 
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+from typing import Protocol
 
 from sqlalchemy import String, cast, func, not_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -51,6 +56,55 @@ async def _recently_alerted(db: AsyncSession, rule_key: str, link: str, window_s
     return exists is not None
 
 
+class AlertSink(Protocol):
+    """Alert delivery seam (docs/01 event-bus abstraction)."""
+
+    async def emit(
+        self,
+        db: AsyncSession,
+        *,
+        rule_key: str,
+        level: AlertLevel,
+        title: str,
+        message: str,
+        link: str,
+        dedup_window_s: int,
+    ) -> AlertEvent | None: ...
+
+
+class DbAlertSink:
+    """Default sink: enforce rule toggle + dedupe, then persist to alert_event."""
+
+    async def emit(
+        self,
+        db: AsyncSession,
+        *,
+        rule_key: str,
+        level: AlertLevel,
+        title: str,
+        message: str,
+        link: str,
+        dedup_window_s: int,
+    ) -> AlertEvent | None:
+        # Respect rule.enabled toggle — query directly to avoid conflating
+        # "disabled" (→ skip) with "missing" (→ default-enabled).
+        rule = (
+            await db.execute(select(AlertRule).where(AlertRule.key == rule_key))
+        ).scalar_one_or_none()
+        if rule is not None and not rule.enabled:
+            return None
+        # link doubles as the de-dup identity (it embeds the subject).
+        if await _recently_alerted(db, rule_key, link, dedup_window_s):
+            return None
+        event = AlertEvent(rule_key=rule_key, level=level, title=title, message=message, link=link)
+        db.add(event)
+        await db.flush()
+        return event
+
+
+_default_sink: AlertSink = DbAlertSink()
+
+
 async def _emit(
     db: AsyncSession,
     *,
@@ -62,20 +116,20 @@ async def _emit(
     link_path: str,
     dedup_window_s: int,
 ) -> AlertEvent | None:
-    # Respect rule.enabled toggle — query directly to avoid conflating
-    # "disabled" (→ skip) with "missing" (→ default-enabled).
-    rule = (
-        await db.execute(select(AlertRule).where(AlertRule.key == rule_key))
-    ).scalar_one_or_none()
-    if rule is not None and not rule.enabled:
-        return None
-    # link_path doubles as the de-dup identity (it embeds the subject).
-    if await _recently_alerted(db, rule_key, link_path, dedup_window_s):
-        return None
-    event = AlertEvent(rule_key=rule_key, level=level, title=title, message=message, link=link_path)
-    db.add(event)
-    await db.flush()
-    return event
+    """Persist (or, with a swapped sink, forward) one deduplicated alert.
+
+    ``subject`` is retained for signature stability across call sites; the
+    de-dup identity is ``link_path`` (which already embeds the subject).
+    """
+    return await _default_sink.emit(
+        db,
+        rule_key=rule_key,
+        level=level,
+        title=title,
+        message=message,
+        link=link_path,
+        dedup_window_s=dedup_window_s,
+    )
 
 
 # --- nas_watchdog -----------------------------------------------------------

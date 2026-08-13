@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import time
 import uuid
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -34,6 +35,7 @@ _DEV_CORS_ORIGINS = ["http://localhost:5173", "http://127.0.0.1:5173"]
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     settings: Settings = app.state.settings
+    app.state.started_at = time.monotonic()
     init_db(settings.database_url)
     async with get_session_factory()() as session:
         await bootstrap_admin(session, settings)
