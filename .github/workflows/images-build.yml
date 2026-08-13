@@ -1,0 +1,46 @@
+# OpenRedius — build & push production images to GHCR (docs/07, docs/14-ci-cd.md).
+# Builds the 3 custom images (postgres stays upstream); server side then just
+# `docker compose pull && up -d`, no build toolchain needed on the host.
+# Continuous "latest" build off main — versioned builds for a release live in
+# release.yml (triggered by pushing a `vX.Y.Z` tag). Both call the shared
+# matrix in _build-images.yml so the two never drift apart.
+name: Images (build)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - backend/**
+      - deploy/freeradius/**
+      - deploy/nginx/**
+      - src/**
+      - package.json
+      - bun.lock
+      - index.html
+      - vite.config.ts
+      - tsconfig*.json
+      - .github/workflows/images-build.yml
+      - .github/workflows/_build-images.yml
+  workflow_dispatch: {}
+
+concurrency:
+  group: images-build-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  packages: write
+  security-events: write
+
+jobs:
+  build:
+    name: Build & push
+    uses: ./.github/workflows/_build-images.yml
+    with:
+      tag: latest
+      extra_tag: ${{ github.sha }}
+      push: true
+    permissions:
+      contents: read
+      packages: write
+      security-events: write
