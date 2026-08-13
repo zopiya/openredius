@@ -7,8 +7,9 @@ import PageHeader from '../components/PageHeader';
 import Donut, { DonutLegend } from '../components/charts/Donut';
 import DeptBarChart from '../components/charts/DeptBarChart';
 import { useToast } from '../components/Toast';
-import { DEPT_ROWS, ETYPE_ROWS, exportReport, fetchDepartments, fetchEndpointTypes, fetchSummary, LOAD_TOP, REPORT_PERIODS } from '../api/resources/reports';
-import { MODE } from '../api/config';
+import {
+  DEPT_ROWS, ETYPE_ROWS, exportReport, fetchDepartments, fetchEndpointTypes, fetchSummary, LOAD_TOP, REPORT_PERIODS,
+} from '../api/resources/reports';
 
 type Period = '今日' | '本周' | '本月';
 
@@ -19,6 +20,7 @@ export default function Reports() {
   const { token } = theme.useToken();
   const location = useLocation();
   const [period, setPeriod] = useState<Period>('今日');
+  const [exporting, setExporting] = useState<null | 'pdf' | 'xlsx'>(null);
   const deepLinked = useRef(false);
 
   useEffect(() => {
@@ -54,15 +56,17 @@ export default function Reports() {
     fail: Number(String(r.fail).replace(/,/g, '')),
   }));
 
-  const onExport = async (format: 'pdf' | 'xlsx' | 'csv') => {
-    if (MODE !== 'http') { toast(`已生成 access-report.${format}(mock 占位)`); return; }
+  async function handleExport(format: 'pdf' | 'xlsx') {
+    setExporting(format);
     try {
-      await exportReport(format, period);
-      toast(`已导出 ${format.toUpperCase()} 报表`);
-    } catch (e) {
-      toast(`导出失败:${e instanceof Error ? e.message : String(e)}`);
+      const filename = await exportReport(format, period);
+      toast(`已导出 ${filename}`);
+    } catch (error) {
+      toast(`导出失败：${error instanceof Error ? error.message : '请稍后重试'}`);
+    } finally {
+      setExporting(null);
     }
-  };
+  }
 
   return (
     <Shell page="报表统计">
@@ -78,8 +82,8 @@ export default function Reports() {
               onChange={(v) => { setPeriod(v as Period); toast('已切换至「' + v + '」统计口径'); }}
               size="small"
             />
-            <Button onClick={() => onExport('pdf')}>导出 PDF</Button>
-            <Button type="primary" data-od-id="export-report" onClick={() => onExport('xlsx')}>导出 Excel</Button>
+            <Button loading={exporting === 'pdf'} disabled={exporting !== null} onClick={() => handleExport('pdf')}>导出 PDF</Button>
+            <Button type="primary" data-od-id="export-report" loading={exporting === 'xlsx'} disabled={exporting !== null} onClick={() => handleExport('xlsx')}>导出 Excel</Button>
           </>
         }
       />

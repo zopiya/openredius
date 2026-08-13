@@ -7,7 +7,7 @@
  *   GET /api/reports/departments?period=
  */
 import { MODE } from '../config';
-import { downloadFile, fetchApi } from '../http';
+import { downloadApi, fetchApi } from '../http';
 import {
   DEPT_ROWS,
   ETYPE_ROWS,
@@ -64,8 +64,25 @@ export async function fetchDepartments(period: string): Promise<any[]> {
   return httpDepartments(period);
 }
 
-/** 导出报表(pdf/xlsx/csv)。http 模式触发文件下载;mock 模式抛错由页面提示。 */
-export async function exportReport(format: 'pdf' | 'xlsx' | 'csv', period: string): Promise<void> {
-  if (MODE !== 'http') throw new Error('mock 模式不支持导出');
-  await downloadFile(`/api/reports/export?format=${format}&period=${apiPeriod(period)}`, `report.${format}`);
+export type ReportExportFormat = 'pdf' | 'xlsx' | 'csv';
+
+function fallbackFilename(format: ReportExportFormat, period: string): string {
+  return `report-${apiPeriod(period)}.${format}`;
+}
+
+export async function exportReport(format: ReportExportFormat, period: string): Promise<string> {
+  const filename = fallbackFilename(format, period);
+  if (MODE !== 'http') return filename;
+
+  const file = await downloadApi(`/api/reports/export?format=${format}&period=${apiPeriod(period)}`);
+  const url = URL.createObjectURL(file.blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = file.filename ?? filename;
+  link.style.display = 'none';
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 0);
+  return link.download;
 }
