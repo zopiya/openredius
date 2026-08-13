@@ -7,7 +7,8 @@ import Shell from '../components/Shell';
 import PageHeader from '../components/PageHeader';
 import TableToolbar, { FilterField } from '../components/TableToolbar';
 import { useToast } from '../components/Toast';
-import { fetchAuthLogs, LOG_FILTER_OPTIONS, type LogRow } from '../api/resources/logs';
+import { exportAuthLogsCsv, fetchAuthLogs, LOG_FILTER_OPTIONS, type LogRow } from '../api/resources/logs';
+import { MODE } from '../api/config';
 
 interface Filters {
   user: string;
@@ -210,7 +211,10 @@ export default function AuthLogs() {
         extra={
           <>
             <Link to="/reports" data-od-id="fail-aggregate" style={{ fontSize: 13 }}>失败原因聚合分析 →</Link>
-            <Button type="primary" data-od-id="export-btn" onClick={() => toast('已按当前筛选导出 auth-logs-20260727.csv(12,713 条)')}>
+            <Button type="primary" data-od-id="export-btn" onClick={() => {
+              if (MODE !== 'http') { toast('已导出 auth-logs.csv(mock 占位)'); return; }
+              exportAuthLogsCsv().then(() => toast('已导出认证日志 CSV')).catch((e) => toast(`导出失败:${e instanceof Error ? e.message : String(e)}`));
+            }}>
               导出日志
             </Button>
           </>

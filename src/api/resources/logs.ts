@@ -7,10 +7,16 @@
 import type { LogRow } from '../../data/logs';
 import { LOG_FILTER_OPTIONS, LOG_ROWS } from '../../data/logs';
 import { MODE } from '../config';
-import { fetchItems } from '../http';
+import { downloadFile, fetchItems } from '../http';
 
 export { LOG_FILTER_OPTIONS };
 export type { LogRow };
+
+/** 导出认证日志 CSV(http 模式触发下载)。 */
+export async function exportAuthLogsCsv(): Promise<void> {
+  if (MODE !== 'http') throw new Error('mock 模式不支持导出');
+  await downloadFile('/api/auth-logs/export.csv', 'auth-logs.csv');
+}
 
 async function mockFetch(): Promise<LogRow[]> {
   return [...LOG_ROWS];

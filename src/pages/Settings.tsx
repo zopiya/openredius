@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Anchor, Card, Input, Select, Switch, Checkbox, Button, Space, Table, Modal, Typography, Tag, Radio, Descriptions, theme, Form, Row, Col, Flex } from 'antd';
+import { Anchor, Card, Input, Select, Switch, Checkbox, Button, Space, Table, Modal, Typography, Tag, Radio, Descriptions, theme, Form, Row, Col, Flex, App } from 'antd';
 import type { ColumnsType } from 'antd/es/table/interface';
 import Shell from '../components/Shell';
 import PageHeader from '../components/PageHeader';
@@ -7,7 +7,7 @@ import { useToast } from '../components/Toast';
 import { getAdmin } from '../api/auth';
 import { fetchApi } from '../api/http';
 import { MODE } from '../api/config';
-import { fetchSettings } from '../api/resources/settings';
+import { fetchSettings, saveSettings, type SettingsSnapshot } from '../api/resources/settings';
 
 const { Text } = Typography;
 
@@ -36,8 +36,26 @@ export default function Settings() {
   const [acctErr, setAcctErr] = useState('');
   const [rules, setRules] = useState<AlertRule[]>(INITIAL_RULES);
   const [coreModal, setCoreModal] = useState(false);
+  const [cfg, setCfg] = useState<SettingsSnapshot | null>(null);
 
-  useEffect(() => { fetchSettings().then((cfg) => { setAuthPort(String(cfg.radius_auth_port)); setAcctPort(String(cfg.radius_acct_port)); }).catch(() => {}); }, []);
+  useEffect(() => { fetchSettings().then((cfg) => { setAuthPort(String(cfg.radius_auth_port)); setAcctPort(String(cfg.radius_acct_port)); setCfg(cfg); }).catch(() => {}); }, []);
+
+  async function doSave(confirm: boolean) {
+    if (!cfg) return;
+    try {
+      await saveSettings({
+        radius_auth_port: Number(authPort),
+        radius_acct_port: Number(acctPort),
+        coa_port: cfg.coa_port,
+        alerts_enabled: cfg.alerts_enabled,
+        audit_enabled: cfg.audit_enabled,
+        confirm,
+      });
+      toast('「RADIUS 服务参数」已保存并记录审计日志');
+    } catch (e) {
+      toast(`保存失败:${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
 
   function saveRadius() {
     let okA = portOk(authPort), okB = portOk(acctPort);
@@ -46,9 +64,9 @@ export default function Settings() {
     if (okA && okB && authPort.trim() === acctPort.trim()) { okB = false; setAcctErr('计费端口不能与认证端口相同'); }
     if (!okA || !okB) return;
     if (authPort !== origPorts.current.auth || acctPort !== origPorts.current.acct) { setCoreModal(true); return; }
-    toast('「RADIUS 服务参数」已保存并记录审计日志');
+    doSave(false);
   }
-  function confirmCore() { origPorts.current = { auth: authPort, acct: acctPort }; setCoreModal(false); toast('核心端口已变更并重启监听,37 台 NAS 正在重连'); }
+  function confirmCore() { origPorts.current = { auth: authPort, acct: acctPort }; setCoreModal(false); doSave(true); }
   function toggleRule(key: string, on: boolean) { setRules((prev) => prev.map((r) => (r.key === key ? { ...r, on } : r))); }
   function toggleSub(key: string, idx: number, checked: boolean) { setRules((prev) => prev.map((r) => { if (r.key !== key) return r; const subs = r.subs.map((s, i) => { if (s.radio) return { ...s, checked: i === idx }; return i === idx ? { ...s, checked } : s; }); return { ...r, subs }; })); }
 
@@ -231,6 +249,7 @@ export default function Settings() {
 
 function AdminSection() {
   const toast = useToast();
+  const { modal } = App.useApp();
   const me = getAdmin();
   const [admins, setAdmins] = useState<AdminRow[]>([]);
   const [showGrant, setShowGrant] = useState(false);
@@ -240,19 +259,35 @@ function AdminSection() {
     fetchApi('/api/auth/admins').then((body: any) => setAdmins(body ?? [])).catch(() => {});
   }, []);
 
-  async function changeRole(id: number, role: string) {
-    try { await fetchApi(`/api/auth/admins/${id}`, { method: 'PATCH', body: JSON.stringify({ role }) }); setAdmins((prev) => prev.map((a) => (a.id === id ? { ...a, role } : a))); toast('角色已更新'); } catch (e: any) { toast(e.message); }
+  function changeRole(id: number, role: string, currentRole: string) {
+    if (role === currentRole) return;
+    modal.confirm({
+      title: '确认变更角色',
+      content: `将角色从「${ROLE_LABELS[currentRole]}」变更为「${ROLE_LABELS[role]}」。变更立即生效并记录审计日志。`,
+      okText: '确认变更',
+      okButtonProps: { danger: true },
+      onOk: async () => {
+        try { await fetchApi(`/api/auth/admins/${id}`, { method: 'PATCH', body: JSON.stringify({ role }) }); setAdmins((prev) => prev.map((a) => (a.id === id ? { ...a, role } : a))); toast('角色已更新'); } catch (e: any) { toast(e.message); }
+      },
+    });
   }
 
-  async function revoke(id: number, name: string) {
-    if (!confirm(`确认撤销 ${name} 的后台权限？`)) return;
-    try { await fetchApi(`/api/auth/admins/${id}`, { method: 'DELETE' }); setAdmins((prev) => prev.filter((a) => a.id !== id)); toast('已撤销后台权限'); } catch (e: any) { toast(e.message); }
+  function revoke(id: number, name: string) {
+    modal.confirm({
+      title: '确认撤销权限',
+      content: `确认撤销 ${name} 的后台访问权限？撤销后该账号将无法再登录控制台。`,
+      okText: '确认撤销',
+      okButtonProps: { danger: true },
+      onOk: async () => {
+        try { await fetchApi(`/api/auth/admins/${id}`, { method: 'DELETE' }); setAdmins((prev) => prev.filter((a) => a.id !== id)); toast('已撤销后台权限'); } catch (e: any) { toast(e.message); }
+      },
+    });
   }
 
   const adminCols: ColumnsType<AdminRow> = [
     { title: '账号', key: 'user', render: (_v, a) => <><b>{a.username}</b>{me?.username === a.username ? ' (当前)' : ''}<Typography.Text type="secondary" style={{ fontSize: 12, fontFamily: 'monospace' }}>{a.display_name || '-'}</Typography.Text></> },
     { title: '来源', key: 'source', render: (_v, a) => <Typography.Text type="secondary" style={{ fontSize: 12 }}>{a.linked_account ? `关联用户:${a.linked_account}` : '独立账号'}</Typography.Text> },
-    { title: '角色', key: 'role', render: (_v, a) => me?.username === a.username ? <Tag color="blue">{ROLE_LABELS[a.role] || a.role}</Tag> : <Select size="small" value={a.role} onChange={(v) => changeRole(a.id, v)} options={['admin','operator','auditor'].map((r) => ({ label: ROLE_LABELS[r], value: r }))} style={{ width: 100 }} /> },
+    { title: '角色', key: 'role', render: (_v, a) => me?.username === a.username ? <Tag color="blue">{ROLE_LABELS[a.role] || a.role}</Tag> : <Select size="small" value={a.role} onChange={(v) => changeRole(a.id, v, a.role)} options={['admin','operator','auditor'].map((r) => ({ label: ROLE_LABELS[r], value: r }))} style={{ width: 100 }} /> },
     { title: '权限范围', key: 'scope', render: (_v, a) => <Typography.Text ellipsis={{ tooltip: ROLE_SCOPES[a.role] || '' }} style={{ maxWidth: 240 }}>{ROLE_SCOPES[a.role] || a.role}</Typography.Text> },
     { title: '操作', key: 'actions', render: (_v, a) => me?.username !== a.username ? <Button danger size="small" onClick={() => revoke(a.id, a.username)}>撤销</Button> : <Typography.Text type="secondary">—</Typography.Text> },
   ];

@@ -12,10 +12,16 @@ import {
   SESSION_ROWS,
 } from '../../data/sessions';
 import { MODE } from '../config';
-import { fetchApi, fetchItems } from '../http';
+import { downloadFile, fetchApi, fetchItems } from '../http';
 
 export { SESSION_FILTER_OPTIONS, SESSION_ROWS };
 export type { SessionRow };
+
+/** 导出会话 CSV(http 模式触发下载)。 */
+export async function exportSessionsCsv(): Promise<void> {
+  if (MODE !== 'http') throw new Error('mock 模式不支持导出');
+  await downloadFile('/api/sessions/export.csv', 'sessions.csv');
+}
 
 // ── mock impl ────────────────────────────────────
 async function mockFetch(): Promise<SessionRow[]> {

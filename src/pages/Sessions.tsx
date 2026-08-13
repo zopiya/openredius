@@ -7,13 +7,16 @@ import Shell from '../components/Shell';
 import PageHeader from '../components/PageHeader';
 import TableToolbar, { FilterField } from '../components/TableToolbar';
 import { useToast } from '../components/Toast';
+import { getAdmin } from '../api/auth';
 import {
   disconnectSessions,
+  exportSessionsCsv,
   fetchSessions,
   SESSION_FILTER_OPTIONS,
   SESSION_ROWS,
   type SessionRow,
 } from '../api/resources/sessions';
+import { MODE } from '../api/config';
 
 type ColKey = 'mac' | 'nas' | 'vlan' | 'auth' | 'duration';
 
@@ -54,6 +57,8 @@ const COL_VIS_OPTIONS: [ColKey, string][] = [
 ];
 
 export default function Sessions() {
+  const me = getAdmin();
+  const canKick = !me || me.role === 'admin' || me.role === 'operator';
   const toast = useToast();
   const { token } = theme.useToken();
   const [view, setView] = useState<'loading' | 'ready' | 'error'>('loading');
@@ -242,16 +247,18 @@ export default function Sessions() {
             >
               详情
             </a>
-            <a
-              href="#"
-              style={{ color: token.colorError }}
-              onClick={(e) => {
-                e.preventDefault();
-                setKickTarget([r]);
-              }}
-            >
-              强制下线
-            </a>
+            {canKick && (
+              <a
+                href="#"
+                style={{ color: token.colorError }}
+                onClick={(e) => {
+                  e.preventDefault();
+                  setKickTarget([r]);
+                }}
+              >
+                强制下线
+              </a>
+            )}
           </Space>
         ),
       },
@@ -316,7 +323,10 @@ export default function Sessions() {
             </Dropdown>
             <Button
               data-od-id="export-btn"
-              onClick={() => toast('已按当前筛选导出 sessions-20260727.csv(1,286 条)')}
+              onClick={() => {
+                if (MODE !== 'http') { toast('已导出 sessions.csv(mock 占位)'); return; }
+                exportSessionsCsv().then(() => toast('已导出会话 CSV')).catch((e) => toast(`导出失败:${e instanceof Error ? e.message : String(e)}`));
+              }}
             >
               导出 CSV
             </Button>
@@ -330,14 +340,16 @@ export default function Sessions() {
         <TableToolbar
           data-od-id="session-filters"
           actions={
-            <Button
-              danger
-              data-od-id="batch-kick"
-              disabled={selectedVisible.length === 0}
-              onClick={() => setKickTarget(selectedVisible)}
-            >
-              {selectedVisible.length ? `强制下线(已选 ${selectedVisible.length})` : '强制下线'}
-            </Button>
+            canKick ? (
+              <Button
+                danger
+                data-od-id="batch-kick"
+                disabled={selectedVisible.length === 0}
+                onClick={() => setKickTarget(selectedVisible)}
+              >
+                {selectedVisible.length ? `强制下线(已选 ${selectedVisible.length})` : '强制下线'}
+              </Button>
+            ) : undefined
           }
         >
           <FilterField label="部门" htmlFor="f-dept">

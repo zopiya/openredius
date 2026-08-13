@@ -47,8 +47,9 @@ function mapUser(raw: any): UserRow {
     status: status as any,
     statusSub: raw.locked_until ? `${raw.locked_until.split('T')[1]?.slice(0,5) ?? ''} 自动解锁` : undefined,
     policy: raw.policy_name ?? raw.policy ?? '',
+    policyId: raw.policy_id ?? undefined,
     title: raw.title ?? '',
-    devices: raw.device_count ?? 0,
+    devices: raw.endpoint_count ?? 0,
     lastAuth: raw.last_auth ?? '',
   };
 }
@@ -73,7 +74,7 @@ async function httpUpdateStatus(accounts: string[], action: 'enable' | 'disable'
   return { updated: body.affected ?? body.updated ?? accounts.length };
 }
 
-async function httpAssignPolicy(accounts: string[], policyId: string): Promise<{ updated: number }> {
+async function httpAssignPolicy(accounts: string[], policyId: number): Promise<{ updated: number }> {
   const body: any = await fetchApi('/api/users/policy', {
     method: 'POST',
     body: JSON.stringify({ accounts, policy_id: policyId }),
@@ -99,12 +100,12 @@ async function mockHttpStatus(accounts: string[], _verb: string): Promise<{ upda
   return { updated: accounts.length };
 }
 
-export function assignUserPolicy(accounts: string[], policy: string): Promise<{ updated: number }> {
-  if (MODE !== 'http') return mockHttpAssign(accounts, policy);
-  return httpAssignPolicy(accounts, policy);
+export function assignUserPolicy(accounts: string[], policyId: number): Promise<{ updated: number }> {
+  if (MODE !== 'http') return mockHttpAssign(accounts, policyId);
+  return httpAssignPolicy(accounts, policyId);
 }
 
-async function mockHttpAssign(accounts: string[], _policy: string): Promise<{ updated: number }> {
+async function mockHttpAssign(accounts: string[], _policyId: number): Promise<{ updated: number }> {
   return { updated: accounts.length };
 }
 

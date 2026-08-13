@@ -119,7 +119,7 @@ function _toBackend(f: PolicyForm): Record<string, unknown> {
     description: '',
     scope_dept: f.scope,
     eap_method: f.eap,
-    vlan_id: parseInt(f.vlan.split('·')[0]?.trim() ?? '0', 10) || 0,
+    vlan_id: parseInt(f.vlan.match(/\d+/)?.[0] ?? '0', 10) || 0,
     acl_name: f.acl.split('(')[0]?.trim() ?? '无',
     require_cert: f.cert,
     require_mac_bind: f.mac,

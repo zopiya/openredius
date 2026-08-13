@@ -46,6 +46,7 @@ const STATUS_BADGE: Record<string, string> = {
 function mapNas(raw: any): NasRow {
   const status = raw.status ?? 'offline';
   return {
+    id: String(raw.id ?? ''),
     name: raw.name ?? '',
     type: raw.type ?? 'switch',
     typeLabel: raw.type === 'ac' ? '无线 AC' : raw.type === 'ap' ? 'AP' : '交换机',
@@ -119,6 +120,13 @@ async function httpFetchEndpoints(filters?: Record<string, string>): Promise<End
 
 export async function fetchNas(filters?: Record<string, string>): Promise<NasRow[]> {
   return MODE === 'http' ? httpFetchNas(filters) : mockFetchNas();
+}
+
+/** 查看 NAS Shared Secret 明文(admin only,后端写 secret.reveal 审计)。 */
+export async function getNasSecret(id: string): Promise<string> {
+  if (MODE !== 'http') return '';
+  const body: any = await fetchApi(`/api/devices/nas/${id}/secret`);
+  return body.secret ?? '';
 }
 
 export async function fetchEndpoints(filters?: Record<string, string>): Promise<EndpointRow[]> {

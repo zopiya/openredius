@@ -1,4 +1,6 @@
 export interface NasRow {
+  /** 后端 nas_device id(http 模式查 Secret 用) */
+  id?: string;
   name: string;
   type: 'switch' | 'ac' | 'ap';
   typeLabel: string;

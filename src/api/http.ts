@@ -90,3 +90,29 @@ export async function fetchItems(path: string, init?: RequestInit): Promise<{ it
   // 某些端点(如 kpis)直接返回对象,留给资源层自行解。
   return { items: [body] };
 }
+
+/** 文件下载(带 Bearer token),从 Content-Disposition 取文件名。 */
+export async function downloadFile(path: string, fallbackName: string): Promise<void> {
+  assertHttp();
+  const headers: Record<string, string> = {};
+  if (_token) headers['Authorization'] = `Bearer ${_token}`;
+  const resp = await fetch(apiUrl(path), { headers });
+  if (!resp.ok) {
+    const text = await resp.text();
+    let msg = text;
+    try { msg = JSON.parse(text)?.error?.message ?? text; } catch { /* non-json */ }
+    throw new ApiHttpError('download_error', msg || `HTTP ${resp.status}`, resp.status);
+  }
+  const blob = await resp.blob();
+  const cd = resp.headers.get('Content-Disposition') ?? '';
+  const m = cd.match(/filename="?([^";]+)"?/);
+  const name = m?.[1] ?? fallbackName;
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}

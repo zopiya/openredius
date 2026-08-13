@@ -6,6 +6,8 @@ export interface UserRow {
   /** 状态徽章下的补充说明,如「10:18 自动解锁」 */
   statusSub?: string;
   policy: string;
+  /** 后端 policy_group id(http 模式用于筛选/分配) */
+  policyId?: number;
   title: string;
   devices: number;
   lastAuth: string;

@@ -7,7 +7,8 @@ import PageHeader from '../components/PageHeader';
 import Donut, { DonutLegend } from '../components/charts/Donut';
 import DeptBarChart from '../components/charts/DeptBarChart';
 import { useToast } from '../components/Toast';
-import { DEPT_ROWS, ETYPE_ROWS, fetchDepartments, fetchEndpointTypes, fetchSummary, LOAD_TOP, REPORT_PERIODS } from '../api/resources/reports';
+import { DEPT_ROWS, ETYPE_ROWS, exportReport, fetchDepartments, fetchEndpointTypes, fetchSummary, LOAD_TOP, REPORT_PERIODS } from '../api/resources/reports';
+import { MODE } from '../api/config';
 
 type Period = '今日' | '本周' | '本月';
 
@@ -49,9 +50,19 @@ export default function Reports() {
 
   const deptStats = deptRows.map((r) => ({
     dept: r.dept,
-    ok: parseInt(r.ok.replace(/,/g, ''), 10),
-    fail: parseInt(r.fail.replace(/,/g, ''), 10),
+    ok: Number(String(r.ok).replace(/,/g, '')),
+    fail: Number(String(r.fail).replace(/,/g, '')),
   }));
+
+  const onExport = async (format: 'pdf' | 'xlsx' | 'csv') => {
+    if (MODE !== 'http') { toast(`已生成 access-report.${format}(mock 占位)`); return; }
+    try {
+      await exportReport(format, period);
+      toast(`已导出 ${format.toUpperCase()} 报表`);
+    } catch (e) {
+      toast(`导出失败:${e instanceof Error ? e.message : String(e)}`);
+    }
+  };
 
   return (
     <Shell page="报表统计">
@@ -67,8 +78,8 @@ export default function Reports() {
               onChange={(v) => { setPeriod(v as Period); toast('已切换至「' + v + '」统计口径'); }}
               size="small"
             />
-            <Button onClick={() => toast('已生成 access-report-20260727.pdf(含 4 个统计模块)')}>导出 PDF</Button>
-            <Button type="primary" data-od-id="export-report" onClick={() => toast('已导出 access-report-20260727.xlsx(3 个工作表)')}>导出 Excel</Button>
+            <Button onClick={() => onExport('pdf')}>导出 PDF</Button>
+            <Button type="primary" data-od-id="export-report" onClick={() => onExport('xlsx')}>导出 Excel</Button>
           </>
         }
       />

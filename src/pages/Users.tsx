@@ -7,7 +7,9 @@ import Shell from '../components/Shell';
 import PageHeader from '../components/PageHeader';
 import TableToolbar, { FilterField } from '../components/TableToolbar';
 import { useToast } from '../components/Toast';
-import { fetchUsers, POLICY_RULES, USER_FILTER_OPTIONS, USER_ROWS, type UserRow } from '../api/resources/users';
+import { assignUserPolicy, fetchUsers, POLICY_RULES, syncAdNow, updateUserStatus, USER_FILTER_OPTIONS, USER_ROWS, type UserRow } from '../api/resources/users';
+import { fetchPolicies } from '../api/resources/policies';
+import { MODE } from '../api/config';
 
 interface Filters {
   dept: string;
@@ -21,7 +23,7 @@ const DEFAULT_FILTERS: Filters = { dept: '全部部门', status: '全部状态',
 function matches(row: UserRow, f: Filters) {
   if (f.dept !== '全部部门' && row.dept !== f.dept) return false;
   if (f.status !== '全部状态' && row.status !== f.status) return false;
-  if (f.policy !== '全部策略组' && row.policy !== f.policy) return false;
+  if (f.policy !== '全部策略组' && String(row.policyId ?? '') !== String(f.policy)) return false;
   const kw = f.kw.trim().toLowerCase();
   if (kw && (row.name + ' ' + row.account).toLowerCase().indexOf(kw) < 0) return false;
   return true;
@@ -52,7 +54,8 @@ export default function UsersPage() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [drawerUser, setDrawerUser] = useState<UserRow | null>(null);
   const [modal, setModal] = useState<ModalKind>(null);
-  const [policyPick, setPolicyPick] = useState('办公默认组');
+  const [policyPick, setPolicyPick] = useState<number | undefined>(undefined);
+  const [policies, setPolicies] = useState<{ id: number; name: string }[]>([]);
   const [syncing, setSyncing] = useState(false);
   const [syncState, setSyncState] = useState<'success' | 'syncing'>('success');
   const [syncLast, setSyncLast] = useState('10:00');
@@ -67,6 +70,12 @@ export default function UsersPage() {
       .catch(() => { if (!cancelled) setView('error'); });
     return () => { cancelled = true; };
   }, [view]);
+
+  useEffect(() => {
+    fetchPolicies()
+      .then((ps) => setPolicies(ps.map((p) => ({ id: Number(p.id), name: p.name }))))
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (rows.length === 0) return;
@@ -89,31 +98,63 @@ export default function UsersPage() {
     if (!silent) toast('已清空筛选条件');
   }
 
-  function startSync() {
+  async function startSync() {
     if (syncing) return;
     setSyncing(true);
     setSyncState('syncing');
     setSyncSummary('(正在拉取 AD 增量变更…)');
-    window.setTimeout(() => {
+    try {
+      const r = await syncAdNow();
       setSyncing(false);
       setSyncState('success');
-      setSyncLast('10:26');
-      setSyncSummary('(新增 2 / 更新 5 / 停用 0)');
-      toast('AD 增量同步完成:新增 2 / 更新 5,耗时 38 秒');
-    }, 1800);
+      setSyncLast(r.finishedAt || syncLast);
+      setSyncSummary(r.summary || '');
+      toast(r.message || 'AD 同步完成');
+    } catch (e) {
+      setSyncing(false);
+      setSyncState('success');
+      toast(`AD 同步失败:${e instanceof Error ? e.message : String(e)}`);
+    }
   }
 
-  function confirmModal() {
-    if (!modal) return;
-    if (modal.kind === 'batch') toast('已对 ' + modal.rows.length + ' 个账号执行「' + modal.verb + '」');
-    if (modal.kind === 'policy') toast('已为 ' + modal.rows.length + ' 个账号更新策略组');
-    if (modal.kind === 'disable') {
-      toast('账号 ' + modal.row.account + ' 已停用');
-      setDrawerUser(null);
-    }
-    if (modal.kind === 'sync-log') toast('已重新触发昨天 22:00 的失败任务,请留意通知');
-    if (modal.kind === 'sync-error') toast('已重新触发同步,请留意通知');
+  function reload() {
+    fetchUsers()
+      .then((data) => { setRows(data); setView('ready'); })
+      .catch(() => setView('error'));
+  }
+
+  async function confirmModal() {
+    const m = modal;
+    if (!m) return;
     setModal(null);
+    if (MODE !== 'http') {
+      if (m.kind === 'batch') toast(`已对 ${m.rows.length} 个账号执行「${m.verb}」`);
+      else if (m.kind === 'policy') toast(`已为 ${m.rows.length} 个账号更新策略组`);
+      else if (m.kind === 'disable') { toast(`账号 ${m.row.account} 已停用`); setDrawerUser(null); }
+      else toast('已重新触发同步,请留意通知');
+      return;
+    }
+    try {
+      if (m.kind === 'batch') {
+        const accounts = m.rows.map((r) => r.account);
+        await updateUserStatus(accounts, m.verb as '启用' | '停用');
+        toast(`已对 ${accounts.length} 个账号执行「${m.verb}」`);
+      } else if (m.kind === 'policy') {
+        if (policyPick == null) { toast('请选择策略组'); return; }
+        const accounts = m.rows.map((r) => r.account);
+        await assignUserPolicy(accounts, policyPick);
+        toast(`已为 ${accounts.length} 个账号更新策略组`);
+      } else if (m.kind === 'disable') {
+        await updateUserStatus([m.row.account], '停用');
+        toast(`账号 ${m.row.account} 已停用`);
+        setDrawerUser(null);
+      } else {
+        toast('已重新触发同步,请留意通知');
+      }
+      reload();
+    } catch (e) {
+      toast(`操作失败:${e instanceof Error ? e.message : String(e)}`);
+    }
   }
 
   function retry() {
@@ -243,7 +284,7 @@ export default function UsersPage() {
             <Space>
               <Button disabled={selectedVisible.length === 0} onClick={() => setModal({ kind: 'batch', verb: '启用', danger: false, rows: selectedVisible })}>批量启用</Button>
               <Button danger disabled={selectedVisible.length === 0} onClick={() => setModal({ kind: 'batch', verb: '停用', danger: true, rows: selectedVisible })}>批量停用</Button>
-              <Button disabled={selectedVisible.length === 0} onClick={() => { setPolicyPick('办公默认组'); setModal({ kind: 'policy', rows: selectedVisible }); }}>分配策略组</Button>
+              <Button disabled={selectedVisible.length === 0} onClick={() => { setPolicyPick(policies[0]?.id); setModal({ kind: 'policy', rows: selectedVisible }); }}>分配策略组</Button>
             </Space>
           }
         >
@@ -254,7 +295,7 @@ export default function UsersPage() {
             <Select id="fu-status" value={form.status} onChange={(v) => setForm((f) => ({ ...f, status: v }))} options={USER_FILTER_OPTIONS.status.map((o) => ({ label: o, value: o }))} style={{ width: 110 }} />
           </FilterField>
           <FilterField label="策略组" htmlFor="fu-policy">
-            <Select id="fu-policy" value={form.policy} onChange={(v) => setForm((f) => ({ ...f, policy: v }))} options={USER_FILTER_OPTIONS.policy.map((o) => ({ label: o, value: o }))} style={{ width: 140 }} />
+            <Select id="fu-policy" value={form.policy} onChange={(v) => setForm((f) => ({ ...f, policy: v }))} options={[{ label: '全部策略组', value: '全部策略组' }, ...policies.map((p) => ({ label: p.name, value: p.id }))]} style={{ width: 140 }} />
           </FilterField>
           <FilterField label="关键词" htmlFor="fu-kw">
             <Input id="fu-kw" placeholder="姓名 / 账号" value={form.kw} onChange={(e) => setForm((f) => ({ ...f, kw: e.target.value }))} style={{ width: 140 }} />
@@ -398,7 +439,7 @@ export default function UsersPage() {
         {modal?.kind === 'policy' && (
           <>
             <p>将 <b>{modal.rows.length}</b> 个选中账号分配到:</p>
-            <Select style={{ width: '100%', marginTop: 12 }} value={policyPick} onChange={setPolicyPick} options={USER_FILTER_OPTIONS.policy.slice(1).map((o) => ({ label: o, value: o }))} />
+            <Select style={{ width: '100%', marginTop: 12 }} value={policyPick} onChange={setPolicyPick} options={policies.map((p) => ({ label: p.name, value: p.id }))} />
             <Typography.Text type="secondary" style={{ display: 'block', marginTop: 10 }}>变更在下次认证时生效;在线终端将收到 CoA 重新授权。</Typography.Text>
           </>
         )}

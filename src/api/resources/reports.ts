@@ -7,7 +7,7 @@
  *   GET /api/reports/departments?period=
  */
 import { MODE } from '../config';
-import { fetchApi } from '../http';
+import { downloadFile, fetchApi } from '../http';
 import {
   DEPT_ROWS,
   ETYPE_ROWS,
@@ -62,4 +62,10 @@ export async function fetchEndpointTypes(): Promise<any[]> {
 export async function fetchDepartments(period: string): Promise<any[]> {
   if (MODE !== 'http') return DEPT_ROWS;
   return httpDepartments(period);
+}
+
+/** 导出报表(pdf/xlsx/csv)。http 模式触发文件下载;mock 模式抛错由页面提示。 */
+export async function exportReport(format: 'pdf' | 'xlsx' | 'csv', period: string): Promise<void> {
+  if (MODE !== 'http') throw new Error('mock 模式不支持导出');
+  await downloadFile(`/api/reports/export?format=${format}&period=${apiPeriod(period)}`, `report.${format}`);
 }

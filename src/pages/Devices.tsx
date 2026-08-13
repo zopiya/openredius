@@ -8,10 +8,11 @@ import PageHeader from '../components/PageHeader';
 import { FilterField } from '../components/TableToolbar';
 import { useToast } from '../components/Toast';
 import {
-  DEVICE_FILTER_OPTIONS, fetchEndpoints, fetchNas,
+  DEVICE_FILTER_OPTIONS, fetchEndpoints, fetchNas, getNasSecret, importEndpoints, removeWhitelist, revokeCert,
   SSID_ROWS, SWITCH_BUSY_PORTS, SWITCH_PORT_DETAIL,
   type EndpointRow, type NasRow,
 } from '../api/resources/devices';
+import { MODE } from '../api/config';
 
 interface NasFilters { type: string; area: string; status: string; }
 interface EpFilters { type: string; comp: string; kw: string; }
@@ -62,6 +63,8 @@ export default function Devices() {
   const [drawerDevice, setDrawerDevice] = useState<NasRow | null>(null);
   const [modal, setModal] = useState<DeviceModal>(null);
   const [secretShown, setSecretShown] = useState<Set<string>>(new Set());
+  const [secrets, setSecrets] = useState<Record<string, string>>({});
+  const [importText, setImportText] = useState('');
 
   useEffect(() => {
     const h = decodeURIComponent(location.hash.replace('#', ''));
@@ -87,17 +90,58 @@ export default function Devices() {
   const nasVisible = useMemo(() => nasRows.filter((r) => matchNas(r, nasApplied)), [nasRows, nasApplied]);
   const epVisible = useMemo(() => epRows.filter((r) => matchEp(r, epApplied)), [epRows, epApplied]);
 
-  function toggleSecret(name: string, shown: boolean) {
-    setSecretShown((prev) => { const next = new Set(prev); if (shown) next.add(name); else next.delete(name); return next; });
-    if (shown) toast('Shared Secret 已明文显示,仅超级管理员可见 · 已记录审计');
+  async function toggleSecret(r: NasRow, shown: boolean) {
+    if (!shown) {
+      setSecretShown((prev) => { const next = new Set(prev); next.delete(r.name); return next; });
+      return;
+    }
+    if (MODE !== 'http') {
+      setSecrets((prev) => ({ ...prev, [r.name]: r.secret ?? '' }));
+      setSecretShown((prev) => { const next = new Set(prev); next.add(r.name); return next; });
+      toast('Shared Secret 已明文显示,仅超级管理员可见 · 已记录审计');
+      return;
+    }
+    if (!secrets[r.name]) {
+      try {
+        const plain = await getNasSecret(r.id ?? '');
+        setSecrets((prev) => ({ ...prev, [r.name]: plain }));
+      } catch (e) {
+        toast(`获取 Secret 失败:${e instanceof Error ? e.message : String(e)}`);
+        return;
+      }
+    }
+    setSecretShown((prev) => { const next = new Set(prev); next.add(r.name); return next; });
+    toast('Shared Secret 已明文显示,仅超级管理员可见 · 已记录审计');
   }
 
-  function confirmModal() {
-    if (!modal) return;
-    if (modal.kind === 'revoke') toast('证书已吊销,CRL 已同步至全部 NAS');
-    if (modal.kind === 'remove') { setEpRows((prev) => prev.filter((r) => r.mac !== modal.row.mac)); toast('已移出白名单'); }
-    if (modal.kind === 'import') toast('已导入 2 条,1 条格式错误已跳过(见导入记录)');
+  function reloadEp() {
+    fetchEndpoints().then((d) => setEpRows(d)).catch(() => {});
+  }
+
+  async function confirmModal() {
+    const m = modal;
+    if (!m) return;
     setModal(null);
+    try {
+      if (m.kind === 'revoke') {
+        await revokeCert(m.row.mac);
+        toast('证书已吊销,CRL 已同步至全部 NAS');
+        reloadEp();
+      } else if (m.kind === 'remove') {
+        await removeWhitelist(m.row.mac);
+        setEpRows((prev) => prev.filter((r) => r.mac !== m.row.mac));
+        toast('已移出白名单');
+      } else if (m.kind === 'import') {
+        const macs = importText.split('\n').map((l) => l.split(',')[0]?.trim() ?? '').filter(Boolean);
+        if (macs.length === 0) { toast('请至少输入一条 MAC'); return; }
+        const r = await importEndpoints(macs);
+        toast(`已导入 ${r.imported} 条`);
+        setImportText('');
+        reloadEp();
+      }
+    } catch (e) {
+      toast(`操作失败:${e instanceof Error ? e.message : String(e)}`);
+    }
   }
 
   const nasRetry = useCallback(() => { setNasView('loading'); fetchNas().then((d) => { setNasRows(d); setNasView('ready'); }).catch(() => setNasView('error')); }, []);
@@ -109,8 +153,8 @@ export default function Devices() {
     { title: '所属区域', dataIndex: 'area', key: 'area' },
     { title: 'Shared Secret', key: 'secret', render: (_v, r) => r.secret ? (
       <span>
-        {secretShown.has(r.name) ? <span style={{ fontFamily: 'monospace', fontSize: '12.5px' }}>{r.secret}</span> : '••••••••'}
-        <Button type="link" size="small" icon={<Eye size={13} />} onClick={() => toggleSecret(r.name, !secretShown.has(r.name))} />
+        {secretShown.has(r.name) ? <span style={{ fontFamily: 'monospace', fontSize: '12.5px' }}>{secrets[r.name] ?? r.secret}</span> : '••••••••'}
+        <Button type="link" size="small" icon={<Eye size={13} />} onClick={() => toggleSecret(r, !secretShown.has(r.name))} />
       </span>
     ) : '—' },
     { title: '状态', key: 'status', render: (_v, r) => <Tag color={r.statusBadge === 'bg-success' ? 'green' : r.statusBadge === 'bg-danger' ? 'red' : 'default'}>{r.statusLabel}</Tag> },
@@ -221,7 +265,7 @@ export default function Devices() {
       <Modal open={!!modal} title={modal?.kind === 'revoke' ? '确认吊销证书' : modal?.kind === 'remove' ? '确认移出白名单' : '批量导入 MAC 白名单'} width={520} okText={modal?.kind === 'revoke' ? '确认吊销' : modal?.kind === 'remove' ? '确认移出' : '导入'} okButtonProps={{ danger: modal?.kind !== 'import' }} onCancel={() => setModal(null)} onOk={confirmModal}>
         {modal?.kind === 'revoke' && <p>吊销终端 <Typography.Text code>{modal.row.mac}</Typography.Text>({modal.row.userName})的准入证书后,该终端将立即无法通过 EAP-TLS 认证。<b>吊销不可撤销</b>。</p>}
         {modal?.kind === 'remove' && <p>将 <Typography.Text code>{modal.row.mac}</Typography.Text> 移出 MAC 白名单后,该设备下次认证将被拒绝。</p>}
-        {modal?.kind === 'import' && <><p>每行一条,格式:<Typography.Text code>MAC,绑定说明</Typography.Text>。仅适用于打印机、摄像头等无法安装证书的哑终端。</p><textarea style={{ width: '100%', minHeight: 96, marginTop: 12 }} placeholder="00:25:96:12:34:56, 4F 会议室打印机" /></>}
+        {modal?.kind === 'import' && <><p>每行一条,格式:<Typography.Text code>MAC,绑定说明</Typography.Text>。仅适用于打印机、摄像头等无法安装证书的哑终端。</p><textarea value={importText} onChange={(e) => setImportText(e.target.value)} style={{ width: '100%', minHeight: 96, marginTop: 12 }} placeholder="00:25:96:12:34:56, 4F 会议室打印机" /></>}
       </Modal>
     </Shell>
   );

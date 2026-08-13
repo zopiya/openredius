@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Table, Button, Space, Modal, Drawer, Input, Select, Switch, Radio, Checkbox, Typography, Steps, Form, Card, theme, Alert } from 'antd';
+import { Table, Button, Space, Modal, Drawer, Input, Select, Switch, Radio, Checkbox, Typography, Steps, Form, Card, theme, Alert, App } from 'antd';
 import type { ColumnsType } from 'antd/es/table/interface';
 import Shell from '../components/Shell';
 import PageHeader from '../components/PageHeader';
 import { useToast } from '../components/Toast';
-import { fetchPolicies, NEW_POLICY_FORM, POLICY_FORMS, POLICY_FORM_OPTIONS, POLICY_ROWS, type PolicyForm, type PolicyRow } from '../api/resources/policies';
+import { deletePolicy, fetchPolicies, NEW_POLICY_FORM, POLICY_FORMS, POLICY_FORM_OPTIONS, POLICY_ROWS, reorderPolicies, savePolicy, togglePolicy, type PolicyForm, type PolicyRow } from '../api/resources/policies';
+import { MODE } from '../api/config';
 
 const STEPS = [
   { title: '基本信息' },
@@ -22,6 +23,7 @@ const EAP_OPTIONS = [
 
 export default function Policies() {
   const toast = useToast();
+  const { modal } = App.useApp();
   const { token } = theme.useToken();
   const [rows, setRows] = useState<PolicyRow[]>(POLICY_ROWS);
   const [order, setOrder] = useState<string[]>(POLICY_ROWS.map((r) => r.id));
@@ -47,18 +49,27 @@ export default function Policies() {
     return () => { cancelled = true; };
   }, []);
 
+  function reload() {
+    fetchPolicies().then((data) => {
+      setRows(data);
+      setOrder(data.map((r) => r.id));
+      setEnabled(Object.fromEntries(data.map((r) => [r.id, r.on])));
+    }).catch(() => {});
+  }
+
   const rowById = (id: string) => rows.find((r) => r.id === id)!;
 
   function move(id: string, dir: -1 | 1) {
-    setOrder((prev) => {
-      const i = prev.indexOf(id);
-      const j = i + dir;
-      if (j < 0 || j >= prev.length) return prev;
-      const next = [...prev];
-      [next[i], next[j]] = [next[j], next[i]];
-      return next;
-    });
-    toast('优先级已调整,新匹配顺序已下发至 37 台 NAS');
+    const i = order.indexOf(id);
+    const j = i + dir;
+    if (j < 0 || j >= order.length) return;
+    const next = [...order];
+    [next[i], next[j]] = [next[j], next[i]];
+    setOrder(next);
+    if (MODE !== 'http') { toast('优先级已调整'); return; }
+    reorderPolicies(next)
+      .then(() => toast('优先级已调整并下发'))
+      .catch((e) => { toast(`重排失败:${e instanceof Error ? e.message : String(e)}`); reload(); });
   }
 
   function openEdit(id: string) {
@@ -86,10 +97,17 @@ export default function Policies() {
     setConfirmOpen(true);
   }
 
-  function confirmPush() {
+  async function confirmPush() {
     setConfirmOpen(false);
-    setDrawerOpen(false);
-    toast('策略已下发,37 台 NAS 全部确认(耗时 1.8s)');
+    if (MODE !== 'http') { setDrawerOpen(false); toast('策略已下发'); return; }
+    try {
+      await savePolicy({ ...form, id: editingId ?? undefined });
+      setDrawerOpen(false);
+      toast('策略已下发');
+      reload();
+    } catch (e) {
+      toast(`保存失败:${e instanceof Error ? e.message : String(e)}`);
+    }
   }
 
   const compSummary = [
@@ -138,7 +156,12 @@ export default function Policies() {
         <Switch
           checked={enabled[r.id]}
           aria-label="启用状态"
-          onChange={(on) => setEnabled((prev) => ({ ...prev, [r.id]: on }))}
+          onChange={(on) => {
+            setEnabled((prev) => ({ ...prev, [r.id]: on }));
+            togglePolicy(r.id, on)
+              .then(() => toast(`策略「${r.name}」已${on ? '启用' : '停用'}`))
+              .catch((e) => { toast(`操作失败:${e instanceof Error ? e.message : String(e)}`); setEnabled((prev) => ({ ...prev, [r.id]: !on })); });
+          }}
         />
       ),
     },
@@ -147,7 +170,23 @@ export default function Policies() {
       key: 'actions',
       width: 80,
       render: (_v, r) => (
-        <a href="#" onClick={(e) => { e.preventDefault(); openEdit(r.id); }}>编辑</a>
+        <Space>
+          <a href="#" onClick={(e) => { e.preventDefault(); openEdit(r.id); }}>编辑</a>
+          <a href="#" style={{ color: token.colorError }} onClick={(e) => {
+            e.preventDefault();
+            modal.confirm({
+              title: '确认删除策略',
+              content: `删除「${r.name}」后该策略的 radgroupreply 产物将被移除,匹配用户将回退到下一优先级策略。`,
+              okText: '确认删除',
+              okButtonProps: { danger: true },
+              onOk: async () => {
+                await deletePolicy(r.id);
+                toast('策略已删除');
+                reload();
+              },
+            });
+          }}>删除</a>
+        </Space>
       ),
     },
   ];
