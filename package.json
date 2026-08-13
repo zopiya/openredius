@@ -9,9 +9,13 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "verify": "tsc -b && bun scripts/smoke.tsx && bun test && bun scripts/fidelity.tsx",
+    "e2e": "bun scripts/e2e.mjs",
     "api:gen": "bunx openapi-typescript@6 http://localhost:8000/api/openapi.json -o src/api/schema.d.ts --enum"
   },
   "dependencies": {
+    "@ant-design/charts": "2",
+    "@ant-design/icons": "6",
+    "antd": "6",
     "lucide-react": "^1.31.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
@@ -19,14 +23,13 @@
   },
   "devDependencies": {
     "@happy-dom/global-registrator": "^20.11.2",
-    "@tailwindcss/vite": "^4.3.3",
     "@testing-library/react": "^16.3.2",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
     "@vitejs/plugin-react": "^6.0.5",
     "happy-dom": "^20.11.2",
     "openapi-typescript": "~6.7.6",
-    "tailwindcss": "^4.3.3",
+    "playwright": "^1.62.1",
     "typescript": "^7.0.2",
     "vite": "^8.2.1"
   }

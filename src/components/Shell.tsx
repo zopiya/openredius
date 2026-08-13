@@ -1,27 +1,36 @@
-import { type ReactNode, useEffect, useState, useRef } from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { type ReactNode, useEffect, useState, useMemo } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
   Activity, BarChart3, Gauge, KeyRound, LogOut,
   ScrollText, Search, Server, Settings, ShieldCheck, Users,
 } from 'lucide-react';
+import { Layout, Menu, Button, Dropdown, Input, Modal, Form, App, Breadcrumb, Avatar, Badge, Tag, Typography, theme } from 'antd';
+import type { MenuProps } from 'antd';
 import { useTitle } from '../hooks/useTitle';
 import { fetchMe, logout } from '../api/auth';
 import { MODE } from '../api/config';
 
+const { Sider, Header, Content } = Layout;
+
+const ROLE_META: Record<string, { label: string; color: string }> = {
+  admin: { label: '管理员', color: 'geekblue' },
+  operator: { label: '运维', color: 'blue' },
+  auditor: { label: '审计', color: 'default' },
+};
+
 const ALL_ITEMS = [
-  { to: '/dashboard', label: '仪表盘', icon: Gauge, roles: ['admin', 'operator', 'auditor'] },
-  { to: '/sessions', label: '在线会话', icon: Activity, roles: ['admin', 'operator', 'auditor'] },
-  { to: '/auth-logs', label: '认证日志', icon: ScrollText, roles: ['admin', 'operator', 'auditor'] },
-  { to: '/users', label: '用户管理', icon: Users, roles: ['admin', 'operator'] },
-  { to: '/policies', label: '策略管理', icon: ShieldCheck, roles: ['admin'] },
-  { to: '/devices', label: '设备管理', icon: Server, roles: ['admin'] },
-  { to: '/reports', label: '报表统计', icon: BarChart3, roles: ['admin', 'operator', 'auditor'] },
-  { to: '/settings', label: '系统设置', icon: Settings, roles: ['admin'] },
+  { key: '/dashboard', label: '仪表盘', icon: Gauge, roles: ['admin', 'operator', 'auditor'] },
+  { key: '/sessions', label: '在线会话', icon: Activity, roles: ['admin', 'operator', 'auditor'] },
+  { key: '/auth-logs', label: '认证日志', icon: ScrollText, roles: ['admin', 'operator', 'auditor'] },
+  { key: '/users', label: '用户管理', icon: Users, roles: ['admin', 'operator'] },
+  { key: '/policies', label: '策略管理', icon: ShieldCheck, roles: ['admin'] },
+  { key: '/devices', label: '设备管理', icon: Server, roles: ['admin'] },
+  { key: '/reports', label: '报表统计', icon: BarChart3, roles: ['admin', 'operator', 'auditor'] },
+  { key: '/settings', label: '系统设置', icon: Settings, roles: ['admin'] },
 ];
 
 interface AdminInfo { username: string; display_name: string; role: string; }
 
-/** Mock admin (同步, CI 兼容) */
 const MOCK_ADMIN: AdminInfo = {
   username: 'admin',
   display_name: '管理员',
@@ -30,11 +39,12 @@ const MOCK_ADMIN: AdminInfo = {
 
 export default function Shell({ page, children }: { page: string; children: ReactNode }) {
   useTitle(page);
+  const loc = useLocation();
   const nav = useNavigate();
+  const { message } = App.useApp();
+  const { token } = theme.useToken();
   const [me, setMe] = useState<AdminInfo>(MOCK_ADMIN);
-  const [menuOpen, setMenuOpen] = useState(false);
   const [pwOpen, setPwOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (MODE === 'http') {
@@ -44,147 +54,266 @@ export default function Shell({ page, children }: { page: string; children: Reac
     }
   }, []);
 
-  // Close dropdown on outside click
-  useEffect(() => {
-    function onDown(e: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setMenuOpen(false);
-      }
-    }
-    document.addEventListener('mousedown', onDown);
-    return () => document.removeEventListener('mousedown', onDown);
-  }, []);
-
   const display = me.display_name || me.username;
   const initial = display.charAt(0).toUpperCase();
-  const navItems = ALL_ITEMS.filter((item) => item.roles.includes(me.role));
+
+  // 根据角色过滤菜单项
+  const menuItems: MenuProps['items'] = useMemo(
+    () =>
+      ALL_ITEMS.filter((item) => item.roles.includes(me.role)).map(({ key, label, icon: Icon }) => ({
+        key,
+        icon: <Icon size={17} strokeWidth={1.75} />,
+        label,
+      })),
+    [me.role],
+  );
+
+  // 获取当前选中菜单 key
+  const selectedKeys = useMemo(() => {
+    const match = ALL_ITEMS.find((item) => loc.pathname === item.key || loc.pathname.startsWith(item.key + '/'));
+    return match ? [match.key] : [];
+  }, [loc.pathname]);
+
+  // 退出登录
+  const handleLogout = () => {
+    logout();
+    nav('/login');
+  };
+
+  // 下拉菜单项
+  const dropdownItems: MenuProps['items'] = [
+    {
+      key: 'password',
+      icon: <KeyRound size={16} />,
+      label: '修改密码',
+      onClick: () => setPwOpen(true),
+    },
+    { type: 'divider' },
+    {
+      key: 'logout',
+      icon: <LogOut size={16} />,
+      label: '退出登录',
+      onClick: handleLogout,
+    },
+  ];
 
   return (
-    <>
-      <aside className="sidebar" data-od-id="sidebar">
-        <div className="side-brand">
-          <div className="side-mark">R</div>
-          <div className="side-brand-t">
-            <b>准入认证控制台</b>
-            <span>RADIUS 802.1X</span>
+    <Layout style={{ minHeight: '100vh' }}>
+      <Sider
+        width={232}
+        theme="dark"
+        style={{
+          position: 'fixed',
+          left: 0,
+          top: 0,
+          bottom: 0,
+          zIndex: 40,
+          overflow: 'auto',
+        }}
+      >
+        {/* 品牌区 */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '20px 20px 14px' }}>
+          <div
+            style={{
+              width: 28,
+              height: 28,
+              borderRadius: 8,
+              background: '#fff',
+              color: '#001529',
+              display: 'grid',
+              placeItems: 'center',
+              fontSize: 14,
+              fontWeight: 700,
+              flexShrink: 0,
+            }}
+          >
+            R
+          </div>
+          <div style={{ lineHeight: 1.25 }}>
+            <Typography.Text strong style={{ color: '#fff', fontSize: 14, display: 'block' }}>
+              准入认证控制台
+            </Typography.Text>
+            <Typography.Text style={{ color: 'rgba(255,255,255,0.45)', fontSize: 11 }}>
+              RADIUS 802.1X
+            </Typography.Text>
           </div>
         </div>
-        <nav className="side-nav">
-          {navItems.map(({ to, label, icon: Icon }) => (
-            <NavLink
-              key={to}
-              to={to}
-              className={({ isActive }) => (isActive ? 'side-link active' : 'side-link')}
-            >
-              <Icon className="icon" />
-              {label}
-            </NavLink>
-          ))}
-        </nav>
-        <div className="side-foot">
-          <span className="pulse-dot" />
-          RADIUS 服务正常 · v2.4.1
-        </div>
-      </aside>
 
-      <div className="main-col">
-        <header className="topbar" data-od-id="topbar">
-          <div className="topbar-title">{page}</div>
-          <div className="topbar-right">
-            <div className="search">
-              <Search className="icon" />
-              <input type="search" placeholder="搜索用户 / MAC / 设备" aria-label="搜索" />
-            </div>
-            <div className="user-dropdown" ref={menuRef}>
-              <button
-                type="button"
-                className="user-chip user-chip--btn"
-                onClick={() => setMenuOpen((v) => !v)}
-              >
-                <div className="avatar">{initial}</div>
-                <div>
-                  {display}<small>{me.role === 'admin' ? '管理员' : me.role === 'operator' ? '运维' : '审计'}</small>
-                </div>
-              </button>
-              {menuOpen && (
-                <div className="dropdown-menu">
-                  <button type="button" className="dropdown-item" onClick={() => { setMenuOpen(false); setPwOpen(true); }}>
-                    <KeyRound className="icon" />修改密码
-                  </button>
-                  <button type="button" className="dropdown-item" onClick={() => { logout(); nav('/login'); }}>
-                    <LogOut className="icon" />退出登录
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-        </header>
-
-        <main className="content" data-od-id="main">
-          {children}
-        </main>
-      </div>
-
-      {pwOpen && (
-        <ChangePasswordModal
-          onClose={() => setPwOpen(false)}
+        {/* 导航菜单 */}
+        <Menu
+          mode="inline"
+          theme="dark"
+          selectedKeys={selectedKeys}
+          items={menuItems}
+          onClick={({ key }) => nav(key)}
+          style={{ borderInlineEnd: 'none', flex: 1 }}
         />
-      )}
-    </>
+
+        {/* 底部状态 */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            padding: '14px 20px 18px',
+            borderTop: '1px solid rgba(255,255,255,0.06)',
+          }}
+        >
+          <Badge status="success" />
+          <Typography.Text style={{ color: 'rgba(255,255,255,0.45)', fontSize: 11.5 }}>
+            RADIUS 服务正常 · v2.4.1
+          </Typography.Text>
+        </div>
+      </Sider>
+
+      {/* 右侧主区域 */}
+      <Layout style={{ marginLeft: 232 }}>
+        <Header
+          data-od-id="topbar"
+          style={{
+            position: 'sticky',
+            top: 0,
+            zIndex: 30,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 18,
+            height: 57,
+            padding: '0 28px',
+            background: token.colorBgContainer,
+            borderBottom: `1px solid ${token.colorBorderSecondary}`,
+            lineHeight: '57px',
+          }}
+        >
+          <Breadcrumb
+            items={[{ title: '首页' }, { title: page }]}
+            style={{ fontSize: 12.5, lineHeight: 'normal' }}
+          />
+
+          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 14 }}>
+            {/* 搜索 */}
+            <Input
+              prefix={<Search size={14} strokeWidth={2} style={{ color: token.colorTextTertiary }} />}
+              placeholder="搜索用户 / MAC / 设备"
+              aria-label="搜索"
+              style={{ width: 240 }}
+            />
+
+            {/* 用户下拉 */}
+            <Dropdown menu={{ items: dropdownItems }} trigger={['click']} placement="bottomRight">
+              <Button
+                type="text"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 9,
+                  height: 'auto',
+                  padding: 0,
+                  color: token.colorTextSecondary,
+                }}
+              >
+                <Avatar size={30} style={{ backgroundColor: token.colorPrimary }}>
+                  {initial}
+                </Avatar>
+                <div style={{ textAlign: 'left', lineHeight: 1.3 }}>
+                  {display}
+                  <Tag color={ROLE_META[me.role]?.color} style={{ marginInlineStart: 6, fontSize: 11 }}>
+                    {ROLE_META[me.role]?.label ?? me.role}
+                  </Tag>
+                </div>
+              </Button>
+            </Dropdown>
+          </div>
+        </Header>
+
+        <Content data-od-id="main" style={{ padding: '26px 28px 72px', maxWidth: 1440, width: '100%' }}>
+          {children}
+        </Content>
+      </Layout>
+
+      {/* 修改密码模态 */}
+      <ChangePasswordModal open={pwOpen} onClose={() => setPwOpen(false)} message={message} />
+    </Layout>
   );
 }
 
 /* ── 修改密码模态 ──────────────────────────────────────── */
 
-function ChangePasswordModal({ onClose }: { onClose: () => void }) {
-  const [oldPw, setOldPw] = useState('');
-  const [newPw, setNewPw] = useState('');
-  const [newPw2, setNewPw2] = useState('');
-  const [err, setErr] = useState('');
+function ChangePasswordModal({
+  open,
+  onClose,
+  message,
+}: {
+  open: boolean;
+  onClose: () => void;
+  message: ReturnType<typeof App.useApp>['message'];
+}) {
+  const [form] = Form.useForm();
   const [busy, setBusy] = useState(false);
 
   async function submit() {
-    setErr('');
-    if (newPw.length < 10) { setErr('新密码至少 10 位'); return; }
-    if (newPw !== newPw2) { setErr('两次输入不一致'); return; }
-    setBusy(true);
     try {
+      const values = await form.validateFields();
+      if (values.new_password !== values.confirm_password) {
+        message.error('两次输入不一致');
+        return;
+      }
+      setBusy(true);
       const { fetchApi } = await import('../api/http');
       await fetchApi('/api/auth/me/password', {
         method: 'PUT',
-        body: JSON.stringify({ old_password: oldPw, new_password: newPw }),
+        body: JSON.stringify({
+          old_password: values.old_password,
+          new_password: values.new_password,
+        }),
       });
+      message.success('密码修改成功');
       onClose();
+      form.resetFields();
     } catch (e: any) {
-      setErr(e.message || '修改失败');
+      if (e?.errorFields) return; // 表单校验失败
+      message.error(e?.message || '修改失败');
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    <div className="modal-overlay show" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-hd"><b>修改密码</b></div>
-        <div className="modal-bd">
-          {err && <div className="toast toast--err">{err}</div>}
-          <label><span>旧密码</span>
-            <input type="password" value={oldPw} onChange={(e) => setOldPw(e.target.value)} autoFocus />
-          </label>
-          <label><span>新密码</span>
-            <input type="password" value={newPw} onChange={(e) => setNewPw(e.target.value)} placeholder="至少 10 位" />
-          </label>
-          <label><span>确认新密码</span>
-            <input type="password" value={newPw2} onChange={(e) => setNewPw2(e.target.value)} />
-          </label>
-        </div>
-        <div className="modal-act">
-          <button type="button" className="btn" onClick={onClose} disabled={busy}>取消</button>
-          <button type="button" className="btn btn-primary" onClick={submit} disabled={busy}>
-            {busy ? '保存中…' : '保存'}
-          </button>
-        </div>
-      </div>
-    </div>
+    <Modal
+      open={open}
+      title="修改密码"
+      onCancel={() => { onClose(); form.resetFields(); }}
+      onOk={submit}
+      confirmLoading={busy}
+      okText="保存"
+      cancelText="取消"
+      destroyOnHidden
+    >
+      <Form form={form} layout="vertical" style={{ marginTop: 12 }}>
+        <Form.Item
+          name="old_password"
+          label="旧密码"
+          rules={[{ required: true, message: '请输入旧密码' }]}
+        >
+          <Input.Password autoFocus />
+        </Form.Item>
+        <Form.Item
+          name="new_password"
+          label="新密码"
+          rules={[
+            { required: true, message: '请输入新密码' },
+            { min: 10, message: '新密码至少 10 位' },
+          ]}
+        >
+          <Input.Password placeholder="至少 10 位" />
+        </Form.Item>
+        <Form.Item
+          name="confirm_password"
+          label="确认新密码"
+          rules={[{ required: true, message: '请确认新密码' }]}
+        >
+          <Input.Password />
+        </Form.Item>
+      </Form>
+    </Modal>
   );
 }

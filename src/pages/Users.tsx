@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Check, Users } from 'lucide-react';
+import { Table, Select, Button, Space, Modal, Input, Tag, Empty, Skeleton, Result, Drawer, Card, Descriptions, Typography, theme, Divider } from 'antd';
+import type { ColumnsType, TableRowSelection } from 'antd/es/table/interface';
 import Shell from '../components/Shell';
-import Modal from '../components/Modal';
-import Drawer from '../components/Drawer';
-import { SkeletonTable, EmptyState, ErrorState } from '../components/states';
+import PageHeader from '../components/PageHeader';
+import TableToolbar, { FilterField } from '../components/TableToolbar';
 import { useToast } from '../components/Toast';
 import { fetchUsers, POLICY_RULES, USER_FILTER_OPTIONS, USER_ROWS, type UserRow } from '../api/resources/users';
 
@@ -26,10 +27,10 @@ function matches(row: UserRow, f: Filters) {
   return true;
 }
 
-const STATUS_BADGE: Record<UserRow['status'], string> = {
-  正常: 'bg-success',
-  停用: 'bg-muted',
-  锁定: 'bg-danger',
+const STATUS_COLOR: Record<UserRow['status'], string> = {
+  正常: 'green',
+  停用: 'default',
+  锁定: 'red',
 };
 
 type ModalKind =
@@ -42,6 +43,7 @@ type ModalKind =
 
 export default function UsersPage() {
   const toast = useToast();
+  const { token } = theme.useToken();
   const location = useLocation();
   const [view, setView] = useState<'loading' | 'ready' | 'error'>('loading');
   const [rows, setRows] = useState<UserRow[]>(USER_ROWS);
@@ -57,7 +59,6 @@ export default function UsersPage() {
   const [syncSummary, setSyncSummary] = useState('(新增 12 / 更新 3 / 停用 1)');
   const deepLinked = useRef(false);
 
-  /* 数据拉取 */
   useEffect(() => {
     if (view !== 'loading') return;
     let cancelled = false;
@@ -67,7 +68,6 @@ export default function UsersPage() {
     return () => { cancelled = true; };
   }, [view]);
 
-  /* 深链:#user=wang.lei → 打开对应用户详情抽屉(等待数据就绪后执行) */
   useEffect(() => {
     if (rows.length === 0) return;
     if (deepLinked.current) return;
@@ -78,7 +78,6 @@ export default function UsersPage() {
     const row = rows.find((r) => r.account === m[1]);
     if (row) setDrawerUser(row);
     else toast('用户 ' + m[1] + ' 不在当前页,请通过关键词搜索定位');
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rows]);
 
   const visible = useMemo(() => rows.filter((r) => matches(r, applied)), [rows, applied]);
@@ -88,22 +87,6 @@ export default function UsersPage() {
     setForm(DEFAULT_FILTERS);
     setApplied(DEFAULT_FILTERS);
     if (!silent) toast('已清空筛选条件');
-  }
-
-  function toggleSelect(account: string, on: boolean) {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (on) next.add(account); else next.delete(account);
-      return next;
-    });
-  }
-
-  function toggleAll(on: boolean) {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      visible.forEach((r) => (on ? next.add(r.account) : next.delete(r.account)));
-      return next;
-    });
   }
 
   function startSync() {
@@ -140,217 +123,301 @@ export default function UsersPage() {
       .catch(() => setView('error'));
   }
 
-  const allChecked = visible.length > 0 && visible.every((r) => selected.has(r.account));
   const drawerRule = drawerUser ? (POLICY_RULES[drawerUser.policy] ?? '—') : '—';
+
+  const rowSelection: TableRowSelection<UserRow> = {
+    selectedRowKeys: Array.from(selected).filter((id) => visible.some((r) => r.account === id)),
+    onSelect: (r, on) => {
+      setSelected((prev) => {
+        const next = new Set(prev);
+        if (on) next.add(r.account); else next.delete(r.account);
+        return next;
+      });
+    },
+    onSelectAll: (on, _, changeRows) => {
+      setSelected((prev) => {
+        const next = new Set(prev);
+        changeRows.forEach((r) => (on ? next.add(r.account) : next.delete(r.account)));
+        return next;
+      });
+    },
+  };
+
+  const columns: ColumnsType<UserRow> = [
+    {
+      title: '姓名 / 账号',
+      key: 'name',
+      render: (_v, r) => (
+        <>
+          <b>{r.name}</b>
+          <Typography.Text type="secondary" style={{ display: 'block', fontFamily: 'monospace' }}>{r.account}</Typography.Text>
+        </>
+      ),
+    },
+    { title: '所属部门', dataIndex: 'dept', key: 'dept' },
+    {
+      title: '状态',
+      dataIndex: 'status',
+      key: 'status',
+      filters: [
+        { text: '正常', value: '正常' },
+        { text: '停用', value: '停用' },
+        { text: '锁定', value: '锁定' },
+      ],
+      onFilter: (value, record) => record.status === value,
+      render: (v: UserRow['status'], r) => (
+        <>
+          <Tag color={STATUS_COLOR[v]}>{v}</Tag>
+          {r.statusSub && <Typography.Text type="secondary" style={{ display: 'block' }}>{r.statusSub}</Typography.Text>}
+        </>
+      ),
+    },
+    { title: '绑定终端数', dataIndex: 'devices', key: 'devices', render: (v) => <Typography.Text code>{v}</Typography.Text> },
+    { title: '所属策略组', dataIndex: 'policy', key: 'policy' },
+    { title: '最近认证时间', dataIndex: 'lastAuth', key: 'lastAuth', render: (v) => <Typography.Text code>{v}</Typography.Text> },
+    {
+      title: '操作',
+      key: 'actions',
+      width: 80,
+      render: (_v, r) => (
+        <a
+          href="#"
+          onClick={(e) => {
+            e.preventDefault();
+            setDrawerUser(r);
+          }}
+        >
+          详情
+        </a>
+      ),
+    },
+  ];
+
+  const modalTitle = modal?.kind === 'batch' ? '确认批量' + modal.verb
+    : modal?.kind === 'policy' ? '批量分配策略组'
+    : modal?.kind === 'disable' ? '确认停用账号'
+    : modal?.kind === 'sync-log' ? 'AD 同步记录 · 近 7 天'
+    : 'AD 同步未完成';
+
+  const modalOkText = modal?.kind === 'batch' ? (modal.danger ? '确认停用' : '确认' + modal.verb)
+    : modal?.kind === 'policy' ? '确认分配'
+    : modal?.kind === 'disable' ? '确认停用'
+    : modal?.kind === 'sync-log' ? '重试失败任务'
+    : '立即重试';
 
   return (
     <Shell page="用户管理">
-      <div className="page-head">
-        <div>
-          <h1>用户管理</h1>
-          <div className="page-sub">共 <b>1,472</b> 个账号,源自 AD 域同步 · 正常 1,408 / 停用 52 / 锁定 12</div>
-        </div>
-        <div className="page-actions">
-          <button className="btn btn-outline" onClick={() => toast('已导出 users-20260727.csv(1,472 条)')}>导出清单</button>
-          <button className="btn btn-primary" data-od-id="sync-now" disabled={syncing} onClick={startSync}>{syncing ? '同步中…' : '立即同步 AD'}</button>
-        </div>
-      </div>
+      <PageHeader
+        title="用户管理"
+        subtitle={<>共 <b>1,472</b> 个账号,源自 AD 域同步 · 正常 1,408 / 停用 52 / 锁定 12</>}
+        extra={
+          <>
+            <Button onClick={() => toast('已导出 users-20260727.csv(1,472 条)')}>导出清单</Button>
+            <Button type="primary" data-od-id="sync-now" disabled={syncing} onClick={startSync}>
+              {syncing ? '同步中…' : '立即同步 AD'}
+            </Button>
+          </>
+        }
+      />
 
-      <div className="notice" data-od-id="ad-sync-status">
-        <Check style={{ width: 16, height: 16, color: 'var(--success)' }} />
-        <div className="grow">AD 域 <b>corp.example.com</b> · 上次同步 <b>{syncLast}</b> <span className={syncState === 'success' ? 'badge bg-success' : 'badge bg-info'}>{syncState === 'success' ? '成功' : '同步中'}</span><span>{syncSummary}</span>,下次同步 <b>11:00</b> · 周期 60 分钟 · <Link to="/settings">对接配置</Link></div>
+      {/* AD 同步状态 */}
+      <div
+        data-od-id="ad-sync-status"
+        style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '13px 16px', marginBottom: 16, border: `1px solid ${token.colorBorderSecondary}`, borderRadius: 12, background: token.colorBgLayout, color: token.colorTextSecondary }}
+      >
+        <Check style={{ width: 16, height: 16, color: token.colorSuccess, flexShrink: 0 }} />
+        <div style={{ flex: 1 }}>
+          AD 域 <b>corp.example.com</b> · 上次同步 <b>{syncLast}</b>{' '}
+          <Tag color={syncState === 'success' ? 'green' : 'blue'}>{syncState === 'success' ? '成功' : '同步中'}</Tag>
+          {syncSummary},下次同步 <b>11:00</b> · 周期 60 分钟 · <Link to="/settings">对接配置</Link>
+        </div>
         <a href="#" onClick={(e) => { e.preventDefault(); setModal({ kind: 'sync-log' }); }}>同步记录</a>
       </div>
 
-      <section className="card" data-od-id="user-card">
-        <div className="filters" data-od-id="user-filters">
-          <div className="f-item"><label htmlFor="fu-dept">部门</label>
-            <select className="sel" id="fu-dept" value={form.dept} onChange={(e) => setForm((f) => ({ ...f, dept: e.target.value }))}>
-              {USER_FILTER_OPTIONS.dept.map((o) => <option key={o}>{o}</option>)}
-            </select>
-          </div>
-          <div className="f-item"><label htmlFor="fu-status">状态</label>
-            <select className="sel" id="fu-status" value={form.status} onChange={(e) => setForm((f) => ({ ...f, status: e.target.value }))}>
-              {USER_FILTER_OPTIONS.status.map((o) => <option key={o}>{o}</option>)}
-            </select>
-          </div>
-          <div className="f-item"><label htmlFor="fu-policy">策略组</label>
-            <select className="sel" id="fu-policy" value={form.policy} onChange={(e) => setForm((f) => ({ ...f, policy: e.target.value }))}>
-              {USER_FILTER_OPTIONS.policy.map((o) => <option key={o}>{o}</option>)}
-            </select>
-          </div>
-          <div className="f-item"><label htmlFor="fu-kw">关键词</label>
-            <input className="inp" type="text" id="fu-kw" placeholder="姓名 / 账号" value={form.kw} onChange={(e) => setForm((f) => ({ ...f, kw: e.target.value }))} />
-          </div>
-          <button className="btn btn-primary btn-sm" style={{ height: 30 }} onClick={() => setApplied(form)}>筛选</button>
-          <button className="btn btn-outline btn-sm" style={{ height: 30 }} onClick={() => resetFilters()}>重置</button>
-          <div className="f-spacer"></div>
-          <button className="btn btn-outline" disabled={selectedVisible.length === 0} onClick={() => setModal({ kind: 'batch', verb: '启用', danger: false, rows: selectedVisible })}>批量启用</button>
-          <button className="btn btn-danger" disabled={selectedVisible.length === 0} onClick={() => setModal({ kind: 'batch', verb: '停用', danger: true, rows: selectedVisible })}>批量停用</button>
-          <button className="btn btn-outline" disabled={selectedVisible.length === 0} onClick={() => { setPolicyPick('办公默认组'); setModal({ kind: 'policy', rows: selectedVisible }); }}>分配策略组</button>
-        </div>
+      {/* 主卡片 */}
+      <Card data-od-id="user-card" styles={{ body: { padding: 0 } }}>
+        {/* 筛选栏 */}
+        <TableToolbar
+          data-od-id="user-filters"
+          actions={
+            <Space>
+              <Button disabled={selectedVisible.length === 0} onClick={() => setModal({ kind: 'batch', verb: '启用', danger: false, rows: selectedVisible })}>批量启用</Button>
+              <Button danger disabled={selectedVisible.length === 0} onClick={() => setModal({ kind: 'batch', verb: '停用', danger: true, rows: selectedVisible })}>批量停用</Button>
+              <Button disabled={selectedVisible.length === 0} onClick={() => { setPolicyPick('办公默认组'); setModal({ kind: 'policy', rows: selectedVisible }); }}>分配策略组</Button>
+            </Space>
+          }
+        >
+          <FilterField label="部门" htmlFor="fu-dept">
+            <Select id="fu-dept" value={form.dept} onChange={(v) => setForm((f) => ({ ...f, dept: v }))} options={USER_FILTER_OPTIONS.dept.map((o) => ({ label: o, value: o }))} style={{ width: 140 }} />
+          </FilterField>
+          <FilterField label="状态" htmlFor="fu-status">
+            <Select id="fu-status" value={form.status} onChange={(v) => setForm((f) => ({ ...f, status: v }))} options={USER_FILTER_OPTIONS.status.map((o) => ({ label: o, value: o }))} style={{ width: 110 }} />
+          </FilterField>
+          <FilterField label="策略组" htmlFor="fu-policy">
+            <Select id="fu-policy" value={form.policy} onChange={(v) => setForm((f) => ({ ...f, policy: v }))} options={USER_FILTER_OPTIONS.policy.map((o) => ({ label: o, value: o }))} style={{ width: 140 }} />
+          </FilterField>
+          <FilterField label="关键词" htmlFor="fu-kw">
+            <Input id="fu-kw" placeholder="姓名 / 账号" value={form.kw} onChange={(e) => setForm((f) => ({ ...f, kw: e.target.value }))} style={{ width: 140 }} />
+          </FilterField>
+          <Space>
+            <Button type="primary" size="small" onClick={() => setApplied(form)}>筛选</Button>
+            <Button size="small" onClick={() => resetFilters()}>重置</Button>
+          </Space>
+        </TableToolbar>
 
+        {/* 选中提示 */}
         {selectedVisible.length > 0 && (
-          <div className="stat-strip" style={{ borderBottom: '1px solid var(--border-soft)', color: 'var(--fg-2)' }}>
-            <span>已选 <b style={{ color: 'var(--accent)' }}>{selectedVisible.length}</b> 项,可执行右上方批量操作</span>
-            <a href="#" style={{ marginLeft: 'auto', color: 'var(--muted)' }} onClick={(e) => { e.preventDefault(); setSelected(new Set()); }}>清除选择</a>
+          <div style={{ display: 'flex', gap: 14, padding: '12px 20px', borderBottom: `1px solid ${token.colorBorderSecondary}`, color: token.colorTextSecondary }}>
+            <span>已选 <b style={{ color: token.colorPrimary }}>{selectedVisible.length}</b> 项,可执行右上方批量操作</span>
+            <a href="#" style={{ marginLeft: 'auto', color: token.colorTextTertiary }} onClick={(e) => { e.preventDefault(); setSelected(new Set()); }}>清除选择</a>
           </div>
         )}
 
-        <div className="tbl-wrap">
-          {view === 'loading' && <SkeletonTable cols={8} widths={['', 'w-60', 'w-40', 'w-40', 'w-40', 'w-60', 'w-40', '']} />}
-          {view === 'ready' && visible.length > 0 && (
-            <table className="tbl" data-od-id="user-table">
-              <thead>
-                <tr>
-                  <th style={{ width: 34 }}><input type="checkbox" aria-label="全选" checked={allChecked} onChange={(e) => toggleAll(e.target.checked)} /></th>
-                  <th>姓名 / 账号</th><th>所属部门</th><th>状态</th><th>绑定终端数</th>
-                  <th>所属策略组</th><th>最近认证时间</th><th style={{ textAlign: 'right' }}>操作</th>
-                </tr>
-              </thead>
-              <tbody>
-                {visible.map((r) => (
-                  <tr key={r.account}>
-                    <td><input type="checkbox" aria-label="选择" checked={selected.has(r.account)} onChange={(e) => toggleSelect(r.account, e.target.checked)} /></td>
-                    <td><b>{r.name}</b><span className="sub mono">{r.account}</span></td>
-                    <td>{r.dept}</td>
-                    <td>
-                      <span className={`badge ${STATUS_BADGE[r.status]}`}>{r.status}</span>
-                      {r.statusSub && <span className="sub">{r.statusSub}</span>}
-                    </td>
-                    <td className="mono">{r.devices}</td>
-                    <td>{r.policy}</td>
-                    <td className="mono">{r.lastAuth}</td>
-                    <td><div className="row-ops"><a href="#" onClick={(e) => { e.preventDefault(); setDrawerUser(r); }}>详情</a></div></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
-        {view === 'ready' && visible.length === 0 && (
-          <EmptyState icon={Users} title="没有符合条件的用户" desc="当前筛选条件下无账号。可放宽部门 / 状态 / 策略组条件,或修改关键词。" actionText="清空筛选条件" onAction={() => resetFilters()} />
-        )}
-        {view === 'error' && (
-          <ErrorState title="用户数据加载失败" desc={<>无法读取用户目录(<b>DIR-SYNC 503</b>)。可重试,或先到「系统设置 → AD/LDAP」检查对接状态。</>} onRetry={retry} />
-        )}
+        {/* 表格 */}
+        {view === 'loading' && <div style={{ padding: 40 }}><Skeleton active paragraph={{ rows: 8 }} /></div>}
         {view === 'ready' && visible.length > 0 && (
-          <div className="stat-strip" style={{ borderTop: '1px solid var(--border-soft)', borderBottom: 'none' }}>
-            <span>共 <b>1,472</b> 个账号,本页显示 <b>{visible.length}</b> 条</span>
-            <span style={{ marginLeft: 'auto' }}><a href="#" onClick={(e) => e.preventDefault()}>上一页</a> · <a href="#" onClick={(e) => e.preventDefault()}>下一页</a></span>
-          </div>
+          <Table
+           
+            rowKey="account"
+            dataSource={visible}
+            columns={columns}
+            rowSelection={rowSelection}
+            data-od-id="user-table"
+            pagination={{ pageSize: 50, showSizeChanger: true, showTotal: (_total, range) => `共 1,472 个账号,本页显示 ${range[0]}-${range[1]} 条` }}
+            size="middle"
+          />
         )}
-      </section>
+        {view === 'ready' && visible.length === 0 && (
+          <Empty image={<Users style={{ width: 64, height: 64, color: token.colorTextQuaternary }} />} description="没有符合条件的用户" style={{ padding: '56px 24px' }}>
+            <Typography.Text type="secondary">当前筛选条件下无账号。可放宽部门 / 状态 / 策略组条件,或修改关键词。</Typography.Text>
+            <br /><Button style={{ marginTop: 12 }} onClick={() => resetFilters()}>清空筛选条件</Button>
+          </Empty>
+        )}
+        {view === 'error' && <Result status="error" title="用户数据加载失败" subTitle="无法读取用户目录(DIR-SYNC 503)。" extra={<Button onClick={retry}>重试</Button>} />}
+      </Card>
 
+      {/* 用户详情抽屉 */}
       <Drawer
         open={!!drawerUser}
         title={drawerUser ? drawerUser.name + ' · ' + drawerUser.account : '用户详情'}
         onClose={() => setDrawerUser(null)}
-        foot={<>
-          <button className="btn btn-danger" onClick={() => drawerUser && setModal({ kind: 'disable', row: drawerUser })}>停用账号</button>
-          <button className="btn btn-primary" onClick={() => toast('终端绑定编辑:请在设备管理 → 终端准入清单中操作')}>编辑绑定终端</button>
-        </>}
+        size={560}
+        footer={
+          drawerUser ? (
+            <Space>
+              <Button danger onClick={() => drawerUser && setModal({ kind: 'disable', row: drawerUser })}>停用账号</Button>
+              <Button type="primary" onClick={() => toast('终端绑定编辑:请在设备管理 → 终端准入清单中操作')}>编辑绑定终端</Button>
+            </Space>
+          ) : undefined
+        }
       >
         {drawerUser && (
           <>
-            <div className="crumb"><Link to="/users">用户管理</Link><span className="sep">/</span><span className="cur">用户详情</span></div>
-            <dl className="kv plain">
-              <dt>姓名 / 账号</dt><dd>{drawerUser.name} · {drawerUser.account}</dd>
-              <dt>所属部门 / 职位</dt><dd>{drawerUser.dept} · {drawerUser.title}</dd>
-              <dt>账号状态</dt><dd>{drawerUser.status}</dd>
-              <dt>账号来源</dt><dd>AD 同步(corp.example.com)</dd>
-              <dt>最近认证</dt><dd>2026-07-27,SW-3F-01 · EAP-TLS</dd>
-            </dl>
-
-            <div className="d-sec">
-              <div className="d-sec-t">所属策略组</div>
-              <dl className="kv plain">
-                <dt>当前策略组</dt><dd>{drawerUser.policy}</dd>
-                <dt>下发规则</dt><dd>{drawerRule}</dd>
-              </dl>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 7, color: token.colorTextTertiary, marginBottom: 16 }}>
+              <Link to="/users">用户管理</Link><span>/</span><span style={{ color: token.colorText, fontWeight: 500 }}>用户详情</span>
             </div>
-
-            <div className="d-sec">
-              <div className="d-sec-t">绑定终端(2)</div>
-              <table className="tbl">
-                <thead><tr><th>MAC</th><th>证书指纹(SHA-256)</th><th>合规</th></tr></thead>
-                <tbody>
-                  <tr><td className="mono">3C:52:82:1A:4B:01</td><td className="mono">9F:2A:…:71:C0</td><td><span className="badge bg-success">合规</span></td></tr>
-                  <tr><td className="mono">A4:83:E7:22:9C:7E</td><td className="mono">B1:08:…:3E:9A</td><td><span className="badge bg-warn">证书 30 天内到期</span></td></tr>
-                </tbody>
-              </table>
-            </div>
-
-            <div className="d-sec">
-              <div className="d-sec-t">历史认证记录(最近 5 条)</div>
-              <table className="tbl">
-                <thead><tr><th>时间</th><th>接入设备</th><th>结果</th></tr></thead>
-                <tbody>
-                  <tr><td className="mono">07-27 10:24</td><td>SW-3F-01 · Gi1/0/12</td><td><span className="badge bg-success">成功</span></td></tr>
-                  <tr><td className="mono">07-27 06:12</td><td>SW-3F-01 · Gi1/0/12</td><td><span className="badge bg-success">成功</span></td></tr>
-                  <tr><td className="mono">07-26 18:02</td><td>AC-HQ-01 · AP-3F-012</td><td><span className="badge bg-success">成功</span></td></tr>
-                  <tr><td className="mono">07-26 09:31</td><td>SW-3F-01 · Gi1/0/12</td><td><span className="badge bg-success">成功</span></td></tr>
-                  <tr><td className="mono">07-25 21:14</td><td>AC-HQ-01 · AP-3F-012</td><td><span className="badge bg-danger">失败</span></td></tr>
-                </tbody>
-              </table>
-              <div style={{ marginTop: 10, fontSize: 12.5 }}>
-                <Link to={`/auth-logs#user=${encodeURIComponent(drawerUser.account)}`}>查看该用户全部认证日志 →</Link>
-              </div>
-            </div>
+            <Descriptions
+              column={1}
+              size="small"
+              items={[
+                { key: 'name', label: '姓名 / 账号', children: `${drawerUser.name} · ${drawerUser.account}` },
+                { key: 'dept', label: '所属部门 / 职位', children: `${drawerUser.dept} · ${drawerUser.title}` },
+                { key: 'status', label: '账号状态', children: drawerUser.status },
+                { key: 'src', label: '账号来源', children: 'AD 同步(corp.example.com)' },
+                { key: 'last', label: '最近认证', children: '2026-07-27,SW-3F-01 · EAP-TLS' },
+              ]}
+            />
+            <Divider titlePlacement="start" plain>所属策略组</Divider>
+            <Descriptions
+              column={1}
+              size="small"
+              items={[
+                { key: 'policy', label: '当前策略组', children: drawerUser.policy },
+                { key: 'rule', label: '下发规则', children: drawerRule },
+              ]}
+            />
+            <Divider titlePlacement="start" plain>绑定终端(2)</Divider>
+            <Table
+              rowKey="mac"
+              size="small"
+              pagination={false}
+              dataSource={[
+                { mac: '3C:52:82:1A:4B:01', fp: '9F:2A:…:71:C0', comp: '合规' },
+                { mac: 'A4:83:E7:22:9C:7E', fp: 'B1:08:…:3E:9A', comp: '证书 30 天内到期' },
+              ]}
+              columns={[
+                { title: 'MAC', dataIndex: 'mac', key: 'mac', render: (v: string) => <Typography.Text code>{v}</Typography.Text> },
+                { title: '证书指纹(SHA-256)', dataIndex: 'fp', key: 'fp', render: (v: string) => <Typography.Text code>{v}</Typography.Text> },
+                { title: '合规', dataIndex: 'comp', key: 'comp', render: (v: string) => <Tag color={v === '合规' ? 'green' : 'orange'}>{v}</Tag> },
+              ]}
+            />
+            <Divider titlePlacement="start" plain>历史认证记录(最近 5 条)</Divider>
+            <Table
+              rowKey="time"
+              size="small"
+              pagination={false}
+              dataSource={[
+                { time: '07-27 10:24', nas: 'SW-3F-01 · Gi1/0/12', result: '成功' },
+                { time: '07-27 06:12', nas: 'SW-3F-01 · Gi1/0/12', result: '成功' },
+                { time: '07-26 18:02', nas: 'AC-HQ-01 · AP-3F-012', result: '成功' },
+                { time: '07-26 09:31', nas: 'SW-3F-01 · Gi1/0/12', result: '成功' },
+                { time: '07-25 21:14', nas: 'AC-HQ-01 · AP-3F-012', result: '失败' },
+              ]}
+              columns={[
+                { title: '时间', dataIndex: 'time', key: 'time', render: (v: string) => <Typography.Text code>{v}</Typography.Text> },
+                { title: '接入设备', dataIndex: 'nas', key: 'nas' },
+                { title: '结果', dataIndex: 'result', key: 'result', render: (v: string) => <Tag color={v === '成功' ? 'green' : 'red'}>{v}</Tag> },
+              ]}
+            />
+            <Typography.Text style={{ display: 'block', marginTop: 10 }}>
+              <Link to={`/auth-logs#user=${encodeURIComponent(drawerUser.account)}`}>查看该用户全部认证日志 →</Link>
+            </Typography.Text>
           </>
         )}
       </Drawer>
 
+      {/* 模态 */}
       <Modal
         open={!!modal}
-        title={modal?.kind === 'batch' ? '确认批量' + modal.verb
-          : modal?.kind === 'policy' ? '批量分配策略组'
-          : modal?.kind === 'disable' ? '确认停用账号'
-          : modal?.kind === 'sync-log' ? 'AD 同步记录 · 近 7 天'
-          : 'AD 同步未完成'}
+        title={modalTitle}
         cancelText={modal?.kind === 'sync-log' ? undefined : '取消'}
-        okText={modal?.kind === 'batch' ? (modal.danger ? '确认停用' : '确认' + modal.verb)
-          : modal?.kind === 'policy' ? '确认分配'
-          : modal?.kind === 'disable' ? '确认停用'
-          : modal?.kind === 'sync-log' ? '重试失败任务'
-          : '立即重试'}
-        okClass={modal?.kind === 'policy' || modal?.kind === 'sync-log' || modal?.kind === 'sync-error' ? 'btn-primary' : 'btn-danger-solid'}
-        onClose={() => setModal(null)}
+        okText={modalOkText}
+        okButtonProps={{ danger: !(modal?.kind === 'policy' || modal?.kind === 'sync-log' || modal?.kind === 'sync-error') }}
+        onCancel={() => setModal(null)}
         onOk={confirmModal}
       >
         {modal?.kind === 'batch' && (
-          <>将对以下 <b>{modal.rows.length}</b> 个账号执行「{modal.verb}」:
-            <div className="mono-list">{modal.rows.map((r) => (<span key={r.account}>{r.name}({r.account})<br /></span>))}</div>
-            {modal.danger && '停用后这些账号将立即无法通过 802.1X 认证,在线会话会被断开。'}
+          <>
+            <p>将对以下 <b>{modal.rows.length}</b> 个账号执行「{modal.verb}」:</p>
+            <div style={{ background: token.colorBgLayout, borderRadius: 8, padding: '10px 12px', marginTop: 10, fontFamily: 'monospace', fontSize: 12, maxHeight: 140, overflow: 'auto' }}>
+              {modal.rows.map((r) => <span key={r.account}>{r.name}({r.account})<br /></span>)}
+            </div>
+            {modal.danger && <p style={{ marginTop: 8 }}>停用后这些账号将立即无法通过 802.1X 认证,在线会话会被断开。</p>}
           </>
         )}
         {modal?.kind === 'policy' && (
-          <>将 <b>{modal.rows.length}</b> 个选中账号分配到:
-            <div style={{ marginTop: 12 }}>
-              <select className="sel" style={{ width: '100%', height: 34 }} value={policyPick} onChange={(e) => setPolicyPick(e.target.value)}>
-                {USER_FILTER_OPTIONS.policy.slice(1).map((o) => <option key={o}>{o}</option>)}
-              </select>
-            </div>
-            <div style={{ marginTop: 10, fontSize: 12, color: 'var(--muted)' }}>变更在下次认证时生效;在线终端将收到 CoA 重新授权。</div>
+          <>
+            <p>将 <b>{modal.rows.length}</b> 个选中账号分配到:</p>
+            <Select style={{ width: '100%', marginTop: 12 }} value={policyPick} onChange={setPolicyPick} options={USER_FILTER_OPTIONS.policy.slice(1).map((o) => ({ label: o, value: o }))} />
+            <Typography.Text type="secondary" style={{ display: 'block', marginTop: 10 }}>变更在下次认证时生效;在线终端将收到 CoA 重新授权。</Typography.Text>
           </>
         )}
-        {modal?.kind === 'disable' && (
-          <>停用 <b>{modal.row.name}({modal.row.account})</b> 后,该账号所有认证请求将被拒绝,在线会话立即断开。此操作可随时通过「启用」恢复。</>
-        )}
+        {modal?.kind === 'disable' && <p>停用 <b>{modal.row.name}({modal.row.account})</b> 后,该账号所有认证请求将被拒绝,在线会话立即断开。此操作可随时通过「启用」恢复。</p>}
         {modal?.kind === 'sync-log' && (
-          <>共 168 次同步:<b>167 次成功 / 1 次失败</b>。失败任务已自动回退至最近一次成功快照,用户数据未受影响。
-            <div className="mono-list">
+          <>
+            <p>共 168 次同步:<b>167 次成功 / 1 次失败</b>。</p>
+            <div style={{ background: token.colorBgLayout, borderRadius: 8, padding: '10px 12px', marginTop: 10, fontFamily: 'monospace', fontSize: 12 }}>
               今日 10:00 · 成功 · 新增 12 / 更新 3 / 停用 1<br />
               今日 09:00 · 成功 · 无变更<br />
               今日 08:00 · 成功 · 新增 1 / 更新 2<br />
-              昨天 22:00 · <b style={{ color: 'var(--danger)' }}>失败</b> · dc01 连接超时(已回退){' '}
+              昨天 22:00 · <b style={{ color: token.colorError }}>失败</b> · dc01 连接超时(已回退){' '}
               <a href="#" onClick={(e) => { e.preventDefault(); setModal({ kind: 'sync-error' }); }}>查看原因</a><br />
               昨天 21:00 · 成功 · 无变更
             </div>
           </>
         )}
         {modal?.kind === 'sync-error' && (
-          <>上次连接 <b>dc01.corp.example.com:636</b> 超时(等待 8s),已重试 2 次均失败。建议检查:<br />• 网络到域控的 636 端口是否放行<br />• 绑定账号 <span className="mono">svc-radius</span> 凭据是否过期<br />• 域控服务是否正常</>
+          <>上次连接 <b>dc01.corp.example.com:636</b> 超时(等待 8s),已重试 2 次均失败。建议检查网络与凭据。</>
         )}
       </Modal>
     </Shell>
