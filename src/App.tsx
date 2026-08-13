@@ -9,6 +9,7 @@ import Policies from './pages/Policies';
 import Devices from './pages/Devices';
 import Reports from './pages/Reports';
 import Settings from './pages/Settings';
+import AuditLogs from './pages/AuditLogs';
 
 export default function App() {
   return (
@@ -28,6 +29,7 @@ export default function App() {
               <Route path="/devices" element={<Devices />} />
               <Route path="/reports" element={<Reports />} />
               <Route path="/settings" element={<Settings />} />
+              <Route path="/audit" element={<AuditLogs />} />
             </Routes>
           </AuthGuard>
         }

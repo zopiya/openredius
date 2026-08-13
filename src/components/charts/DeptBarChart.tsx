@@ -43,12 +43,12 @@ function DeptBarAntd({ rows }: { rows: DeptStat[] }) {
     animation: false,
     columnStyle: { radiusTopLeft: 4, radiusTopRight: 4 },
     xAxis: {
-      label: { style: { fill: '#6e6e73', fontSize: 11, fontFamily: '"SF Pro Text", sans-serif' } },
+      label: { style: { fill: 'rgba(0,0,0,0.45)', fontSize: 11, fontFamily: 'sans-serif' } },
       grid: null as unknown as undefined,
     },
     yAxis: {
-      label: { style: { fill: '#86868b', fontSize: 10.5 } },
-      grid: { line: { style: { stroke: '#e8e8ed', lineWidth: 1 } } },
+      label: { style: { fill: 'rgba(0,0,0,0.45)', fontSize: 10.5 } },
+      grid: { line: { style: { stroke: '#f0f0f0', lineWidth: 1 } } },
     },
     tooltip: { shared: true },
   };
@@ -115,9 +115,9 @@ function DeptBarSvg({ rows, ariaLabel }: { rows: DeptStat[]; ariaLabel: string }
       {/* 图例 */}
       <g transform={`translate(${W - P.r - 120}, ${P.t})`}>
         <rect x={0} y={0} width={9} height={9} rx={2} fill={OK_COLOR} />
-        <text x={13} y={8} fontSize={11} fill="#6e6e73">成功</text>
+        <text x={13} y={8} fontSize={11} fill="rgba(0,0,0,0.45)">成功</text>
         <rect x={52} y={0} width={9} height={9} rx={2} fill={FAIL_COLOR} />
-        <text x={65} y={8} fontSize={11} fill="#6e6e73">失败</text>
+        <text x={65} y={8} fontSize={11} fill="rgba(0,0,0,0.45)">失败</text>
       </g>
     </svg>
   );

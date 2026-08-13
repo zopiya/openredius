@@ -79,12 +79,12 @@ function TrendChartAntd({ series }: { series: TrendSeries }) {
     animation: false,
     legend: false,
     xAxis: {
-      label: { style: { fill: '#86868b', fontSize: 10.5, fontFamily: '"SF Pro Text", sans-serif' } },
+      label: { style: { fill: 'rgba(0,0,0,0.45)', fontSize: 10.5, fontFamily: 'sans-serif' } },
       grid: null as unknown as undefined,
     },
     yAxis: {
-      label: { style: { fill: '#86868b', fontSize: 10.5 } },
-      grid: { line: { style: { stroke: '#e8e8ed', lineWidth: 1 } } },
+      label: { style: { fill: 'rgba(0,0,0,0.45)', fontSize: 10.5 } },
+      grid: { line: { style: { stroke: '#f0f0f0', lineWidth: 1 } } },
     },
     tooltip: { shared: true },
   };

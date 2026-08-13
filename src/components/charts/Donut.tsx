@@ -56,8 +56,8 @@ function DonutAntd({ rows }: { rows: DonutRow[] }) {
         style: {
           fontSize: '22px',
           fontWeight: 600,
-          fontFamily: '"SF Pro Display", sans-serif',
-          color: '#1d1d1f',
+          fontFamily: 'sans-serif',
+          color: 'rgba(0,0,0,0.88)',
         },
         content: total.toLocaleString('zh-CN'),
       },
@@ -65,7 +65,7 @@ function DonutAntd({ rows }: { rows: DonutRow[] }) {
         offsetY: 10,
         style: {
           fontSize: '10px',
-          color: '#6e6e73',
+          color: 'rgba(0,0,0,0.45)',
         },
         content: '次',
       },
@@ -138,8 +138,8 @@ export function DonutLegend({ rows }: { rows: DonutRow[] }) {
         <div key={row.label} style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
           <i style={{ width: 9, height: 9, borderRadius: 2, background: COLORS[i % COLORS.length], flex: 'none' }} />
           <span style={{ flex: 1 }}>{row.label}</span>
-          <span className="mono" style={{ color: '#424245' }}>{row.value}</span>
-          <span className="mono" style={{ color: '#86868b', width: 42, textAlign: 'right' }}>{((row.value / total) * 100).toFixed(1)}%</span>
+          <span className="mono" style={{ color: 'rgba(0,0,0,0.65)' }}>{row.value}</span>
+          <span className="mono" style={{ color: 'rgba(0,0,0,0.45)', width: 42, textAlign: 'right' }}>{((row.value / total) * 100).toFixed(1)}%</span>
         </div>
       ))}
     </div>

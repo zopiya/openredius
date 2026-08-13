@@ -1,7 +1,7 @@
 import { type ReactNode, useEffect, useState, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
-  Activity, BarChart3, Gauge, KeyRound, LogOut,
+  Activity, BarChart3, FileSearch, Gauge, KeyRound, LogOut,
   ScrollText, Search, Server, Settings, ShieldCheck, Users,
 } from 'lucide-react';
 import { Layout, Menu, Button, Dropdown, Input, Modal, Form, App, Breadcrumb, Avatar, Badge, Tag, Typography, theme } from 'antd';
@@ -26,6 +26,7 @@ const ALL_ITEMS = [
   { key: '/policies', label: '策略管理', icon: ShieldCheck, roles: ['admin'] },
   { key: '/devices', label: '设备管理', icon: Server, roles: ['admin'] },
   { key: '/reports', label: '报表统计', icon: BarChart3, roles: ['admin', 'operator', 'auditor'] },
+  { key: '/audit', label: '审计日志', icon: FileSearch, roles: ['admin', 'auditor'] },
   { key: '/settings', label: '系统设置', icon: Settings, roles: ['admin'] },
 ];
 
