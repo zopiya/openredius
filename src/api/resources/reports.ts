@@ -7,7 +7,7 @@
  *   GET /api/reports/departments?period=
  */
 import { MODE } from '../config';
-import { fetchApi } from '../http';
+import { downloadApi, fetchApi } from '../http';
 import {
   DEPT_ROWS,
   ETYPE_ROWS,
@@ -62,4 +62,27 @@ export async function fetchEndpointTypes(): Promise<any[]> {
 export async function fetchDepartments(period: string): Promise<any[]> {
   if (MODE !== 'http') return DEPT_ROWS;
   return httpDepartments(period);
+}
+
+export type ReportExportFormat = 'pdf' | 'xlsx';
+
+function fallbackFilename(format: ReportExportFormat, period: string): string {
+  return `report-${apiPeriod(period)}.${format}`;
+}
+
+export async function exportReport(format: ReportExportFormat, period: string): Promise<string> {
+  const filename = fallbackFilename(format, period);
+  if (MODE !== 'http') return filename;
+
+  const file = await downloadApi(`/api/reports/export?format=${format}&period=${apiPeriod(period)}`);
+  const url = URL.createObjectURL(file.blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = file.filename ?? filename;
+  link.style.display = 'none';
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 0);
+  return link.download;
 }

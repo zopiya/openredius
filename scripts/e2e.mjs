@@ -168,7 +168,12 @@ async function main() {
     await page.goto(BASE + '/reports', { waitUntil: 'networkidle' });
     await page.click('.ant-segmented-item:has-text("本周")');
     await page.waitForTimeout(500);
-    log(true, `Reports: 时段切换(今日→本周)`);
+    const switched = true;
+    await page.click('[data-od-id="export-report"]');
+    await page.waitForSelector('.ant-message-notice', { timeout: 5000 });
+    await page.waitForFunction(() => [...document.querySelectorAll('.ant-message-notice')]
+      .some((notice) => notice.textContent?.includes('report-week.xlsx')), { timeout: 5000 });
+    log(switched, 'Reports: 时段切换并导出 Excel');
   } catch (e) { log(false, `Reports — ${String(e.message).split('\n')[0]}`); }
 
   // Settings: 锚点导航

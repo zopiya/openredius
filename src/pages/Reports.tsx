@@ -7,7 +7,9 @@ import PageHeader from '../components/PageHeader';
 import Donut, { DonutLegend } from '../components/charts/Donut';
 import DeptBarChart from '../components/charts/DeptBarChart';
 import { useToast } from '../components/Toast';
-import { DEPT_ROWS, ETYPE_ROWS, fetchDepartments, fetchEndpointTypes, fetchSummary, LOAD_TOP, REPORT_PERIODS } from '../api/resources/reports';
+import {
+  DEPT_ROWS, ETYPE_ROWS, exportReport, fetchDepartments, fetchEndpointTypes, fetchSummary, LOAD_TOP, REPORT_PERIODS,
+} from '../api/resources/reports';
 
 type Period = '今日' | '本周' | '本月';
 
@@ -18,6 +20,7 @@ export default function Reports() {
   const { token } = theme.useToken();
   const location = useLocation();
   const [period, setPeriod] = useState<Period>('今日');
+  const [exporting, setExporting] = useState<null | 'pdf' | 'xlsx'>(null);
   const deepLinked = useRef(false);
 
   useEffect(() => {
@@ -53,6 +56,18 @@ export default function Reports() {
     fail: parseInt(r.fail.replace(/,/g, ''), 10),
   }));
 
+  async function handleExport(format: 'pdf' | 'xlsx') {
+    setExporting(format);
+    try {
+      const filename = await exportReport(format, period);
+      toast(`已导出 ${filename}`);
+    } catch (error) {
+      toast(`导出失败：${error instanceof Error ? error.message : '请稍后重试'}`);
+    } finally {
+      setExporting(null);
+    }
+  }
+
   return (
     <Shell page="报表统计">
       <PageHeader
@@ -67,8 +82,8 @@ export default function Reports() {
               onChange={(v) => { setPeriod(v as Period); toast('已切换至「' + v + '」统计口径'); }}
               size="small"
             />
-            <Button onClick={() => toast('已生成 access-report-20260727.pdf(含 4 个统计模块)')}>导出 PDF</Button>
-            <Button type="primary" data-od-id="export-report" onClick={() => toast('已导出 access-report-20260727.xlsx(3 个工作表)')}>导出 Excel</Button>
+            <Button loading={exporting === 'pdf'} disabled={exporting !== null} onClick={() => handleExport('pdf')}>导出 PDF</Button>
+            <Button type="primary" data-od-id="export-report" loading={exporting === 'xlsx'} disabled={exporting !== null} onClick={() => handleExport('xlsx')}>导出 Excel</Button>
           </>
         }
       />

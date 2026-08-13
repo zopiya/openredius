@@ -18,6 +18,11 @@ export class ApiHttpError extends Error {
   }
 }
 
+export interface DownloadResponse {
+  blob: Blob;
+  filename: string | null;
+}
+
 let _token: string | null = null;
 
 export function setToken(token: string | null): void {
@@ -33,21 +38,7 @@ export function assertHttp(): void {
   if (MODE !== 'http') throw new Error('API called in mock mode');
 }
 
-async function handleResponse(resp: Response): Promise<unknown> {
-  // 401 → attempt token refresh once, then retry
-  if (resp.status === 401 && resp.url !== apiUrl('/api/auth/login') && resp.url !== apiUrl('/api/auth/refresh')) {
-    try {
-      const { refresh: doRefresh } = await import('./auth');
-      await doRefresh();
-      // Retry original request with fresh token
-      const headers: Record<string, string> = {};
-      if (_token) headers['Authorization'] = `Bearer ${_token}`;
-      const retryResp = await fetch(resp.url, { ...(resp as any)._init, headers });
-      return handleResponse(retryResp);
-    } catch {
-      // Refresh failed → re-throw original 401
-    }
-  }
+async function parseResponse(resp: Response): Promise<unknown> {
   const text = await resp.text();
   let body: any = {};
   try {
@@ -69,16 +60,60 @@ async function handleResponse(resp: Response): Promise<unknown> {
   return body;
 }
 
+function requestInit(init?: RequestInit): RequestInit {
+  const headers = new Headers(init?.headers);
+  if (!headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
+  if (_token) headers.set('Authorization', `Bearer ${_token}`);
+  return { ...init, headers };
+}
+
+function isAuthRequest(path: string): boolean {
+  const pathname = path.split('?')[0];
+  return pathname === '/api/auth/login' || pathname === '/api/auth/refresh';
+}
+
+async function send<T>(
+  path: string,
+  init: RequestInit | undefined,
+  canRefresh: boolean,
+  parse: (response: Response) => Promise<T>,
+): Promise<T> {
+  const response = await fetch(apiUrl(path), requestInit(init));
+  if (canRefresh && response.status === 401 && !isAuthRequest(path)) {
+    try {
+      const { refresh } = await import('./auth');
+      await refresh();
+      return send(path, init, false, parse);
+    } catch {
+      // The original response supplies the most useful error to the caller.
+    }
+  }
+  return parse(response);
+}
+
 export async function fetchApi(path: string, init?: RequestInit): Promise<unknown> {
   assertHttp();
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    ...((init?.headers as Record<string, string>) ?? {}),
+  return send(path, init, true, parseResponse);
+}
+
+function filenameFromDisposition(value: string | null): string | null {
+  return value?.match(/filename="?([^";]+)"?/)?.[1] ?? null;
+}
+
+async function parseDownload(response: Response): Promise<DownloadResponse> {
+  if (!response.ok) {
+    await parseResponse(response);
+    throw new Error('unreachable');
+  }
+  return {
+    blob: await response.blob(),
+    filename: filenameFromDisposition(response.headers.get('Content-Disposition')),
   };
-  if (_token) headers['Authorization'] = `Bearer ${_token}`;
-  const resp = await fetch(apiUrl(path), { ...init, headers });
-  (resp as any)._init = init;  // stash for retry
-  return handleResponse(resp);
+}
+
+export async function downloadApi(path: string, init?: RequestInit): Promise<DownloadResponse> {
+  assertHttp();
+  return send(path, init, true, parseDownload);
 }
 
 /** 列表中后端统一包裹 { "items": [...], "total": n } 或直接返回数组;
