@@ -15,16 +15,19 @@ OpenRedius 是一个企业内网 **RADIUS / 802.1X 准入管理后台**,提供�
 | 文档 | 内容 |
 |---|---|
 | [README](./docs/README.md) | 文档索引 |
-| [10-roadmap](./docs/10-roadmap.md) | **里程碑(当前:M6✅→M7 进行中)** |
-| [01-intro](./docs/01-intro.md) | 项目介绍与范围 |
+| [10-roadmap](./docs/10-roadmap.md) | **里程碑(当前:M0–M7✅；M8 起待立项)** |
+| [00-overview](./docs/00-overview.md) | 项目介绍与范围 |
+| [01-architecture](./docs/01-architecture.md) | 总体架构 |
 | [02-domain-model](./docs/02-domain-model.md) | 准入域模型(用户/策略/设备/会话/告警) |
 | [03-api-design](./docs/03-api-design.md) | REST API 契约 |
 | [04-backend-design](./docs/04-backend-design.md) | 后端架构与设计决策 |
-| [05-data-model](./docs/05-data-model.md) | 数据库模型 |
+| [05-frontend-design](./docs/05-frontend-design.md) | 前端设计 |
 | [06-freeradius-integration](./docs/06-freeradius-integration.md) | FreeRADIUS 集成 |
 | [07-deployment](./docs/07-deployment.md) | 部署设计(Docker Compose) |
 | [08-security](./docs/08-security.md) | 安全设计与验收清单 |
 | [09-testing-quality](./docs/09-testing-quality.md) | 测试策略与质量门禁 |
+| [12-post-mvp-operating-model](./docs/12-post-mvp-operating-model.md) | 后续能力与运行模型 |
+| [13-operational-sop](./docs/13-operational-sop.md) | 生产运行 SOP |
 | [decisions/](./docs/decisions/) | 架构决策记录(ADR) |
 
 ## 快速开始

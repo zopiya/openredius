@@ -22,6 +22,8 @@
 | [09-testing-quality.md](./09-testing-quality.md) | 测试策略、验证命令、CI、验收流程 | 定稿 |
 | [10-roadmap.md](./10-roadmap.md) | **里程碑 M0–M7 任务分解( `/goal` 的输入)** | 定稿 |
 | [11-ui-migration.md](./11-ui-migration.md) | Ant Design 迁移计划(阶段 0–4,已升级至 v6) | 已完成 |
+| [12-post-mvp-operating-model.md](./12-post-mvp-operating-model.md) | 后 MVP 能力排序、运行模型、角色演进 | 待评审 |
+| [13-operational-sop.md](./13-operational-sop.md) | 生产运行 SOP、变更与事件处置 | 待评审 |
 | [decisions/](./decisions/) | ADR 架构决策记录(只增不改) | 持续 |
 
 ## 如何配合 `/goal` 使用
