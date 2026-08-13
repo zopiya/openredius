@@ -45,3 +45,16 @@
 **后端与前端在 dev 分支上已从「真实读 + 假写演示壳」恢复为全功能真实链路,RBAC 边界与审计完整,基线全绿。**
 
 挂起项(P3 体验优化)建议单独排期,不影响本次验收。
+
+## R3 回归与验收报告(2026-08-13,project-audit 内收尾)
+
+基线(本轮重跑,代码含 project-audit 全部修复):
+
+- 后端 `uv run pytest -q`:184 passed;`ruff check`/`format --check` 绿。
+- 集成 `pytest -m integration -q`:9/9(Postgres + FreeRADIUS,radtest/CoA sink)。
+- 前端 `bun run verify` 全绿;`bun run e2e`(mock)**33/33**;`bun run e2e:http`(真实栈)**42/42**,exit 0。
+- RBAC 越权矩阵:e2e:http 内三角色矩阵全过(前端隐藏 + 后端 403);审计日志必记事件清单对照 08 全落库。
+- 已知观察项(非缺陷,原样保留):401 守卫探测、AD 未配置时 503 前置拒绝不落审计。
+- P3 挂起项未变:style={{ 219 处、硬编码统计数字、部分三态、toast 语义色、面包屑重复——见 findings.md。
+
+DoD 1–5 对照:维度 1/2/3 全部闭环;基线命令全绿;三轮报告齐(摸底 findings.md → 修复 findings.md → 本 R3);缺陷闭环(修复或明确挂起)。

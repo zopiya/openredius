@@ -51,6 +51,8 @@ class Settings(BaseSettings):
     # Dev: "docker compose -f deploy/docker-compose.dev.yml restart freeradius"
     radius_reload_command: str = ""
     nas_online_window: int = 300
+    # Derived NAS status flips to high-load above this ratio (docs/02).
+    nas_high_load_ratio: float = 0.9
 
     ad_url: str = ""
     ad_bind_dn: str = ""

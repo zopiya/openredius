@@ -54,11 +54,14 @@ function mapUser(raw: any): UserRow {
   };
 }
 
+const STATUS_PARAM: Record<string, string> = { 正常: 'active', 停用: 'disabled', 锁定: 'locked' };
+
 async function httpFetch(filters?: Record<string, string>): Promise<UserRow[]> {
   const params = new URLSearchParams();
   if (filters) {
     for (const [k, v] of Object.entries(filters)) {
-      if (v && v !== '全部部门' && v !== '全部状态' && v !== '全部策略组') params.set(k, v);
+      if (!v || v === '全部部门' || v === '全部状态' || v === '全部策略组') continue;
+      params.set(k, k === 'status' ? (STATUS_PARAM[v] ?? v) : v);
     }
   }
   const qs = params.toString();
@@ -89,6 +92,53 @@ async function httpSyncAd(): Promise<AdSyncResult> {
 
 export async function fetchUsers(filters?: Record<string, string>): Promise<UserRow[]> {
   return MODE === 'http' ? httpFetch(filters) : mockFetch();
+}
+
+// ── 用户抽屉详情(docs/03 GET /api/users/{account}) ──
+export interface UserDetailData {
+  recentAuth: { time: string; nas: string; result: string }[];
+  endpoints: { mac: string; fp: string; comp: string }[];
+  policyRules: string[];
+}
+
+export async function fetchUserDetail(account: string): Promise<UserDetailData | null> {
+  if (MODE !== 'http') return null;
+  const body: any = await fetchApi(`/api/users/${encodeURIComponent(account)}`);
+  return {
+    recentAuth: (body.recent_auth ?? []).map((a: any) => ({
+      time: (a.time ?? '').replace('T', ' ').slice(0, 16),
+      nas: a.nas_ip ?? '',
+      result: a.reply === 'Access-Reject' ? '失败' : '成功',
+    })),
+    endpoints: (body.endpoints ?? []).map((e: any) => ({
+      mac: e.mac,
+      fp: e.fingerprint ?? '—',
+      comp: e.compliance === 'ok' ? '合规' : e.compliance === 'white' ? '白名单' : '不合规',
+    })),
+    policyRules: body.policy_rules ?? [],
+  };
+}
+
+// ── AD 同步记录(docs/03 GET /api/users/sync-records) ──
+export interface SyncRecordRow {
+  time: string;
+  status: '成功' | '失败' | '运行中';
+  detail: string;
+  error?: string;
+}
+
+export async function fetchSyncRecords(): Promise<{ total: number; items: SyncRecordRow[] }> {
+  if (MODE !== 'http') return { total: 0, items: [] };
+  const { items, total } = await fetchItems('/api/users/sync-records?size=10');
+  return {
+    total: total ?? items.length,
+    items: items.map((j: any) => ({
+      time: (j.started_at ?? '').replace('T', ' ').slice(0, 16),
+      status: j.status === 'success' ? '成功' : j.status === 'running' ? '运行中' : '失败',
+      detail: `新增 ${j.added ?? 0} / 更新 ${j.updated ?? 0} / 停用 ${j.disabled ?? 0}`,
+      error: j.error ?? undefined,
+    })),
+  };
 }
 
 export function updateUserStatus(accounts: string[], verb: '启用' | '停用'): Promise<{ updated: number }> {

@@ -31,15 +31,18 @@
 ## 认证机制
 
 - 管理员口令:argon2id;最小长度 10;登录失败 5 次/10 分钟锁定 30 分钟(与准入策略同参数)。
-- JWT:access 15 分钟(HS256,`OPENRADIUS_JWT_SECRET`),refresh 7 天,旋转式续期,
-  登出/改密后旧 refresh 作废(jti 黑名单,内存+DB)。
+- JWT:access 15 分钟(HS256,`OPENRADIUS_JWT_SECRET`),refresh 7 天,旋转式续期;
+  登出后 refresh 落 DB 作废表(`revoked_refresh_token`);改密则 bump `token_version`,
+  该账户全部旧 refresh 立即全量作废(比逐条 jti 黑名单更强)。
 - 初始管理员:首启由 `OPENRADIUS_BOOTSTRAP_ADMIN_*` 创建,日志一次性打印提示修改。
 - 登录页限流:同 IP 20 次/分钟(内存计数,单副本假设)。
 
 ## NAS Secret 管理
 
-- 存储:`radius.nas.secret`(FreeRADIUS 读取所需,无法避免),应用侧不再冗余加密存储;
-  DB 访问权限收紧(仅 openredius/radius 角色)。
+- 存储:`radius.nas.secret`(FreeRADIUS 读取所需,无法避免);应用侧 `nas_device.secret_enc`
+  保留一份**明文**副本(`_enc` 后缀为历史误称)——CoA/Disconnect 出向 UDP 3799 需要 NAS
+  密钥,且 SQLite dev 环境无 radius.nas 时必须由应用表提供;PostgreSQL 环境双写同步。
+  两份副本均为明文,DB 访问权限收紧(仅 openredius/radius 角色)。
 - API:`GET /api/devices/nas` 一律返回 `secret_masked`(前 4 后 4);
   `GET /api/devices/nas/{id}/secret` 返回明文,**必须**写 audit_log(action=`secret.reveal`)。
 - 修改 secret = 更新 nas 表 + 触发 reload + 审计;日志与响应体中永不回显明文。
@@ -49,6 +52,7 @@
 必记事件:登录(成功/失败)、强制下线、用户启停/策略分配、策略 CRUD、设备 CRUD、
 Secret 查看/修改、设置变更、AD 同步触发、管理员账户变更、radius reload。
 字段:actor、action(点分动词)、target_type/target_id、detail_json(变更前后摘要)、ip、时间。
+`audit.enabled` 为审计总开关(设置页),显式关闭后 `record_audit` 不落库。
 保留:≥180 天;auditor/admin 可查;不提供删除 API(M7 提供归档导出)。
 
 ## 网络暴露面

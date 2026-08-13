@@ -6,7 +6,7 @@
  *
  * disconnect:POST /api/sessions/disconnect
  */
-import type { SessionRow } from '../types';
+import type { SessionRow } from '../../data/sessions';
 import {
   SESSION_FILTER_OPTIONS,
   SESSION_ROWS,
@@ -17,10 +17,19 @@ import { downloadFile, fetchApi, fetchItems } from '../http';
 export { SESSION_FILTER_OPTIONS, SESSION_ROWS };
 export type { SessionRow };
 
-/** 导出会话 CSV(http 模式触发下载)。 */
-export async function exportSessionsCsv(): Promise<void> {
+export async function exportSessionsCsv(filters?: Record<string, string>): Promise<void> {
   if (MODE !== 'http') throw new Error('mock 模式不支持导出');
-  await downloadFile('/api/sessions/export.csv', 'sessions.csv');
+  const params = new URLSearchParams();
+  if (filters) {
+    for (const [k, v] of Object.entries(filters)) {
+      if (!v || v === '全部' || v === '全部部门' || v === '全部设备') continue;
+      if (k === 'method') params.set(k, _methodParam(v));
+      else if (k === 'vlan') params.set(k, v.split(' ')[0] ?? v);
+      else params.set(k, v);
+    }
+  }
+  const qs = params.toString();
+  await downloadFile(`/api/sessions/export.csv${qs ? '?' + qs : ''}`, 'sessions.csv');
 }
 
 // ── mock impl ────────────────────────────────────
@@ -70,11 +79,20 @@ function mapSession(raw: any): SessionRow {
   };
 }
 
+function _methodParam(label: string): string {
+  if (label.includes('有线')) return '有线';
+  if (label.toLowerCase().includes('wifi')) return 'WiFi';
+  return label;
+}
+
 async function httpFetch(filters?: Record<string, string>): Promise<SessionRow[]> {
   const params = new URLSearchParams();
   if (filters) {
     for (const [k, v] of Object.entries(filters)) {
-      if (v && v !== '全部' && v !== '全部部门' && v !== '全部设备') params.set(k, v);
+      if (!v || v === '全部' || v === '全部部门' || v === '全部设备') continue;
+      if (k === 'method') params.set(k, _methodParam(v));
+      else if (k === 'vlan') params.set(k, v.split(' ')[0] ?? v);
+      else params.set(k, v);
     }
   }
   const qs = params.toString();

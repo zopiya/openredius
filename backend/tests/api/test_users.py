@@ -151,3 +151,25 @@ async def test_user_detail_recent_auth(client: AsyncClient, domain, admin_header
     assert len(recent) == 2
     assert recent[0]["reason"] == "密码错误"  # newest: the reject
     assert recent[1]["reason"] is None
+
+
+async def test_list_users_includes_last_auth(client, domain, admin_headers):
+    """docs/02:UserRow.lastAuth = 最近 radpostauth。"""
+    from tests.radius_helpers import create_radius_tables, insert_postauth
+
+    await create_radius_tables()
+    await insert_postauth(username="wang.lei", reply="Access-Accept", minutes_ago=5)
+
+    resp = await client.get("/api/users?q=wang.lei", headers=admin_headers)
+    assert resp.status_code == 200
+    items = resp.json()["items"]
+    assert len(items) == 1
+    assert items[0]["last_auth"] is not None
+
+
+async def test_list_users_last_auth_none_without_radius(client, domain, admin_headers):
+    resp = await client.get("/api/users?q=wang.lei", headers=admin_headers)
+    assert resp.status_code == 200
+    items = resp.json()["items"]
+    assert len(items) == 1
+    assert items[0]["last_auth"] is None

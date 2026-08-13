@@ -177,3 +177,26 @@ async def test_admin_endpoints_admin_only(client, domain):
         )
     ).status_code == 403
     assert (await client.get("/api/settings", headers=headers)).status_code == 403
+
+
+async def test_audit_master_switch_stops_writes(client, admin_headers):
+    """docs/08:audit.enabled=false 时 record_audit 不落库。"""
+    body = {
+        "radius_auth_port": 1812,
+        "radius_acct_port": 1813,
+        "coa_port": 3799,
+        "alerts_enabled": True,
+        "audit_enabled": False,
+    }
+    resp = await client.put("/api/settings", json=body, headers=admin_headers)
+    assert resp.status_code == 200
+
+    resp = await client.post(
+        "/api/devices/endpoints/import",
+        json={"macs": ["AA:BB:CC:DD:EE:AA"]},
+        headers=admin_headers,
+    )
+    assert resp.status_code == 200
+    resp = await client.get("/api/audit?action=endpoint.import", headers=admin_headers)
+    assert resp.status_code == 200
+    assert resp.json()["total"] == 0

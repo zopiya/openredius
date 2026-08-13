@@ -301,7 +301,12 @@ async def nas_activity(db: AsyncSession) -> dict[str, NasActivity]:
     }
 
 
-def nas_status(activity: NasActivity | None, window_s: int, capacity: int | None) -> str:
+def nas_status(
+    activity: NasActivity | None,
+    window_s: int,
+    capacity: int | None,
+    high_load_ratio: float = 0.9,
+) -> str:
     """online / offline / high-load (docs/02 派生规则)."""
     if activity is None or activity.last_seen is None:
         return "offline"
@@ -309,7 +314,7 @@ def nas_status(activity: NasActivity | None, window_s: int, capacity: int | None
     seen = activity.last_seen
     if seen < now - timedelta(seconds=window_s):
         return "offline"
-    if capacity and capacity > 0 and activity.active_sessions / capacity >= 0.9:
+    if capacity and capacity > 0 and activity.active_sessions / capacity >= high_load_ratio:
         return "high-load"
     return "online"
 

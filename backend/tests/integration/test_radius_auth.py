@@ -130,7 +130,7 @@ async def test_time_window_rejects(client: AsyncClient, admin_headers) -> None:
     win_to = (now - timedelta(hours=2)).strftime("%H:%M:%S")
 
     listing = await client.get("/api/policies", headers=admin_headers)
-    rd = next(p for p in listing.json() if p["slug"] == "rd")
+    rd = next(p for p in listing.json()["items"] if p["slug"] == "rd")
     original = {
         k: rd[k]
         for k in (

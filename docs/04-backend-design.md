@@ -15,19 +15,21 @@ backend/
 ├── src/openredius/
 │   ├── __init__.py
 │   ├── main.py               # app 工厂 + uvicorn 入口
-│   ├── core/                 # config(pydantic-settings)/logging/security(jwt,hash)/deps/db
+│   ├── core/                 # config(pydantic-settings)/logging/security(jwt,hash)/deps/db/errors/listing/mac/ntlm/ratelimit
 │   ├── models/               # SQLAlchemy 2.0 typed ORM(public.*)
 │   ├── radius/               # radius schema 表映射 + 查询构建器
 │   │   ├── tables.py         # radacct/radpostauth/radcheck/… 映射(schema="radius")
 │   │   ├── compiler.py       # 策略编译器(见下)
-│   │   └── coa.py            # pyrad Disconnect/CoA 客户端封装
+│   │   ├── coa.py            # pyrad Disconnect/CoA 客户端封装
+│   │   └── nas_sync.py       # NAS 设备 → radius.nas 同步(含 radius.dict 生成)
 │   ├── schemas/              # Pydantic DTO(与 03 契约一致)
-│   ├── api/                  # 路由:auth/dashboard/sessions/logs/users/policies/devices/reports/settings/audit/ops
-│   ├── services/             # session/log/report/alert/lockout/nas/endpoint 服务
+│   ├── api/                  # 路由:auth/admins/dashboard/sessions/auth_logs/users/policies/devices/reports/settings/audit/ops/portal(占位,见 12)
+│   ├── services/             # alerts/audit/auth/authlogs/bootstrap/compiler/dashboard/history/reason/report_export/reports/sessions
 │   ├── ldap_sync/            # ldap3 同步器(fixture 驱动,可脱离 AD 单测)
-│   └── jobs/                 # APScheduler 装配与任务实现
+│   └── jobs/                 # APScheduler 装配(任务实现在 services/alerts.py、ldap_sync/sync.py)
 ├── scripts/
 │   ├── seed_demo.py          # 复刻原型数据集
+│   ├── generate_history.py   # 生成历史 radpostauth/radacct 演示数据(报表基线)
 │   └── create_admin.py
 └── tests/
     ├── unit/  api/  integration/   # 见 09
@@ -50,6 +52,8 @@ backend/
 | apscheduler | 3.x | 定时任务 |
 | argon2-cffi | 最新稳定 | 管理员口令哈希 |
 | PyJWT | 最新稳定 | JWT |
+| openpyxl | 最新稳定 | 报表 XLSX 导出 |
+| reportlab | 最新稳定 | 报表 PDF 导出 |
 | httpx | 0.28.x | 测试客户端 / 出向 |
 | pytest / pytest-asyncio / ruff | 最新稳定 | 测试与风格 |
 
@@ -69,6 +73,7 @@ backend/
 | `OPENRADIUS_ALERTS_DEDUP_WINDOW_S` | 600 | 同 (rule_key, 主体) 告警去重窗口 |
 | `OPENRADIUS_ALERTS_RETENTION_DAYS` | 90 | 已读告警保留天数(alert_gc) |
 | `OPENRADIUS_NAS_ONLINE_WINDOW` | 300s | NAS 在线判定窗口 |
+| `OPENRADIUS_NAS_HIGH_LOAD_RATIO` | 0.9 | NAS 高负载判定比例(活跃会话/capacity);告警阈值另由 alert_rules 的 load_pct 覆盖 |
 | `OPENRADIUS_AD_URL/_BIND_DN/_BIND_PW/_BASE_DN/_FILTER` | 空=禁用 AD | ldap://… |
 | `OPENRADIUS_AD_SYNC_CRON` | `*/15 * * * *` | |
 | `OPENRADIUS_LOCKOUT_MAX_FAILS/_WINDOW/_DURATION` | 5 / 600s / 1800s | 与原型文案一致 |
@@ -92,7 +97,7 @@ backend/
 | 用户分配 | `radusergroup(username, groupname=policy_<slug>, priority)` |
 | 用户停用/锁定 | `radcheck`: `Auth-Type := Reject` |
 
-规则:编译幂等,以 `(groupname, attribute)` 为键做 diff;每次编译写 audit_log。
+规则:编译幂等,以 `(groupname, attribute, op, value)` 为键做 diff;每次编译写 audit_log。
 
 ## CoA 客户端(radius/coa.py)
 
@@ -101,7 +106,8 @@ backend/
 - 同步 IO → `anyio.to_thread` 包装;批量并发上限 8;超时/重试 1 次。
 - 结果:ACK→成功;NAK→失败(记 Error-Cause);超时→`timeout`。
 - 成功后 10s 内轮询 radacct 确认 stop;未 stop 则兜底写
-  `acctstoptime=now(), acctterminatecause='Admin-Reset'`(class 标记 backend-closed)。
+  `acctstoptime=now(), acctterminatecause='Admin-Reset'`(connectinfo_stop 标记 backend-closed;
+  class 列保持不动以免破坏认证时的 reason 标记)。
 
 ## 定时任务(jobs/)
 

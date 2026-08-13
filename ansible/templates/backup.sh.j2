@@ -1,25 +1,10 @@
 #!/bin/bash
-# OpenRedius 容器化 PostgreSQL 备份(由 Ansible 渲染)
-# 经 docker compose exec 从 postgres 容器内 pg_dump(5432 不对外)。
+# OpenRedius 备份(Ansible 渲染的薄封装)。
+# 不维护第二份备份逻辑:统一调用 deploy/scripts/backup.sh 正典(见 ansible/DESIGN.md)。
 set -euo pipefail
 
-BACKUP_DIR="{{ openredius_deploy_root }}/backups"
-RETENTION="{{ openredius_backup_retention }}"
-COMPOSE_FILE="{{ openredius_deploy_root }}/docker-compose.yml"
-DB_NAME="openredius"
-DB_USER="postgres"
-
-mkdir -p "$BACKUP_DIR"
-TS="$(date +%Y%m%d-%H%M%S)"
-OUT="${BACKUP_DIR}/${DB_NAME}-${TS}.dump.gz"
-
-echo "[backup] dumping ${DB_NAME} -> ${OUT} ..."
-docker compose -f "$COMPOSE_FILE" exec -T postgres \
-    pg_dump -U "$DB_USER" -d "$DB_NAME" -Fc --no-owner --no-acl | gzip > "$OUT"
-
-SIZE="$(du -h "$OUT" | cut -f1)"
-echo "[backup] done — ${DB_NAME}-${TS}.dump.gz (${SIZE})"
-
-# 轮转:仅保留最近 RETENTION 份
-ls -1t "${BACKUP_DIR}"/*.dump.gz 2>/dev/null | tail -n +$((RETENTION + 1)) | xargs -r rm -f
-echo "[backup] retention: keep last ${RETENTION}"
+BACKUP_DIR="{{ openredius_deploy_root }}/backups" \
+RETENTION="{{ openredius_backup_retention }}" \
+BACKUP_METHOD=compose \
+COMPOSE_FILE="{{ openredius_deploy_root }}/docker-compose.yml" \
+  bash "{{ openredius_deploy_root }}/deploy/scripts/backup.sh"

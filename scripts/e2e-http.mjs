@@ -4,7 +4,7 @@
  * 覆盖:
  *  1. UI 登录（成功 / 失败提示）
  *  2. 三角色菜单过滤（admin 8 / operator 5 / auditor 4）
- *  3. 8 页冒烟（真实数据渲染, 无白屏无 Console 错误）
+ *  3. 9 页冒烟（真实数据渲染, 无白屏无 Console 错误）
  *  4. 写操作 + 数据面复查（停用/启用 → 状态翻转; 策略新建/删除; Secret 查看 → audit_log）
  *  5. RBAC 越权矩阵（API 层, 三角色 × 关键端点 → 200/403 契约）
  *
@@ -86,7 +86,13 @@ async function main() {
   const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
   const page = await ctx.newPage();
   const consoleErrors = [];
-  page.on('console', (m) => { if (m.type() === 'error') consoleErrors.push(m.text()); });
+  // 401 资源加载错误是未登录访问受保护 API 的预期守卫行为(见 .pi/work/e2e-full-audit/findings.md),不计入失败。
+  const BENIGN_CONSOLE = ['Failed to load resource: the server responded with a status of 401'];
+  page.on('console', (m) => {
+    if (m.type() !== 'error') return;
+    if (BENIGN_CONSOLE.some((b) => m.text().includes(b))) return;
+    consoleErrors.push(m.text());
+  });
   const pageErrors = [];
   page.on('pageerror', (e) => pageErrors.push(e.message));
 
@@ -126,7 +132,7 @@ async function main() {
     }
   }
 
-  // ═══ 3. 8 页冒烟(admin, 真实数据) ═══
+  // ═══ 3. 9 页冒烟(admin, 真实数据) ═══
   console.log('\n═══ 3. 页面冒烟(admin, 真实数据) ═══');
   await injectAuth(page, 'admin');
   const SMOKE = [
@@ -138,6 +144,7 @@ async function main() {
     ['/devices', '[data-od-id="device-tabs"]', '设备管理'],
     ['/reports', '[data-od-id="fail-dist"]', '报表统计'],
     ['/settings', '.ant-anchor', '系统设置'],
+    ['/audit', '[data-od-id="audit-table"]', '审计日志'],
   ];
   for (const [path, probe, name] of SMOKE) {
     const before = consoleErrors.length + pageErrors.length;
@@ -162,7 +169,7 @@ async function main() {
     if (!target?.account) throw new Error('无 active 用户');
     const acc = target.account;
     const disable = await apiCall('admin', 'POST', '/api/users/status', { accounts: [acc], action: 'disable' });
-    const afterDisable = (await apiCall('admin', 'GET', `/api/users?account=${acc}`)).body ?? [];
+    const afterDisable = (await apiCall('admin', 'GET', `/api/users?q=${acc}`)).body ?? [];
     const afterList = Array.isArray(afterDisable) ? afterDisable : (afterDisable.items ?? []);
     const reenable = await apiCall('admin', 'POST', '/api/users/status', { accounts: [acc], action: 'enable' });
     log(
@@ -171,11 +178,14 @@ async function main() {
     );
   } catch (e) { log(false, `用户停用/启用 — ${String(e.message).split('\n')[0]}`); }
 
-  // 4.2 策略新建/删除（复用现有 vlan_id=1）
+  // 4.2 策略新建/删除(复用既有策略的 vlan_id,新库自增 id 不固定)
   let newPolicyId = null;
   try {
+    const policyList = (await apiCall('admin', 'GET', '/api/policies')).body?.items ?? [];
+    const vlanId = policyList[0]?.vlan_id;
+    if (vlanId == null) throw new Error('策略列表为空,无法取得 vlan_id');
     const create = await apiCall('admin', 'POST', '/api/policies', {
-      name: 'e2e-test-policy', slug: 'e2e-test-policy', vlan_id: 1,
+      name: 'e2e-test-policy', slug: 'e2e-test-policy', vlan_id: vlanId,
       description: 'e2e 临时策略', priority: 999, enabled: false,
     });
     newPolicyId = create.body?.id;

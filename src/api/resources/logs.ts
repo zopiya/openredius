@@ -12,10 +12,26 @@ import { downloadFile, fetchItems } from '../http';
 export { LOG_FILTER_OPTIONS };
 export type { LogRow };
 
-/** 导出认证日志 CSV(http 模式触发下载)。 */
-export async function exportAuthLogsCsv(): Promise<void> {
+const RESULT_PARAM: Record<string, string> = { 成功: 'accept', 失败: 'reject' };
+
+function logQueryParams(filters?: Record<string, string>): string {
+  const params = new URLSearchParams();
+  if (!filters) return '';
+  for (const [k, v] of Object.entries(filters)) {
+    if (k === 'result') {
+      if (v && v !== '全部') params.set(k, RESULT_PARAM[v] ?? v);
+    } else if (v && v !== '全部' && v !== '全部原因' && v !== '全部设备' && v !== '全部用户' && v !== '全部EAP') {
+      params.set(k, v);
+    }
+  }
+  const qs = params.toString();
+  return qs ? '?' + qs : '';
+}
+
+/** 导出认证日志 CSV(http 模式触发下载,与查询同筛选参数)。 */
+export async function exportAuthLogsCsv(filters?: Record<string, string>): Promise<void> {
   if (MODE !== 'http') throw new Error('mock 模式不支持导出');
-  await downloadFile('/api/auth-logs/export.csv', 'auth-logs.csv');
+  await downloadFile(`/api/auth-logs/export.csv${logQueryParams(filters)}`, 'auth-logs.csv');
 }
 
 async function mockFetch(): Promise<LogRow[]> {
@@ -26,6 +42,7 @@ function mapLog(raw: any): LogRow {
   const reply = raw.reply ?? '';
   const tone = raw.rtag_tone;
   return {
+    id: raw.id != null ? String(raw.id) : undefined,
     time: raw.time ?? '',
     user: raw.user ?? '',
     name: raw.name ?? '',
@@ -43,16 +60,7 @@ function mapLog(raw: any): LogRow {
 }
 
 async function httpFetch(filters?: Record<string, string>): Promise<LogRow[]> {
-  const params = new URLSearchParams();
-  if (filters) {
-    for (const [k, v] of Object.entries(filters)) {
-      if (v && v !== '全部' && v !== '全部结果' && v !== '全部设备' && v !== '全部用户' && v !== '全部原因' && v !== '全部EAP') {
-        params.set(k, v);
-      }
-    }
-  }
-  const qs = params.toString();
-  const { items } = await fetchItems(`/api/auth-logs${qs ? '?' + qs : ''}`);
+  const { items } = await fetchItems(`/api/auth-logs${logQueryParams(filters)}`);
   return items.map(mapLog);
 }
 

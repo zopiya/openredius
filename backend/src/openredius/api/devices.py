@@ -127,7 +127,9 @@ async def list_nas(
     items: list[NasOut] = []
     for device in devices:
         act = activity.get(device.nasname)
-        st = sessions.nas_status(act, settings.nas_online_window, device.capacity)
+        st = sessions.nas_status(
+            act, settings.nas_online_window, device.capacity, settings.nas_high_load_ratio
+        )
         if status is not None and st != status:
             continue
         load_pct = (
@@ -305,6 +307,7 @@ async def _endpoint_out(db: AsyncSession, endpoint: Endpoint) -> EndpointOut:
         etype=endpoint.etype,
         compliance=endpoint.compliance,
         comp_detail=endpoint.comp_detail,
+        cert_serial=endpoint.cert_serial,
         cert_not_after=endpoint.cert_not_after,
         first_seen_at=endpoint.first_seen_at,
         whitelisted=endpoint.whitelisted,
@@ -423,13 +426,15 @@ async def import_endpoints(
         db.add(Endpoint(mac=mac, first_seen_at=datetime.now(UTC)))
         existing.add(mac)
         added += 1
-    await audit.record_audit(
-        db,
-        actor=admin.username,
-        action="endpoint.import",
-        target_type="endpoint",
-        detail={"submitted": len(body.macs), "added": added},
-    )
+        # docs/02「命名与约定」:批量操作逐条写 audit_log。
+        await audit.record_audit(
+            db,
+            actor=admin.username,
+            action="endpoint.import",
+            target_type="endpoint",
+            target_id=mac,
+            detail={"batch": "import"},
+        )
     await db.commit()
     return Affected(affected=added)
 

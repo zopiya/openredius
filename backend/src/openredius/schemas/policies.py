@@ -50,5 +50,11 @@ class PolicyOut(PolicyBase):
     updated_at: datetime
 
 
+class PolicyDetail(PolicyOut):
+    """docs/03「策略管理」:详情含编译后的 FreeRADIUS 属性清单。"""
+
+    compiled_rules: list[str] = []
+
+
 class PolicyReorder(BaseModel):
     order: list[int] = Field(min_length=1)

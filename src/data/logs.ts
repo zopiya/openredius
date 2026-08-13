@@ -1,4 +1,5 @@
 export interface LogRow {
+  id?: string;
   time: string;
   user: string;
   name: string;

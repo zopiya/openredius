@@ -39,7 +39,7 @@ Docker → `docker compose up` → 手配防火墙 → 手配备份 cron)收敛�
 | freeradius 镜像 | `deploy/freeradius/`(Dockerfile+raddb+entrypoint) | pull 策略时仅同步运行时资产(raddb/entrypoint/certs) |
 | postgres 初始化 | `deploy/postgres/init/`(schema.sql + 01-init.sh) | 同步到目标机挂载 |
 | nginx 配置 | `deploy/nginx/nginx.conf` + `generate-certs.sh` | 同步到目标机挂载 |
-| 备份/恢复 | `deploy/scripts/backup.sh` / `restore.sh` | 由 Ansible 封装成 playbook + cron(不直接复用 shell) |
+| 备份/恢复 | `deploy/scripts/backup.sh` / `restore.sh` | 由 Ansible 渲染薄封装模板调用正典脚本(`backup.sh.j2`/`restore.sh.j2` 只注入路径/保留份数等变量,不再维护第二份逻辑) |
 
 关键约束:**Ansible 只读引用 `deploy/`、`backend/` 下的现有文件,不修改它们**。
 需要变化的部分(镜像 tag、端口、build/pull 开关)全部通过 `ansible/templates/`

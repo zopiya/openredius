@@ -94,16 +94,38 @@ export default function AuthLogs() {
     setForm(next);
     setApplied(next);
     if (needAdv) setAdvOpen(true);
+    if (MODE === 'http') {
+      setView('loading');
+      fetchAuthLogs({ user: next.user, result: next.result, reason: next.reason, nas: next.nas, eap: next.eap })
+        .then((data) => { setRows(data); setView('ready'); })
+        .catch(() => setView('error'));
+    }
     setPrefillNote('  · 已按链接预填筛选:' + notes.join(' / '));
     toast('已按链接预填筛选条件');
   }, []);
 
-  const visible = useMemo(() => rows.filter((r) => matches(r, applied)), [rows, applied]);
+  const visible = useMemo(
+    () => (MODE === 'http' ? rows : rows.filter((r) => matches(r, applied))),
+    [rows, applied],
+  );
+
+  function applyFilters() {
+    setApplied(form);
+    if (MODE !== 'http') return;
+    setView('loading');
+    fetchAuthLogs({ user: form.user, result: form.result, reason: form.reason, nas: form.nas, eap: form.eap })
+      .then((data) => { setRows(data); setView('ready'); })
+      .catch(() => setView('error'));
+  }
 
   function resetFilters(silent = false) {
     setTimeRange('今日(00:00 至今)');
     setForm(DEFAULT_FILTERS);
     setApplied(DEFAULT_FILTERS);
+    if (MODE === 'http') {
+      setView('loading');
+      fetchAuthLogs().then((data) => { setRows(data); setView('ready'); }).catch(() => setView('error'));
+    }
     if (!silent) toast('已清空筛选条件');
   }
 
@@ -213,7 +235,7 @@ export default function AuthLogs() {
             <Link to="/reports" data-od-id="fail-aggregate" style={{ fontSize: 13 }}>失败原因聚合分析 →</Link>
             <Button type="primary" data-od-id="export-btn" onClick={() => {
               if (MODE !== 'http') { toast('已导出 auth-logs.csv(mock 占位)'); return; }
-              exportAuthLogsCsv().then(() => toast('已导出认证日志 CSV')).catch((e) => toast(`导出失败:${e instanceof Error ? e.message : String(e)}`));
+              exportAuthLogsCsv({ user: applied.user, result: applied.result, reason: applied.reason, nas: applied.nas, eap: applied.eap }).then(() => toast('已导出认证日志 CSV')).catch((e) => toast(`导出失败:${e instanceof Error ? e.message : String(e)}`));
             }}>
               导出日志
             </Button>
@@ -273,7 +295,7 @@ export default function AuthLogs() {
             />
           </FilterField>
           <Space>
-            <Button type="primary" size="small" onClick={() => setApplied(form)}>筛选</Button>
+            <Button type="primary" size="small" onClick={applyFilters}>筛选</Button>
             <Button size="small" onClick={() => resetFilters()}>重置</Button>
           </Space>
         </TableToolbar>
@@ -328,7 +350,7 @@ export default function AuthLogs() {
         {view === 'ready' && visible.length > 0 && (
           <Table
            
-            rowKey={(r) => r.time + r.user}
+            rowKey={(r) => r.id ?? `${r.time}|${r.user}|${r.mac}`}
             dataSource={visible}
             columns={columns}
             data-od-id="log-table"

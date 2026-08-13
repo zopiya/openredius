@@ -7,12 +7,23 @@ import { useToast } from '../components/Toast';
 import { getAdmin } from '../api/auth';
 import { fetchApi } from '../api/http';
 import { MODE } from '../api/config';
-import { fetchSettings, saveSettings, type SettingsSnapshot } from '../api/resources/settings';
+import { fetchAlertRules, fetchSettings, saveAlertRules, saveSettings, type AlertRuleRow, type SettingsSnapshot } from '../api/resources/settings';
 
 const { Text } = Typography;
 
 const ROLE_LABELS: Record<string, string> = { admin: '管理员', operator: '运维', auditor: '审计' };
 const ROLE_SCOPES: Record<string, string> = { admin: '全部功能 + 系统设置 + Shared Secret 查看', operator: '读全部 + 强制下线 + 用户启停策略分配 + AD 同步', auditor: '仪表盘 / 会话 / 日志 / 报表,仅查看与导出' };
+const ALERT_RULE_LABELS: Record<string, string> = {
+  nas_offline: '设备离线告警',
+  ap_high_load: '设备高负载告警',
+  cert_expiring: '证书临期告警',
+  account_locked: '账号锁定告警',
+};
+
+function ruleThresholdText(t: Record<string, unknown>): string {
+  const entries = Object.entries(t ?? {});
+  return entries.length ? entries.map(([k, v]) => `${k}=${v}`).join(', ') : '默认阈值';
+}
 
 interface AdminRow { id: number; username: string; display_name: string; role: string; status: string; linked_account?: string | null; created_at: string; }
 
@@ -35,10 +46,22 @@ export default function Settings() {
   const [authErr, setAuthErr] = useState('');
   const [acctErr, setAcctErr] = useState('');
   const [rules, setRules] = useState<AlertRule[]>(INITIAL_RULES);
+  const [backendRules, setBackendRules] = useState<AlertRuleRow[]>([]);
+  const [alertsMaster, setAlertsMaster] = useState(true);
+  const [auditMaster, setAuditMaster] = useState(true);
   const [coreModal, setCoreModal] = useState(false);
   const [cfg, setCfg] = useState<SettingsSnapshot | null>(null);
 
-  useEffect(() => { fetchSettings().then((cfg) => { setAuthPort(String(cfg.radius_auth_port)); setAcctPort(String(cfg.radius_acct_port)); setCfg(cfg); }).catch(() => {}); }, []);
+  useEffect(() => {
+    fetchSettings().then((c) => {
+      setAuthPort(String(c.radius_auth_port));
+      setAcctPort(String(c.radius_acct_port));
+      setCfg(c);
+      setAlertsMaster(c.alerts_enabled);
+      setAuditMaster(c.audit_enabled);
+    }).catch(() => {});
+    if (MODE === 'http') fetchAlertRules().then((r) => setBackendRules(r)).catch(() => {});
+  }, []);
 
   async function doSave(confirm: boolean) {
     if (!cfg) return;
@@ -69,6 +92,46 @@ export default function Settings() {
   function confirmCore() { origPorts.current = { auth: authPort, acct: acctPort }; setCoreModal(false); doSave(true); }
   function toggleRule(key: string, on: boolean) { setRules((prev) => prev.map((r) => (r.key === key ? { ...r, on } : r))); }
   function toggleSub(key: string, idx: number, checked: boolean) { setRules((prev) => prev.map((r) => { if (r.key !== key) return r; const subs = r.subs.map((s, i) => { if (s.radio) return { ...s, checked: i === idx }; return i === idx ? { ...s, checked } : s; }); return { ...r, subs }; })); }
+
+  function persistMaster(key: 'alerts_enabled' | 'audit_enabled', on: boolean) {
+    if (cfg && MODE === 'http') {
+      const next = { ...cfg, [key]: on };
+      saveSettings({
+        radius_auth_port: next.radius_auth_port,
+        radius_acct_port: next.radius_acct_port,
+        coa_port: next.coa_port,
+        alerts_enabled: next.alerts_enabled,
+        audit_enabled: next.audit_enabled,
+        confirm: false,
+      }).then(() => setCfg(next)).catch((e) => toast(`保存失败:${e instanceof Error ? e.message : String(e)}`));
+    }
+  }
+
+  function toggleAlertsMaster(on: boolean) {
+    setAlertsMaster(on);
+    persistMaster('alerts_enabled', on);
+    toast(on ? '告警已启用' : '告警总开关已关闭,所有告警规则静默');
+  }
+
+  function toggleAuditMaster(on: boolean) {
+    setAuditMaster(on);
+    persistMaster('audit_enabled', on);
+    toast(on ? '审计日志已启用' : '审计总开关已关闭,后续写操作不再落审计');
+  }
+
+  function toggleBackendRule(key: string, on: boolean) {
+    setBackendRules((prev) => prev.map((r) => (r.key === key ? { ...r, enabled: on } : r)));
+  }
+
+  function saveAlertCard() {
+    if (MODE === 'http') {
+      saveAlertRules(backendRules)
+        .then(() => toast('「告警规则」已保存并记录审计日志'))
+        .catch((e) => toast(`保存失败:${e instanceof Error ? e.message : String(e)}`));
+    } else {
+      toast('「告警通知配置」已保存');
+    }
+  }
 
   const anchorItems = [
     { key: 'set-radius', href: '#set-radius', title: 'RADIUS 参数' },
@@ -219,20 +282,34 @@ export default function Settings() {
           <AdminSection />
 
           {/* 告警 */}
-          <Card id="set-alert" data-od-id="set-alert" title="告警通知配置" extra={<Button type="primary" size="small" onClick={() => toast('「告警通知配置」已保存')}>保存</Button>}>
-            {rules.map((rule) => (
-              <div key={rule.key} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 0', borderTop: rule.key !== 'mail' ? `1px solid ${token.colorBorderSecondary}` : 'none', opacity: rule.on ? 1 : 0.55 }}>
-                <Switch checked={rule.on} aria-label={rule.name + '通知'} onChange={(on) => toggleRule(rule.key, on)} />
-                <div style={{ flex: 1 }}><b>{rule.name}</b><Typography.Text type="secondary" style={{ display: 'block', fontSize: 12 }}>{rule.sub}</Typography.Text></div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, color: token.colorTextSecondary }}>
-                  {rule.subs.map((s, i) => s.radio ? (
-                    <Radio key={s.label} checked={s.checked} disabled={!rule.on} onChange={() => toggleSub(rule.key, i, true)}>{s.label}</Radio>
-                  ) : (
-                    <Checkbox key={s.label} checked={s.checked} disabled={!rule.on} onChange={(e) => toggleSub(rule.key, i, e.target.checked)}>{s.label}</Checkbox>
-                  ))}
+          <Card id="set-alert" data-od-id="set-alert" title="告警通知配置" extra={<Button type="primary" size="small" onClick={saveAlertCard}>保存</Button>}>
+            <div style={{ display: 'flex', gap: 28, paddingBottom: 10, borderBottom: `1px solid ${token.colorBorderSecondary}`, marginBottom: 4 }}>
+              <Space><Switch checked={alertsMaster} aria-label="告警总开关" onChange={toggleAlertsMaster} /><b>告警总开关</b></Space>
+              <Space><Switch checked={auditMaster} aria-label="审计总开关" onChange={toggleAuditMaster} /><b>审计总开关</b></Space>
+              <Typography.Text type="secondary" style={{ fontSize: 12 }}>关闭总开关后,对应能力全局静默(后端读取 system_setting,见 08)</Typography.Text>
+            </div>
+            {MODE === 'http' ? (
+              backendRules.map((rule) => (
+                <div key={rule.key} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 0', borderTop: rule.key !== backendRules[0]?.key ? `1px solid ${token.colorBorderSecondary}` : 'none', opacity: alertsMaster && rule.enabled ? 1 : 0.55 }}>
+                  <Switch checked={rule.enabled} disabled={!alertsMaster} aria-label={rule.key} onChange={(on) => toggleBackendRule(rule.key, on)} />
+                  <div style={{ flex: 1 }}><b>{ALERT_RULE_LABELS[rule.key] ?? rule.key}</b><Typography.Text type="secondary" style={{ display: 'block', fontSize: 12 }}>{ruleThresholdText(rule.threshold)}</Typography.Text></div>
                 </div>
-              </div>
-            ))}
+              ))
+            ) : (
+              rules.map((rule) => (
+                <div key={rule.key} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 0', borderTop: rule.key !== 'mail' ? `1px solid ${token.colorBorderSecondary}` : 'none', opacity: alertsMaster && rule.on ? 1 : 0.55 }}>
+                  <Switch checked={rule.on} disabled={!alertsMaster} aria-label={rule.name + '通知'} onChange={(on) => toggleRule(rule.key, on)} />
+                  <div style={{ flex: 1 }}><b>{rule.name}</b><Typography.Text type="secondary" style={{ display: 'block', fontSize: 12 }}>{rule.sub}</Typography.Text></div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, color: token.colorTextSecondary }}>
+                    {rule.subs.map((s, i) => s.radio ? (
+                      <Radio key={s.label} checked={s.checked} disabled={!rule.on} onChange={() => toggleSub(rule.key, i, true)}>{s.label}</Radio>
+                    ) : (
+                      <Checkbox key={s.label} checked={s.checked} disabled={!rule.on} onChange={(e) => toggleSub(rule.key, i, e.target.checked)}>{s.label}</Checkbox>
+                    ))}
+                  </div>
+                </div>
+              ))
+            )}
           </Card>
         </div>
       </div>

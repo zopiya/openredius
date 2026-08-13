@@ -24,7 +24,7 @@ _POLICY = {
 async def test_list_ordered_by_priority_desc(client, domain, admin_headers):
     resp = await client.get("/api/policies", headers=admin_headers)
     assert resp.status_code == 200
-    slugs = [p["slug"] for p in resp.json()]
+    slugs = [p["slug"] for p in resp.json()["items"]]
     assert slugs == ["rd", "staff"]
 
 
@@ -87,7 +87,7 @@ async def test_reorder(client, domain, admin_headers):
         headers=admin_headers,
     )
     assert resp.status_code == 200
-    assert [(p["slug"], p["priority"]) for p in resp.json()] == [("staff", 2), ("rd", 1)]
+    assert [(p["slug"], p["priority"]) for p in resp.json()["items"]] == [("staff", 2), ("rd", 1)]
 
 
 async def test_reorder_requires_full_set(client, domain, admin_headers):
@@ -132,3 +132,17 @@ async def test_policy_slug_validation(client, domain, admin_headers):
     payload = dict(_POLICY, vlan_id=domain["vlan10"], slug="Not Valid!")
     resp = await client.post("/api/policies", json=payload, headers=admin_headers)
     assert resp.status_code == 422
+
+
+async def test_policy_detail_includes_compiled_rules(client, domain, admin_headers):
+    """docs/03「策略管理」:详情含编译后的 FreeRADIUS 属性清单。"""
+    policy_id = domain["staff"]
+    resp = await client.get(f"/api/policies/{policy_id}", headers=admin_headers)
+    assert resp.status_code == 200
+    body = resp.json()
+    rules = body["compiled_rules"]
+    assert "VLAN 10" in rules
+    assert "ACL: acl_staff" in rules
+    assert "会话超时 28800秒" in rules
+    assert "Tunnel-Type = VLAN" in rules
+    assert "IEEE-802" in "".join(rules)

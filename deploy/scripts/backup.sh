@@ -11,6 +11,9 @@
 # In compose: docker compose exec postgres pg_dump -U postgres openredius
 #
 # Cron (daily): 0 3 * * * /opt/openredius/deploy/scripts/backup.sh
+#
+# BACKUP_METHOD=compose: run pg_dump via `docker compose exec postgres`
+# (used by the Ansible wrapper, ansible/templates/backup.sh.j2).
 
 set -euo pipefail
 
@@ -21,6 +24,8 @@ DB_USER="${DB_USER:-postgres}"
 DB_HOST="${DB_HOST:-localhost}"
 DB_PORT="${DB_PORT:-5432}"
 PGPASSWORD="${PGPASSWORD:-}"
+BACKUP_METHOD="${BACKUP_METHOD:-direct}"
+COMPOSE_FILE="${COMPOSE_FILE:-deploy/docker-compose.yml}"
 
 TIMESTAMP="$(date +%Y%m%d-%H%M%S)"
 FILENAME="${DB_NAME}-${TIMESTAMP}.dump.gz"
@@ -30,15 +35,20 @@ mkdir -p "$BACKUP_DIR"
 
 echo "[backup] dumping ${DB_NAME} to ${FILEPATH} ..."
 
-PGPASSWORD="${PGPASSWORD}" pg_dump \
-    -h "$DB_HOST" \
-    -p "$DB_PORT" \
-    -U "$DB_USER" \
-    -d "$DB_NAME" \
-    -Fc \
-    --no-owner \
-    --no-acl \
-    | gzip > "$FILEPATH"
+if [ "$BACKUP_METHOD" = "compose" ]; then
+    docker compose -f "$COMPOSE_FILE" exec -T postgres \
+        pg_dump -U "$DB_USER" -d "$DB_NAME" -Fc --no-owner --no-acl | gzip > "$FILEPATH"
+else
+    PGPASSWORD="${PGPASSWORD}" pg_dump \
+        -h "$DB_HOST" \
+        -p "$DB_PORT" \
+        -U "$DB_USER" \
+        -d "$DB_NAME" \
+        -Fc \
+        --no-owner \
+        --no-acl \
+        | gzip > "$FILEPATH"
+fi
 
 SIZE="$(du -h "$FILEPATH" | cut -f1)"
 echo "[backup] done — ${FILENAME} (${SIZE})"

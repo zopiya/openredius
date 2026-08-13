@@ -81,12 +81,39 @@ export default function Sessions() {
     return () => { cancelled = true; };
   }, [view]);
 
-  const visible = useMemo(() => rows.filter((r) => matches(r, applied)), [rows, applied]);
+  // 文案「每 15 秒自动刷新」在 http 模式真实生效。
+  useEffect(() => {
+    if (MODE !== 'http') return;
+    const timer = setInterval(() => {
+      fetchSessions()
+        .then((data) => setRows(data))
+        .catch(() => {});
+    }, 15_000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const visible = useMemo(
+    () => (MODE === 'http' ? rows : rows.filter((r) => matches(r, applied))),
+    [rows, applied],
+  );
   const selectedVisible = visible.filter((r) => selected.has(r.session));
+
+  function applyFilters() {
+    setApplied(form);
+    if (MODE !== 'http') return;
+    setView('loading');
+    fetchSessions({ dept: form.dept, method: form.method, nas: form.nas, vlan: form.vlan, auth: form.auth })
+      .then((data) => { setRows(data); setView('ready'); })
+      .catch(() => setView('error'));
+  }
 
   function resetFilters(silent = false) {
     setForm(DEFAULT_FILTERS);
     setApplied(DEFAULT_FILTERS);
+    if (MODE === 'http') {
+      setView('loading');
+      fetchSessions().then((data) => { setRows(data); setView('ready'); }).catch(() => setView('error'));
+    }
     if (!silent) toast('已清空筛选条件');
   }
 
@@ -300,7 +327,7 @@ export default function Sessions() {
     <Shell page="在线会话">
       <PageHeader
         title="在线会话"
-        subtitle={<>当前 <b>1,286</b> 个终端在线 · 每 15 秒自动刷新 · 最近刷新 10:24:31</>}
+        subtitle={<>{MODE === 'http' ? <>当前 <b>{rows.length}</b> 个终端在线 · 每 15 秒自动刷新</> : <>当前 <b>1,286</b> 个终端在线 · 演示数据</>}</>}
         extra={
           <>
             <Dropdown
@@ -325,7 +352,9 @@ export default function Sessions() {
               data-od-id="export-btn"
               onClick={() => {
                 if (MODE !== 'http') { toast('已导出 sessions.csv(mock 占位)'); return; }
-                exportSessionsCsv().then(() => toast('已导出会话 CSV')).catch((e) => toast(`导出失败:${e instanceof Error ? e.message : String(e)}`));
+                exportSessionsCsv({ dept: applied.dept, method: applied.method, nas: applied.nas, vlan: applied.vlan, auth: applied.auth })
+                  .then(() => toast('已导出会话 CSV'))
+                  .catch((e) => toast(`导出失败:${e instanceof Error ? e.message : String(e)}`));
               }}
             >
               导出 CSV
@@ -398,7 +427,7 @@ export default function Sessions() {
             />
           </FilterField>
           <Space>
-            <Button type="primary" size="small" onClick={() => setApplied(form)}>筛选</Button>
+            <Button type="primary" size="small" onClick={applyFilters}>筛选</Button>
             <Button size="small" onClick={() => resetFilters()}>重置</Button>
           </Space>
         </TableToolbar>

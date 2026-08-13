@@ -21,6 +21,10 @@ export interface paths {
     /** Me */
     get: operations["me_api_auth_me_get"];
   };
+  "/api/auth/me/password": {
+    /** Change My Password */
+    put: operations["change_my_password_api_auth_me_password_put"];
+  };
   "/api/auth/admins": {
     /** List Admins */
     get: operations["list_admins_api_auth_admins_get"];
@@ -40,6 +44,31 @@ export interface paths {
   "/api/users/{account}": {
     /** Get User */
     get: operations["get_user_api_users__account__get"];
+  };
+  "/api/users/sync-ad": {
+    /**
+     * Trigger Ad Sync
+     * @description Trigger an incremental AD sync (async — returns immediately).
+     *
+     * The sync runs in a tracked background task on its own session so the
+     * request is not held open and failures are logged. Poll
+     * ``GET /api/users/sync-records`` to track progress.
+     */
+    post: operations["trigger_ad_sync_api_users_sync_ad_post"];
+  };
+  "/api/users/sync-records": {
+    /**
+     * List Sync Records
+     * @description List AD sync job history (latest first).
+     */
+    get: operations["list_sync_records_api_users_sync_records_get"];
+  };
+  "/api/users/sync-records/{job_id}": {
+    /**
+     * Get Sync Record
+     * @description Detail of a single AD sync job (includes error text).
+     */
+    get: operations["get_sync_record_api_users_sync_records__job_id__get"];
   };
   "/api/users/status": {
     /** Update User Status */
@@ -85,6 +114,14 @@ export interface paths {
     /** Reveal Nas Secret */
     get: operations["reveal_nas_secret_api_devices_nas__device_id__secret_get"];
   };
+  "/api/devices/nas/{device_id}/ports": {
+    /** Nas Ports */
+    get: operations["nas_ports_api_devices_nas__device_id__ports_get"];
+  };
+  "/api/devices/nas/{device_id}/ssids": {
+    /** Nas Ssids */
+    get: operations["nas_ssids_api_devices_nas__device_id__ssids_get"];
+  };
   "/api/devices/endpoints": {
     /** List Endpoints */
     get: operations["list_endpoints_api_devices_endpoints_get"];
@@ -122,6 +159,13 @@ export interface paths {
   "/api/sessions/disconnect": {
     /** Disconnect Sessions */
     post: operations["disconnect_sessions_api_sessions_disconnect_post"];
+  };
+  "/api/sessions/reauthorize": {
+    /**
+     * Reauthorize Sessions
+     * @description Bulk CoA-Request to trigger re-authorization (docs/01 批量 CoA).
+     */
+    post: operations["reauthorize_sessions_api_sessions_reauthorize_post"];
   };
   "/api/auth-logs": {
     /** List Logs */
@@ -183,9 +227,23 @@ export interface paths {
     /** List Audit */
     get: operations["list_audit_api_audit_get"];
   };
+  "/api/audit/export.csv": {
+    /**
+     * Export Audit Csv
+     * @description CSV archive of audit log entries (docs/08「审计日志」归档导出).
+     */
+    get: operations["export_audit_csv_api_audit_export_csv_get"];
+  };
   "/api/health": {
     /** Health */
     get: operations["health_api_health_get"];
+  };
+  "/api/metrics": {
+    /**
+     * Metrics
+     * @description Prometheus metrics exporter — reserved (docs/07「M7 之后可选」).
+     */
+    get: operations["metrics_api_metrics_get"];
   };
   "/api/ops/reload-radius": {
     /**
@@ -205,12 +263,73 @@ export interface paths {
      */
     post: operations["compile_api_ops_compile_post"];
   };
+  "/api/portal": {
+    /** Portal Root */
+    get: operations["_portal_root_api_portal_get"];
+    /** Portal Root */
+    put: operations["_portal_root_api_portal_get"];
+    /** Portal Root */
+    post: operations["_portal_root_api_portal_get"];
+    /** Portal Root */
+    delete: operations["_portal_root_api_portal_get"];
+    /** Portal Root */
+    patch: operations["_portal_root_api_portal_get"];
+  };
+  "/api/portal/{path}": {
+    /** Portal Catch All */
+    get: operations["_portal_catch_all_api_portal__path__get"];
+    /** Portal Catch All */
+    put: operations["_portal_catch_all_api_portal__path__get"];
+    /** Portal Catch All */
+    post: operations["_portal_catch_all_api_portal__path__get"];
+    /** Portal Catch All */
+    delete: operations["_portal_catch_all_api_portal__path__get"];
+    /** Portal Catch All */
+    patch: operations["_portal_catch_all_api_portal__path__get"];
+  };
 }
 
 export type webhooks = Record<string, never>;
 
 export interface components {
   schemas: {
+    /**
+     * AdSyncJobOut
+     * @description Single AD sync job record.
+     */
+    AdSyncJobOut: {
+      /** Id */
+      id: number;
+      /** Triggered By */
+      triggered_by: string;
+      /**
+       * Started At
+       * Format: date-time
+       */
+      started_at: string;
+      /** Finished At */
+      finished_at: string | null;
+      /** Status */
+      status: string;
+      /** Added */
+      added: number;
+      /** Updated */
+      updated: number;
+      /** Disabled */
+      disabled: number;
+      /** Error */
+      error: string | null;
+    };
+    /**
+     * AdSyncResult
+     * @description Immediate response from POST /api/users/sync-ad.
+     */
+    AdSyncResult: {
+      /** Triggered */
+      triggered: boolean;
+      /** Message */
+      message: string;
+    };
     /** AdminCreate */
     AdminCreate: {
       /** Username */
@@ -221,7 +340,9 @@ export interface components {
        */
       display_name?: string;
       /** Password */
-      password: string;
+      password?: string | null;
+      /** Linked Account */
+      linked_account?: string | null;
       /** @default operator */
       role?: components["schemas"]["AdminRole"];
     };
@@ -235,6 +356,8 @@ export interface components {
       display_name: string;
       role: components["schemas"]["AdminRole"];
       status: components["schemas"]["AdminStatus"];
+      /** Linked Account */
+      linked_account?: string | null;
       /**
        * Created At
        * Format: date-time
@@ -300,6 +423,13 @@ export interface components {
     AlertRulesUpdate: {
       /** Rules */
       rules: components["schemas"]["AlertRuleIn"][];
+    };
+    /** ChangePasswordRequest */
+    ChangePasswordRequest: {
+      /** Old Password */
+      old_password: string;
+      /** New Password */
+      new_password: string;
     };
     /**
      * Compliance
@@ -883,6 +1013,23 @@ export interface components {
        */
       enabled?: boolean;
     };
+    /** ReauthorizeRequest */
+    ReauthorizeRequest: {
+      /** Session Ids */
+      session_ids: string[];
+      /**
+       * Confirm
+       * @default false
+       */
+      confirm?: boolean;
+    };
+    /** ReauthorizeResult */
+    ReauthorizeResult: {
+      /** Reauthorized */
+      reauthorized: number;
+      /** Failed */
+      failed: components["schemas"]["DisconnectFailure"][];
+    };
     /** RecentAuth */
     RecentAuth: {
       /**
@@ -1055,6 +1202,11 @@ export interface components {
       endpoints: components["schemas"]["EndpointBrief"][];
       /** Recent Auth */
       recent_auth?: components["schemas"]["RecentAuth"][];
+      /**
+       * Policy Rules
+       * @description 编译后的 FreeRADIUS 属性清单
+       */
+      policy_rules?: string[];
     };
     /** UserPolicyRequest */
     UserPolicyRequest: {
@@ -1185,6 +1337,30 @@ export interface operations {
       };
     };
   };
+  /** Change My Password */
+  change_my_password_api_auth_me_password_put: {
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ChangePasswordRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        content: {
+          "application/json": {
+            [key: string]: string;
+          };
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
   /** List Admins */
   list_admins_api_auth_admins_get: {
     responses: {
@@ -1306,6 +1482,77 @@ export interface operations {
       200: {
         content: {
           "application/json": components["schemas"]["UserDetail"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  /**
+   * Trigger Ad Sync
+   * @description Trigger an incremental AD sync (async — returns immediately).
+   *
+   * The sync runs in a tracked background task on its own session so the
+   * request is not held open and failures are logged. Poll
+   * ``GET /api/users/sync-records`` to track progress.
+   */
+  trigger_ad_sync_api_users_sync_ad_post: {
+    responses: {
+      /** @description Successful Response */
+      200: {
+        content: {
+          "application/json": components["schemas"]["AdSyncResult"];
+        };
+      };
+    };
+  };
+  /**
+   * List Sync Records
+   * @description List AD sync job history (latest first).
+   */
+  list_sync_records_api_users_sync_records_get: {
+    parameters: {
+      query?: {
+        page?: number;
+        size?: number;
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        content: {
+          "application/json": {
+            [key: string]: unknown;
+          };
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  /**
+   * Get Sync Record
+   * @description Detail of a single AD sync job (includes error text).
+   */
+  get_sync_record_api_users_sync_records__job_id__get: {
+    parameters: {
+      path: {
+        job_id: number;
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        content: {
+          "application/json": components["schemas"]["AdSyncJobOut"];
         };
       };
       /** @description Validation Error */
@@ -1629,6 +1876,54 @@ export interface operations {
       };
     };
   };
+  /** Nas Ports */
+  nas_ports_api_devices_nas__device_id__ports_get: {
+    parameters: {
+      path: {
+        device_id: number;
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        content: {
+          "application/json": {
+              [key: string]: unknown;
+            }[];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  /** Nas Ssids */
+  nas_ssids_api_devices_nas__device_id__ssids_get: {
+    parameters: {
+      path: {
+        device_id: number;
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        content: {
+          "application/json": {
+              [key: string]: unknown;
+            }[];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
   /** List Endpoints */
   list_endpoints_api_devices_endpoints_get: {
     parameters: {
@@ -1873,6 +2168,31 @@ export interface operations {
       };
     };
   };
+  /**
+   * Reauthorize Sessions
+   * @description Bulk CoA-Request to trigger re-authorization (docs/01 批量 CoA).
+   */
+  reauthorize_sessions_api_sessions_reauthorize_post: {
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ReauthorizeRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        content: {
+          "application/json": components["schemas"]["ReauthorizeResult"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
   /** List Logs */
   list_logs_api_auth_logs_get: {
     parameters: {
@@ -2107,15 +2427,14 @@ export interface operations {
     parameters: {
       query: {
         format: string;
+        period?: string;
       };
     };
     responses: {
       /** @description Successful Response */
       200: {
         content: {
-          "application/json": {
-            [key: string]: unknown;
-          };
+          "application/json": unknown;
         };
       };
       /** @description Validation Error */
@@ -2222,6 +2541,33 @@ export interface operations {
       };
     };
   };
+  /**
+   * Export Audit Csv
+   * @description CSV archive of audit log entries (docs/08「审计日志」归档导出).
+   */
+  export_audit_csv_api_audit_export_csv_get: {
+    parameters: {
+      query?: {
+        action?: string | null;
+        from?: string | null;
+        to?: string | null;
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        content: {
+          "application/json": unknown;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
   /** Health */
   health_api_health_get: {
     responses: {
@@ -2229,7 +2575,23 @@ export interface operations {
       200: {
         content: {
           "application/json": {
-            [key: string]: string;
+            [key: string]: unknown;
+          };
+        };
+      };
+    };
+  };
+  /**
+   * Metrics
+   * @description Prometheus metrics exporter — reserved (docs/07「M7 之后可选」).
+   */
+  metrics_api_metrics_get: {
+    responses: {
+      /** @description Successful Response */
+      200: {
+        content: {
+          "application/json": {
+            [key: string]: unknown;
           };
         };
       };
@@ -2267,6 +2629,39 @@ export interface operations {
           "application/json": {
             [key: string]: unknown;
           };
+        };
+      };
+    };
+  };
+  /** Portal Root */
+  _portal_root_api_portal_get: {
+    responses: {
+      /** @description Successful Response */
+      200: {
+        content: {
+          "application/json": unknown;
+        };
+      };
+    };
+  };
+  /** Portal Catch All */
+  _portal_catch_all_api_portal__path__get: {
+    parameters: {
+      path: {
+        path: string;
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        content: {
+          "application/json": unknown;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
         };
       };
     };

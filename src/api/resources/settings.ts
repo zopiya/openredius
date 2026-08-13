@@ -49,3 +49,23 @@ export async function saveSettings(
     body: JSON.stringify(settings),
   })) as any;
 }
+
+// ── 告警规则(docs/03 GET/PUT /api/settings/alert-rules) ──
+export interface AlertRuleRow {
+  key: string;
+  enabled: boolean;
+  threshold: Record<string, unknown>;
+}
+
+export async function fetchAlertRules(): Promise<AlertRuleRow[]> {
+  if (MODE !== 'http') return [];
+  return (await fetchApi('/api/settings/alert-rules')) as AlertRuleRow[];
+}
+
+export async function saveAlertRules(rules: AlertRuleRow[]): Promise<void> {
+  if (MODE !== 'http') return;
+  await fetchApi('/api/settings/alert-rules', {
+    method: 'PUT',
+    body: JSON.stringify({ rules }),
+  });
+}

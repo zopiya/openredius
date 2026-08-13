@@ -2,7 +2,7 @@
  * OpenRedius UI 端到端测试（Playwright + Chromium, mock 模式）
  *
  * 覆盖:
- *  1. 13 路由冒烟——无白屏、无 Console 报错
+ *  1. 14 路由冒烟——无白屏、无 Console 报错
  *  2. 侧边栏/顶栏——当前页高亮、角色过滤、用户下拉
  *  3. 各页关键交互——筛选/展开/弹窗/抽屉/Tabs/时段切换/锚点
  *
@@ -27,6 +27,7 @@ const ROUTES = [
   { path: '/reports', name: '报表统计', probe: '[data-od-id="fail-dist"]' },
   { path: '/reports#reason=账号锁定', name: '报表统计(深链)', probe: '[data-od-id="fail-dist"]' },
   { path: '/settings', name: '系统设置', probe: '.ant-anchor' },
+  { path: '/audit', name: '审计日志', probe: '[data-od-id="audit-table"]' },
 ];
 
 let failures = 0;
@@ -52,7 +53,7 @@ async function main() {
   const pageErrors = [];
   page.on('pageerror', (err) => pageErrors.push(err.message));
 
-  console.log('\n═══ 1. 路由冒烟(13 路由,无白屏/无 Console 报错) ═══\n');
+  console.log('\n═══ 1. 路由冒烟(14 路由,无白屏/无 Console 报错) ═══\n');
 
   for (const r of ROUTES) {
     const before = consoleErrors.length + pageErrors.length;
@@ -80,9 +81,9 @@ async function main() {
     // 侧边栏当前页高亮
     const selected = await page.textContent('.ant-menu-item-selected');
     log(selected?.includes('仪表盘'), `侧边栏当前页高亮: ${selected}`);
-    // 菜单项数量(admin 角色应 8 项)
+    // 菜单项数量(admin 角色应 9 项)
     const menuCount = await page.locator('.ant-menu-item').count();
-    log(menuCount === 8, `角色过滤: admin 应显示 8 个菜单,实际 ${menuCount}`);
+    log(menuCount === 9, `角色过滤: admin 应显示 9 个菜单,实际 ${menuCount}`);
     // 顶栏用户信息 + 下拉
     const topbarUser = await page.textContent('[data-od-id="topbar"]');
     log(topbarUser?.includes('管理员'), `顶栏用户信息显示「管理员」`);

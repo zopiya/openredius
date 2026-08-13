@@ -11,8 +11,9 @@ import Shell from '../components/Shell';
 import PageHeader from '../components/PageHeader';
 import TrendChart, { TREND_TODAY } from '../components/charts/TrendChart';
 import type { TrendSeries } from '../components/charts/TrendChart';
-import { fetchAlerts, fetchKpis, fetchTrend } from '../api/resources/dashboard';
+import { fetchAlerts, fetchKpis, fetchTrend, readAlert } from '../api/resources/dashboard';
 import type { AlertItem, KpiSnapshot } from '../api/resources/dashboard';
+import { MODE } from '../api/config';
 
 const { Text } = Typography;
 
@@ -75,6 +76,7 @@ export default function Dashboard() {
   const [kpis, setKpis] = useState<KpiSnapshot>(DEFAULT_KPIS);
   const [trend, setTrend] = useState<TrendSeries>(TREND_TODAY);
   const [alerts, setAlerts] = useState<AlertItem[]>([]);
+  const [readIds, setReadIds] = useState<Set<number>>(new Set());
 
   useEffect(() => {
     let cancelled = false;
@@ -87,17 +89,34 @@ export default function Dashboard() {
     return () => { cancelled = true; };
   }, [mode]);
 
+  // docs/03:告警标记已读;文案「每 30 秒自动刷新」在 http 模式真实生效。
+  useEffect(() => {
+    if (MODE !== 'http') return;
+    const timer = setInterval(() => {
+      Promise.all([fetchKpis(), fetchTrend(mode), fetchAlerts(20)])
+        .then(([k, t, a]) => { setKpis(k); setTrend(t); if (a.length) setAlerts(a); })
+        .catch(() => {});
+    }, 30_000);
+    return () => clearInterval(timer);
+  }, [mode]);
+
+  function markRead(a: AlertItem) {
+    if (MODE !== 'http' || a.read_at || readIds.has(a.id)) return;
+    setReadIds((prev) => new Set(prev).add(a.id));
+    readAlert(a.id).catch(() => {});
+  }
+
   const rateVal = kpis.auth_success_rate_today?.toFixed(1) ?? '0.0';
   const failCount = Math.round(kpis.auth_today * (1 - kpis.auth_success_rate_today / 100));
   const alertItems = alerts.length
-    ? alerts.map((a) => ({ time: a.created_at.slice(11, 16), level: a.level, to: a.link, title: a.title, msg: a.message }))
-    : ALERTS_FALLBACK;
+    ? alerts.map((a) => ({ id: a.id, read: a.read_at != null || readIds.has(a.id), time: a.created_at.slice(11, 16), level: a.level, to: a.link, title: a.title, msg: a.message }))
+    : ALERTS_FALLBACK.map((a) => ({ id: 0, read: false, ...a }));
 
   return (
     <Shell page="仪表盘">
       <PageHeader
         title="仪表盘"
-        subtitle="内网准入实时概览 · 数据每 30 秒自动刷新 · 2026-07-27(周一)"
+        subtitle={MODE === 'http' ? '内网准入实时概览 · 数据每 30 秒自动刷新' : '内网准入实时概览 · 2026-07-27(周一)'}
         extra={
           <>
             <Link to="/auth-logs" style={{ fontSize: 13 }}>查看认证日志</Link>
@@ -149,7 +168,7 @@ export default function Dashboard() {
             value={kpis.nas_online}
             suffix={<Typography.Text type="secondary" style={{ fontSize: 14 }}>/ {kpis.nas_total}</Typography.Text>}
             valueColor={kpis.nas_total - kpis.nas_online > 0 ? token.colorError : undefined}
-            footer={<>{kpis.nas_total - kpis.nas_online} 台离线</>}
+            footer={<>{kpis.nas_total - kpis.nas_online} 台离线 · 锁定账号 {kpis.locked_users}</>}
           />
         </Col>
       </Row>
@@ -215,8 +234,13 @@ export default function Dashboard() {
       >
         <div>
           {alertItems.map((a: any, i: number) => (
-            <div key={i} style={{ padding: '11px 0', borderBottom: i < alertItems.length - 1 ? `1px solid ${token.colorBorderSecondary}` : 'none' }}>
-              <Link className="alert-item" to={a.to} style={{ display: 'flex', alignItems: 'baseline', gap: 12, width: '100%', color: 'inherit', textDecoration: 'none' }}>
+            <div key={i} style={{ padding: '11px 0', borderBottom: i < alertItems.length - 1 ? `1px solid ${token.colorBorderSecondary}` : 'none', opacity: a.read ? 0.55 : 1 }}>
+              <Link
+                className="alert-item"
+                to={a.to}
+                onClick={() => markRead(a)}
+                style={{ display: 'flex', alignItems: 'baseline', gap: 12, width: '100%', color: 'inherit', textDecoration: 'none' }}
+              >
                 <Text type="secondary" style={{ fontFamily: 'monospace', fontSize: 12, width: 44, flexShrink: 0 }}>{a.time}</Text>
                 <Tag color={LEVEL_COLOR[a.level] ?? 'default'} style={{ flexShrink: 0 }}>{a.level}</Tag>
                 <span style={{ color: token.colorTextSecondary }}>{(a as any).msg}</span>

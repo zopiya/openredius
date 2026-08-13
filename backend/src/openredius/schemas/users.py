@@ -43,6 +43,7 @@ class UserOut(BaseModel):
     policy_name: str | None
     source: UserSource
     endpoint_count: int
+    last_auth: datetime | None = None
     created_at: datetime
     updated_at: datetime
 

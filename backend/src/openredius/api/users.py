@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from datetime import datetime
 
 from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy import func, select
@@ -25,6 +26,7 @@ from openredius.models import (
     UserStatus,
 )
 from openredius.radius.compiler import user_compiled_rules
+from openredius.radius.tables import radius_readable, radius_table
 from openredius.schemas.common import Affected
 from openredius.schemas.users import (
     AdSyncJobOut,
@@ -52,7 +54,9 @@ _SORT_COLUMNS = {
 }
 
 
-async def _user_out(db: AsyncSession, user: AccessUser, endpoint_count: int) -> UserOut:
+async def _user_out(
+    db: AsyncSession, user: AccessUser, endpoint_count: int, last_auth: datetime | None = None
+) -> UserOut:
     policy_name = None
     if user.policy_group_id is not None:
         policy = await db.get(PolicyGroup, user.policy_group_id)
@@ -69,6 +73,7 @@ async def _user_out(db: AsyncSession, user: AccessUser, endpoint_count: int) -> 
         policy_name=policy_name,
         source=user.source,
         endpoint_count=endpoint_count,
+        last_auth=last_auth,
         created_at=user.created_at,
         updated_at=user.updated_at,
     )
@@ -95,6 +100,18 @@ async def list_users(
     stmt = select(AccessUser, func.coalesce(counts.c.cnt, 0)).outerjoin(
         counts, counts.c.owner_user_id == AccessUser.id
     )
+    # docs/02:UserRow.lastAuth = 最近 radpostauth(SQLite 无 radius 表时跳过)。
+    last_auth_subq = None
+    if await radius_readable(db, "radpostauth"):
+        rlog = radius_table(db.get_bind().dialect.name, "radpostauth")
+        last_auth_subq = (
+            select(rlog.c.username, func.max(rlog.c.authdate).label("last_auth"))
+            .group_by(rlog.c.username)
+            .subquery()
+        )
+        stmt = stmt.add_columns(func.coalesce(last_auth_subq.c.last_auth, None)).outerjoin(
+            last_auth_subq, last_auth_subq.c.username == AccessUser.account
+        )
     if dept:
         stmt = stmt.where(AccessUser.dept == dept)
     if status:
@@ -111,7 +128,12 @@ async def list_users(
     params = PageParams(page, size)
     stmt = stmt.offset(params.offset).limit(params.size)
     rows = (await db.execute(stmt)).all()
-    items = [await _user_out(db, user, int(count)) for user, count in rows]
+    items = []
+    for row in rows:
+        user = row[0]
+        count = int(row[1])
+        last_auth = row[2] if last_auth_subq is not None else None
+        items.append(await _user_out(db, user, count, last_auth))
     return page_envelope(items, int(total or 0), params)
 
 
