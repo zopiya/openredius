@@ -34,8 +34,12 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    """Undo only what this migration added (view/function grants).
+
+    The SELECT grants on public.endpoint/access_user are NOT revoked: on a
+    fresh install they pre-exist via 01-init.sh ALTER DEFAULT PRIVILEGES
+    (tables are covered there; this migration exists because views are not).
+    """
     if op.get_bind().dialect.name == "postgresql":
         op.execute(f"REVOKE SELECT ON {_VIEW} FROM radius")
         op.execute("REVOKE EXECUTE ON FUNCTION public.norm_mac(text) FROM radius")
-        for obj in _UNLANG_TABLES:
-            op.execute(f"REVOKE SELECT ON {obj} FROM radius")
