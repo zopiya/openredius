@@ -10,8 +10,10 @@ from openredius.core.db import get_db
 from openredius.core.deps import require_role
 from openredius.core.errors import ApiError
 from openredius.models import AccessUser, AdminRole, AdminUser, PolicyGroup, Vlan
+from openredius.radius.compiler import policy_compiled_rules
 from openredius.schemas.policies import (
     PolicyCreate,
+    PolicyDetail,
     PolicyOut,
     PolicyReorder,
     PolicyToggle,
@@ -90,11 +92,15 @@ async def get_policy(
     policy_id: int,
     db: AsyncSession = Depends(get_db),
     _admin: AdminUser = Depends(require_role(AdminRole.ADMIN)),
-) -> PolicyOut:
+) -> PolicyDetail:
     policy = await db.get(PolicyGroup, policy_id)
     if policy is None:
         raise ApiError("not_found", f"policy {policy_id} not found", 404)
-    return await _policy_out(db, policy)
+    base = await _policy_out(db, policy)
+    return PolicyDetail(
+        **base.model_dump(),
+        compiled_rules=await policy_compiled_rules(db, policy),
+    )
 
 
 @router.post("", status_code=201)

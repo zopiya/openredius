@@ -52,6 +52,7 @@
 必记事件:登录(成功/失败)、强制下线、用户启停/策略分配、策略 CRUD、设备 CRUD、
 Secret 查看/修改、设置变更、AD 同步触发、管理员账户变更、radius reload。
 字段:actor、action(点分动词)、target_type/target_id、detail_json(变更前后摘要)、ip、时间。
+`audit.enabled` 为审计总开关(设置页),显式关闭后 `record_audit` 不落库。
 保留:≥180 天;auditor/admin 可查;不提供删除 API(M7 提供归档导出)。
 
 ## 网络暴露面

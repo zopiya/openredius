@@ -26,6 +26,7 @@ from openredius.models import (
     Compliance,
     Endpoint,
     NasDevice,
+    SystemSetting,
     UserStatus,
 )
 from openredius.radius.tables import ip_text, radius_readable, radius_table
@@ -86,6 +87,11 @@ class DbAlertSink:
         link: str,
         dedup_window_s: int,
     ) -> AlertEvent | None:
+        # Master switch (docs/03「系统设置」): alerts.master.enabled=false
+        # silences every rule, including the per-rule toggles below.
+        master = await db.get(SystemSetting, "alerts.master")
+        if master is not None and not (master.value_json or {}).get("enabled", True):
+            return None
         # Respect rule.enabled toggle — query directly to avoid conflating
         # "disabled" (→ skip) with "missing" (→ default-enabled).
         rule = (
@@ -169,7 +175,10 @@ async def nas_watchdog(db: AsyncSession, settings: Settings) -> dict[str, int]:
         active_sessions = {ip: n for ip, n in rows if ip}
 
     offline_minutes = ((rule.threshold_json if rule else None) or {}).get("offline_minutes", 5)
-    load_pct = ((load_rule.threshold_json if load_rule else None) or {}).get("load_pct", 90)
+    default_load_pct = settings.nas_high_load_ratio * 100
+    load_pct = ((load_rule.threshold_json if load_rule else None) or {}).get(
+        "load_pct", default_load_pct
+    )
     window = settings.nas_online_window
     now_naive = _now().replace(tzinfo=None)
 

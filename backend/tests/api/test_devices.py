@@ -189,3 +189,27 @@ async def test_devices_writes_admin_only(client, domain):
             "/api/devices/endpoints", json={"mac": "aa:bb:cc:dd:ee:09"}, headers=headers
         )
     ).status_code == 403
+
+
+async def test_endpoint_import_audits_per_item(client, domain, admin_headers):
+    """docs/02「命名与约定」:批量操作逐条写 audit_log。"""
+    resp = await client.post(
+        "/api/devices/endpoints/import",
+        json={"macs": ["AA:BB:CC:DD:EE:21", "AA:BB:CC:DD:EE:22"]},
+        headers=admin_headers,
+    )
+    assert resp.status_code == 200
+    assert resp.json() == {"affected": 2}
+
+    resp = await client.get("/api/audit?action=endpoint.import", headers=admin_headers)
+    assert resp.status_code == 200
+    assert resp.json()["total"] == 2
+
+
+async def test_endpoint_out_includes_cert_serial(client, domain, admin_headers):
+    """docs/02 字段表:EndpointOut 暴露 cert_serial。"""
+    resp = await client.get("/api/devices/endpoints", headers=admin_headers)
+    assert resp.status_code == 200
+    items = resp.json()["items"]
+    assert items, "domain fixture should seed at least one endpoint"
+    assert "cert_serial" in items[0]

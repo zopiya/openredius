@@ -73,6 +73,7 @@ backend/
 | `OPENRADIUS_ALERTS_DEDUP_WINDOW_S` | 600 | 同 (rule_key, 主体) 告警去重窗口 |
 | `OPENRADIUS_ALERTS_RETENTION_DAYS` | 90 | 已读告警保留天数(alert_gc) |
 | `OPENRADIUS_NAS_ONLINE_WINDOW` | 300s | NAS 在线判定窗口 |
+| `OPENRADIUS_NAS_HIGH_LOAD_RATIO` | 0.9 | NAS 高负载判定比例(活跃会话/capacity);告警阈值另由 alert_rules 的 load_pct 覆盖 |
 | `OPENRADIUS_AD_URL/_BIND_DN/_BIND_PW/_BASE_DN/_FILTER` | 空=禁用 AD | ldap://… |
 | `OPENRADIUS_AD_SYNC_CRON` | `*/15 * * * *` | |
 | `OPENRADIUS_LOCKOUT_MAX_FAILS/_WINDOW/_DURATION` | 5 / 600s / 1800s | 与原型文案一致 |
@@ -105,7 +106,8 @@ backend/
 - 同步 IO → `anyio.to_thread` 包装;批量并发上限 8;超时/重试 1 次。
 - 结果:ACK→成功;NAK→失败(记 Error-Cause);超时→`timeout`。
 - 成功后 10s 内轮询 radacct 确认 stop;未 stop 则兜底写
-  `acctstoptime=now(), acctterminatecause='Admin-Reset'`(class 标记 backend-closed)。
+  `acctstoptime=now(), acctterminatecause='Admin-Reset'`(connectinfo_stop 标记 backend-closed;
+  class 列保持不动以免破坏认证时的 reason 标记)。
 
 ## 定时任务(jobs/)
 

@@ -17,6 +17,7 @@ from openredius.models import (
     Endpoint,
     EndpointType,
     NasDevice,
+    SystemSetting,
     UserStatus,
 )
 from openredius.models.base import Base
@@ -265,3 +266,31 @@ def test_scheduler_jobs_registered():
     assert scheduler is not None
     ids = {j.id for j in scheduler.get_jobs()}
     assert ids == {"lockout_sweeper", "nas_watchdog", "cert_scan", "alert_gc"}
+
+
+async def test_alerts_master_switch_silences_watchdog(db, job_settings):
+    """docs/03 系统设置:alerts.master.enabled=false 时告警不落库。"""
+    await create_radius_tables()
+    async with get_session_factory()() as session:
+        session.add(SystemSetting(key="alerts.master", value_json={"enabled": False}))
+        session.add(NasDevice(name="SW-MUTE", nasname="10.99.7.7", secret_enc="x", capacity=10))
+        await session.commit()
+    await insert_postauth(username="wang.lei", nas_ip="10.99.7.7", minutes_ago=60)
+
+    stats = await alerts.nas_watchdog(db, job_settings)
+    await db.commit()
+    assert stats == {"offline": 0, "high_load": 0}
+    assert len(await _events("nas_offline")) == 0
+
+
+async def test_alerts_master_switch_default_on(db, job_settings):
+    """缺省(无 alerts.master 行)时告警照常产生——与既有 watchdog 行为一致。"""
+    await create_radius_tables()
+    async with get_session_factory()() as session:
+        session.add(NasDevice(name="SW-LOUD", nasname="10.99.6.6", secret_enc="x", capacity=10))
+        await session.commit()
+    await insert_postauth(username="wang.lei", nas_ip="10.99.6.6", minutes_ago=60)
+
+    stats = await alerts.nas_watchdog(db, job_settings)
+    await db.commit()
+    assert stats["offline"] == 1

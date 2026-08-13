@@ -70,6 +70,7 @@ class EndpointOut(EndpointBase):
     id: int
     mac: str
     owner_name: str | None
+    cert_serial: str | None
     cert_not_after: datetime | None
     first_seen_at: datetime | None
     created_at: datetime

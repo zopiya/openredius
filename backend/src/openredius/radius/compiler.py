@@ -29,7 +29,7 @@ _OWNED_RADCHECK_ATTRS = ("Auth-Type",)
 _OWNED_RADREPLY_ATTRS = ("Class", "Reply-Message", "OpenRedius-Deny-Reason")
 
 _REJECT_DETAIL = {
-    UserStatus.LOCKED: ("reason=account-locked", "Account locked by administrator"),
+    UserStatus.LOCKED: ("reason=account-locked", "Account locked"),
     UserStatus.DISABLED: ("reason=account-disabled", "Account disabled"),
 }
 
@@ -308,12 +308,30 @@ async def compile_all(db: AsyncSession, actor: str, trigger: str = "manual") -> 
 
 
 _RULE_DESC: dict[str, str] = {
-    "Tunnel-Private-Group-Id": "VLAN {}",
-    "Filter-Id": "ACL: {}",
-    "Session-Timeout": "会话超时 {}秒",
-    "WISPr-Bandwidth-Max-Up": "上行限速 {}bps",
-    "WISPr-Bandwidth-Max-Down": "下行限速 {}bps",
+    "Tunnel-Private-Group-Id": "VLAN {value}",
+    "Filter-Id": "ACL: {value}",
+    "Session-Timeout": "会话超时 {value}秒",
+    "WISPr-Bandwidth-Max-Up": "上行限速 {value}bps",
+    "WISPr-Bandwidth-Max-Down": "下行限速 {value}bps",
 }
+
+
+async def policy_compiled_rules(db: AsyncSession, policy: PolicyGroup) -> list[str]:
+    """Human-readable compiled group attribute list for one policy (docs/03 下发规则预览)."""
+    if not policy.enabled:
+        return []
+    vlan = await db.get(Vlan, policy.vlan_id)
+    if vlan is None:
+        return []
+    reply, check = _desired_group_rows(policy, vlan.vid)
+    out: list[str] = []
+    for _name, attr, _op, value in [*reply, *check]:
+        desc = _RULE_DESC.get(attr, "{attribute} = {value}").format(
+            value=value,
+            attribute=attr,
+        )
+        out.append(desc)
+    return out
 
 
 async def user_compiled_rules(db: AsyncSession, account: str) -> list[str]:
