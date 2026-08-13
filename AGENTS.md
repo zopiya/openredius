@@ -142,12 +142,8 @@ source of truth, and each milestone lists its own required-reading docs.
 
 - Runtime: bun (frontend, root) + uv (backend, `backend/`) — no pnpm/justfile
   here, the toolchain fallbacks in this file don't apply.
-- Canonical checks: `bun run verify` (frontend) and, once `backend/` exists,
-  `cd backend && uv run pytest -q` — see `docs/09-testing-quality.md` for the
-  full command list, it's the single source of truth for verification commands.
-- Only branch is `main` today; `.pi/skills/git/SKILL.md`'s branch table still
-  applies (never commit to `main` directly) — create `feat/*`/`fix/*`/`docs/*`
-  as needed, there's no separate `dev` branch to route through.
+- Canonical checks: `bun run verify` (frontend)、`cd backend && uv run pytest -q` + `uv run ruff check .` (backend)、`bun run e2e:http` (全栈 E2E,需 Postgres+FreeRADIUS) — see `docs/09-testing-quality.md` for the full command list, it's the single source of truth for verification commands.
+- Branches: `dev` is the integration line (daily work merges in via `feat/*`/`fix/*`/`docs/*`/`chore/*` branches); `main` is the release line (currently tagged v0.1.0). `.pi/skills/git/SKILL.md`'s branch table applies — never commit to `dev` or `main` directly.
 - `docs/decisions/` holds this project's ADRs (only-additive, same rule as
   `.pi/docs/design.md`'s own history) — check there before assuming a past
   decision doesn't have a documented reason.

@@ -33,4 +33,3 @@ deploy/freeradius/certs/*.pem
 deploy/freeradius/certs/*.key
 deploy/freeradius/certs/*.srl
 deploy/freeradius/certs/*.csr
-UI-效果报告.html
