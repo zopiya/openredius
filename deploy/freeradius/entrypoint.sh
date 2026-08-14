@@ -213,7 +213,17 @@ restart_if_crashed() {
 
 start_winbindd() {
     $WINBIND_ENABLED || return 0
-    winbindd &
+    # -F: stay in the foreground. Without it winbindd double-forks and
+    # detaches (normal daemon behavior) — `$!` then captures the pid of the
+    # launcher process, which exits within milliseconds once the real daemon
+    # is off in the background, tricking restart_if_crashed's `kill -0` into
+    # firing every ~2s even though winbindd is fine. Confirmed on real AD
+    # (2026-08-14, 10.36.8.10): each bogus restart attempt collides with the
+    # live daemon's pidfile/socket handling often enough to intermittently
+    # break in-flight ntlm_auth calls (`Reading winbind reply failed!
+    # (0xc0000001)`) — this wasn't just log spam, it was dropping real
+    # MS-CHAPv2 authentications.
+    winbindd -F &
     WINBIND_PID=$!
 }
 
