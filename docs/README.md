@@ -25,8 +25,8 @@
 | [12-post-mvp-operating-model.md](./12-post-mvp-operating-model.md) | 后 MVP 能力排序、运行模型、角色演进 | 已评审(2026-08-13) |
 | [13-operational-sop.md](./13-operational-sop.md) | 生产运行 SOP、变更与事件处置 | 已评审(2026-08-13) |
 | [14-ci-cd.md](./14-ci-cd.md) | CI/CD workflow 全景、版本/发布策略、离线部署包 | 已评审(2026-08-13) |
-| [15-ad-ldap-auth-integration.md](./15-ad-ldap-auth-integration.md) | AD 直通认证(免密码同步)+ 属性同步扩展设计 | 设计文档,未实现(2026-08-14) |
-| [16-nas-ap-onboarding.md](./16-nas-ap-onboarding.md) | NAS/AP 接入与热更新机制改进设计 | 设计文档,未实现(2026-08-14) |
+| [15-ad-ldap-auth-integration.md](./15-ad-ldap-auth-integration.md) | AD 直通认证(免密码同步)+ 属性同步扩展设计 | 已实现(v0.3.0),待真实 AD 生产验收 |
+| [16-nas-ap-onboarding.md](./16-nas-ap-onboarding.md) | NAS/AP 接入与热更新机制改进设计 | 已实现(v0.3.0) |
 | [decisions/](./decisions/) | ADR 架构决策记录(只增不改) | 持续 |
 
 ## 如何配合 `/goal` 使用
@@ -47,7 +47,7 @@
 - 文档语言:中文;代码标识符、命令、配置键:英文。
 - 引用版本号以 2026-08 调研为准(见各文档"版本基线"小节);升级需在 roadmap 中立项。
 
-## 项目当前状态(2026-08-13)
+## 项目当前状态(2026-08-14)
 
 - M0–M7 全部完成:前端 9 页(原型 8 页 + 审计日志)antd 6 高保真实现(20 交互测试 + 14 路由
   冒烟 + 保真审计 + 两套 Playwright E2E);后端 FastAPI 全栈(JWT/RBAC/策略编译/CoA/会话/
@@ -72,9 +72,20 @@
 - 生产试点接入(2026-08-14,`10.36.8.10`):v0.2.2 部署验证通过后,复核 AD 同步
   (10.36.5.245)与 NAS/AP 接入这两条链路时,又发现两处未产品化的真实缺口——
   AD 同步不提供 802.1X 登录密码、NAS 变更后的"重载"机制大概率执行不了——均已
-  写成设计文档(见 15/16),交由 pi 实现,不在这次直接改代码。同时把"首次部署
-  必须无测试数据、已有数据环境禁止清空"这条红线正式写入
+  写成设计文档(见 15/16),交由 pi 实现。同时把"首次部署必须无测试数据、已有
+  数据环境禁止清空"这条红线正式写入
   [07-deployment.md](./07-deployment.md#数据安全红线首次部署-vs-已有数据环境)
   与 [13-operational-sop.md](./13-operational-sop.md) SOP-07。
+- 版本:v0.3.0——pi 在 `dev` 分支实现了 15/16 两份设计文档:AD 直通认证
+  (winbind + `ntlm_auth` 校验真实域控 MS-CHAPv2,不落库密码;PR #13)+
+  `access_user` 新增 `email`/`mobile`/`description` 三列并纳入 AD 同步
+  (Alembic `d4b050406f7c`)+ NAS/AP 接入热更新改用共享卷哨兵文件 + 容器内
+  watcher 重启 `radiusd`(不再是 backend 容器内执行不了的 `docker kill`,
+  `OPENRADIUS_RADIUS_RELOAD_COMMAND` 废弃为 `OPENRADIUS_RADIUS_RELOAD_DIR`)。
+  部署前复核(Claude Code)在 `deploy/freeradius/raddb/mods-available/mschap`
+  发现启用的 `ntlm_auth` 行多打了一个右花括号——展开后 `--nt-response=`
+  参数被追加一个字面 `}` 字符,对接真实 Samba `ntlm_auth` 时会导致所有
+  MS-CHAPv2 认证失败;pi 本地冒烟测试因为用固定输出的假 `ntlm_auth` wrapper
+  没暴露这个问题。已修复(PR #14)、CI 全绿后合并。
 - 分支:主线 `dev`(集成日常开发);`main` 发布线;无其他活跃分支(2026-08-13 项目审计清理)。
 - 开发环境:GitHub Codespaces,经 `gh`/SSH 直连(ADR-0007)。
