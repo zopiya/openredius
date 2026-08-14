@@ -52,6 +52,9 @@
   日志/报表/仪表盘/告警/AD 同步);FreeRADIUS 集成(radtest 闭环);生产部署(3 Dockerfile +
   4 服务 compose + Ansible 零信任子系统 + TLS 安全头 + backup/restore);184 后端单测/API +
   9 集成全绿;CI green(frontend + backend job)。
-- 版本:v0.1.0(root README 和 pyproject.toml/package.json;main 分支 tag `v0.1.0`)。
+- 版本:v0.2.0(root README 和 pyproject.toml/package.json;main 分支 tag `v0.2.0`)——
+  CI/CD 全面重构 + 离线部署包(见 14);发版前修复了两处部署阻断缺陷:backend 镜像最终
+  阶段没装 curl 导致 healthcheck 恒失败(改用 python3 urllib),FreeRADIUS base image
+  未锁版本(`:latest` → `:3.2.10`,对齐 entrypoint 的版本敏感 awk 补丁)。
 - 分支:主线 `dev`(集成日常开发);`main` 发布线;无其他活跃分支(2026-08-13 项目审计清理)。
 - 开发环境:GitHub Codespaces,经 `gh`/SSH 直连(ADR-0007)。
