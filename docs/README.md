@@ -52,14 +52,20 @@
   日志/报表/仪表盘/告警/AD 同步);FreeRADIUS 集成(radtest 闭环);生产部署(3 Dockerfile +
   4 服务 compose + Ansible 零信任子系统 + TLS 安全头 + backup/restore);184 后端单测/API +
   9 集成全绿;CI green(frontend + backend job)。
-- 版本:v0.2.1(root README 和 pyproject.toml/package.json;main 分支 tag `v0.2.1`)——
-  CI/CD 全面重构 + 离线部署包(见 14)。v0.2.0 发版前修复了两处部署阻断缺陷:backend
-  镜像最终阶段没装 curl 导致 healthcheck 恒失败(改用 python3 urllib),FreeRADIUS
-  base image 未锁版本(`:latest` → `:3.2.10`)。v0.2.0 首次真实离线部署(10.36.8.10)
-  又炸出 backend 镜像**从未真正跑起来过**的严重 bug:`uv sync` 默认把项目装成
-  editable(venv 只留指向 `/app/src` 的 .pth),最终阶段不拷贝 `src/`,容器起来就是
-  `ModuleNotFoundError: No module named 'openredius'`,一直崩溃重启;顺带发现
-  `backend/scripts/`(`create_admin.py` 等运维脚本)也没进最终镜像。v0.2.1 修复:
-  `uv sync --no-editable` + 补拷贝 `scripts/`。
+- 版本:v0.2.2(root README 和 pyproject.toml/package.json;main 分支 tag `v0.2.2`)——
+  CI/CD 全面重构 + 离线部署包(见 14)。10.36.8.10 首次真实部署这一轮连续暴露了
+  4 处此前从未被端到端验证过的部署阻断缺陷,按发现顺序:
+  1. backend healthcheck 因缺 curl 恒失败(v0.2.0 发版前修复,改用 python3 urllib);
+  2. FreeRADIUS base image 未锁版本(v0.2.0 发版前修复,`:latest` → `:3.2.10`);
+  3. backend 镜像里 `openredius` 包实际没装上——`uv sync` 默认 editable install,
+     最终阶段不拷贝 `src/`,容器一直 `ModuleNotFoundError` 崩溃重启,顺带发现
+     `backend/scripts/` 也没进最终镜像(v0.2.1 修复:`--no-editable` + 补拷贝);
+  4. FreeRADIUS/nginx 的 certs 卷在三份 prod compose 里都挂载成 `:ro`,但
+     entrypoint 的自签证书兜底逻辑需要写文件,必然 Permission denied 崩溃重启
+     (v0.2.2 修复:改成和 dev compose 一致的可写挂载)。
+  另外还发现文档一直没写清楚"迁移必须先于 backend 完整启动"这个顺序(backend
+  的 lifespan 会查 admin_user 表,库没迁移就查表直接崩),`docs/07-deployment.md`
+  「生产运行」「离线部署」两节已补上 `docker compose run --rm --no-deps backend
+  alembic upgrade head` 的正确步骤。
 - 分支:主线 `dev`(集成日常开发);`main` 发布线;无其他活跃分支(2026-08-13 项目审计清理)。
 - 开发环境:GitHub Codespaces,经 `gh`/SSH 直连(ADR-0007)。
