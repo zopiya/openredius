@@ -11,7 +11,8 @@
     "verify": "tsc -b && bun scripts/smoke.tsx && bun test && VITE_API_MODE=http bun test tests/http.test.ts && bun scripts/fidelity.tsx",
     "e2e": "bun scripts/e2e.mjs",
     "e2e:http": "bun scripts/e2e-http.mjs",
-    "api:gen": "bunx openapi-typescript@6 http://localhost:8000/api/openapi.json -o src/api/schema.d.ts --enum"
+    "api:gen": "bunx openapi-typescript@6 http://localhost:8000/api/openapi.json -o src/api/schema.d.ts --enum",
+    "typecheck:pi": "tsc --noEmit -p tsconfig.pi.json"
   },
   "dependencies": {
     "@ant-design/charts": "2",
@@ -22,8 +23,10 @@
     "react-router-dom": "^7.18.2"
   },
   "devDependencies": {
+    "@earendil-works/pi-coding-agent": "0.84.1",
     "@happy-dom/global-registrator": "^20.11.2",
     "@testing-library/react": "^16.3.2",
+    "@types/node": "^22.10.0",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
     "@vitejs/plugin-react": "^6.0.5",
