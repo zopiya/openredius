@@ -272,27 +272,27 @@ export interface paths {
   };
   "/api/portal": {
     /** Portal Root */
-    get: operations["_portal_root_api_portal_delete"];
+    get: operations["_portal_root_api_portal_get"];
     /** Portal Root */
-    put: operations["_portal_root_api_portal_delete"];
+    put: operations["_portal_root_api_portal_get"];
     /** Portal Root */
-    post: operations["_portal_root_api_portal_delete"];
+    post: operations["_portal_root_api_portal_get"];
     /** Portal Root */
-    delete: operations["_portal_root_api_portal_delete"];
+    delete: operations["_portal_root_api_portal_get"];
     /** Portal Root */
-    patch: operations["_portal_root_api_portal_delete"];
+    patch: operations["_portal_root_api_portal_get"];
   };
   "/api/portal/{path}": {
     /** Portal Catch All */
-    get: operations["_portal_catch_all_api_portal__path__delete"];
+    get: operations["_portal_catch_all_api_portal__path__get"];
     /** Portal Catch All */
-    put: operations["_portal_catch_all_api_portal__path__delete"];
+    put: operations["_portal_catch_all_api_portal__path__get"];
     /** Portal Catch All */
-    post: operations["_portal_catch_all_api_portal__path__delete"];
+    post: operations["_portal_catch_all_api_portal__path__get"];
     /** Portal Catch All */
-    delete: operations["_portal_catch_all_api_portal__path__delete"];
+    delete: operations["_portal_catch_all_api_portal__path__get"];
     /** Portal Catch All */
-    patch: operations["_portal_catch_all_api_portal__path__delete"];
+    patch: operations["_portal_catch_all_api_portal__path__get"];
   };
 }
 
@@ -1285,6 +1285,12 @@ export interface components {
       dept: string;
       /** Title */
       title: string;
+      /** Email */
+      email: string;
+      /** Mobile */
+      mobile: string;
+      /** Description */
+      description: string;
       status: components["schemas"]["UserStatus"];
       /** Locked Until */
       locked_until: string | null;
@@ -2754,7 +2760,7 @@ export interface operations {
     };
   };
   /** Portal Root */
-  _portal_root_api_portal_delete: {
+  _portal_root_api_portal_get: {
     responses: {
       /** @description Successful Response */
       200: {
@@ -2765,7 +2771,7 @@ export interface operations {
     };
   };
   /** Portal Catch All */
-  _portal_catch_all_api_portal__path__delete: {
+  _portal_catch_all_api_portal__path__get: {
     parameters: {
       path: {
         path: string;
