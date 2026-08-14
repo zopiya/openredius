@@ -130,10 +130,22 @@ cd backend && OPENRADIUS_DATABASE_URL='postgresql+asyncpg://…' \
 ```bash
 cp deploy/.env.example deploy/.env && $EDITOR deploy/.env
 docker compose -f deploy/docker-compose.yml build
-docker compose -f deploy/docker-compose.yml up -d
+docker compose -f deploy/docker-compose.yml up -d postgres     # 先起数据库
+
+# 迁移必须在 backend 正常起来之前跑完——backend 的 FastAPI lifespan 启动时会
+# 查 admin_user 表(bootstrap 首个管理员),库还没迁移直接 UndefinedTableError
+# 崩溃;而 frontend 又 depends_on backend: condition: service_healthy,顺序反了
+# 会卡住(2026-08-14 首次真实部署踩过,详见 15 §2 / v0.2.1 发布记录)。
+# `run --rm --no-deps` 绕开 depends_on 的健康检查门槛,起一个一次性容器专门跑迁移。
+docker compose -f deploy/docker-compose.yml run --rm --no-deps backend alembic upgrade head
+
+docker compose -f deploy/docker-compose.yml up -d              # 迁移完再起整套栈
 docker compose -f deploy/docker-compose.yml logs -f backend
 ```
 
+- 初始管理员:`.env` 里的 `OPENRADIUS_BOOTSTRAP_ADMIN_USER`/`_PASSWORD` 只要都
+  非空,backend 首次启动(迁移完成后)会自动建号,无需额外操作;
+  `scripts/create_admin.py` 只是备用/重置口令的手工工具,不是必需步骤。
 - TLS:nginx 挂载证书(自签或 CA);MVP 允许 HTTP 仅内网使用,文档需警示。
 - 资源基线:postgres 1C/1G、backend 1C/512M、freeradius 1C/512M(万级日认证足够)。
 
@@ -177,13 +189,24 @@ sha256sum -c CHECKSUMS.sha256          # 完整性校验(可选但建议)
 # 2. 把镜像 tar 全部 docker load 回本地(全程不联网、不 pull)
 ./install.sh
 
-# 3. 配置 + 启动(TAG/IMAGE_OWNER 已预填,只需改口令)
+# 3. 配置(TAG/IMAGE_OWNER 已预填,只需改口令;FRONTEND_HTTP_PORT/_HTTPS_PORT
+#    默认 80/443,目标机这两个端口被别的服务占用时记得改)
 cp .env.example .env && $EDITOR .env
+
+# 4. 先起数据库,迁移必须在 backend 正常启动之前跑完——backend 的 FastAPI
+#    lifespan 启动时会查 admin_user 表(自动建初始管理员),库还没迁移直接
+#    UndefinedTableError 崩溃退出;而 frontend 又 depends_on backend:
+#    condition: service_healthy,顺序反了会一直卡住(2026-08-14 首次真实部署
+#    踩过这个坑)。`run --rm --no-deps` 绕开健康检查门槛,起一次性容器专门跑迁移。
+docker compose -f docker-compose.offline.yml up -d postgres
+docker compose -f docker-compose.offline.yml run --rm --no-deps backend alembic upgrade head
+
+# 5. 迁移完再起整套栈;OPENRADIUS_BOOTSTRAP_ADMIN_USER/_PASSWORD(.env 里)
+#    非空的话 backend 首次启动会自动建管理员,不用手工建号
 docker compose -f docker-compose.offline.yml up -d
 docker compose -f docker-compose.offline.yml ps   # 全部 healthy 为止
 
-# 4. 首次启动:迁移 + 建管理员
-docker compose -f docker-compose.offline.yml exec backend alembic upgrade head
+# 6.(可选)没在 .env 里配 bootstrap 口令,或要重置管理员密码,再手工建/改:
 docker compose -f docker-compose.offline.yml exec backend \
   python scripts/create_admin.py admin --password '<强口令>' --role admin --force
 ```

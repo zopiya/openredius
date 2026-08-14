@@ -86,9 +86,16 @@ done
 echo
 echo "全部镜像已加载。接下来:"
 echo "  1. cp .env.example .env && \$EDITOR .env   # 改掉全部口令(TAG/IMAGE_OWNER 已预填,不用改)"
-echo "  2. docker compose -f docker-compose.offline.yml up -d"
-echo "  3. docker compose -f docker-compose.offline.yml exec backend alembic upgrade head"
-echo "  4. docker compose -f docker-compose.offline.yml exec backend python scripts/create_admin.py admin --password '<强口令>' --role admin --force"
+echo "  2. docker compose -f docker-compose.offline.yml up -d postgres"
+echo "  3. docker compose -f docker-compose.offline.yml run --rm --no-deps backend alembic upgrade head"
+echo "     # 迁移必须在这一步跑完 —— backend 启动时会查 admin_user 表,库没迁移会直接崩溃重启,"
+echo "     # frontend 又等 backend healthy,顺序反了会一直卡住"
+echo "  4. docker compose -f docker-compose.offline.yml up -d"
+echo "  5. docker compose -f docker-compose.offline.yml ps   # 全部 healthy 为止"
+echo "     # OPENRADIUS_BOOTSTRAP_ADMIN_USER/_PASSWORD(.env 里)非空的话会自动建管理员;"
+echo "     # 没配或要重置密码,再手工跑:"
+echo "     #   docker compose -f docker-compose.offline.yml exec backend \\"
+echo "     #     python scripts/create_admin.py admin --password '<强口令>' --role admin --force"
 echo "详细步骤见 README.md / docs/07-deployment.md「离线部署」。"
 EOS
 chmod +x "${staging}/install.sh"
@@ -104,11 +111,20 @@ tar xzf openredius-offline-${version}.tar.gz
 cd ${staging_name}
 ./install.sh                          # docker load 全部镜像(含 postgres:17-alpine)
 cp .env.example .env && \$EDITOR .env  # 改掉全部 change-me 口令;TAG/IMAGE_OWNER 已预填
+                                       # FRONTEND_HTTP_PORT/_HTTPS_PORT 默认 80/443,
+                                       # 目标机被占用时记得改
+
+# 数据库迁移必须在整套栈起来之前跑完 —— backend 启动时会查 admin_user 表(自动建
+# 初始管理员),库没迁移会 UndefinedTableError 崩溃重启;frontend 又等 backend
+# healthy,顺序反了会一直卡住。
+docker compose -f docker-compose.offline.yml up -d postgres
+docker compose -f docker-compose.offline.yml run --rm --no-deps backend alembic upgrade head
+
 docker compose -f docker-compose.offline.yml up -d
 docker compose -f docker-compose.offline.yml ps        # 全部 healthy 为止
 
-# 首次启动:数据库迁移 + 建管理员
-docker compose -f docker-compose.offline.yml exec backend alembic upgrade head
+# .env 里配了 OPENRADIUS_BOOTSTRAP_ADMIN_USER/_PASSWORD 的话,backend 首次启动会
+# 自动建管理员,不用手工建号。没配,或要重置密码,再手工跑:
 docker compose -f docker-compose.offline.yml exec backend \\
   python scripts/create_admin.py admin --password '<强口令>' --role admin --force
 \`\`\`
