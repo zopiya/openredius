@@ -225,7 +225,21 @@ stop_winbindd() {
 }
 
 exec 2>&1
-mkdir -p "$RELOAD_DIR" 2>/dev/null || true
+if [ -n "$RELOAD_DIR" ]; then
+    mkdir -p "$RELOAD_DIR" 2>/dev/null || true
+    # The named volume is created by Docker (root:root, 0755) before either
+    # container's entrypoint runs. This container is root (official
+    # freeradius image), backend is not (non-root USER openredius, uid 999,
+    # backend/Dockerfile) — without this, backend's `os.replace` into the
+    # sentinel path fails with EACCES and every reload request 500s
+    # (found 2026-08-14 during v0.3.0 real-server rollout: the sentinel
+    # mechanism was only ever validated with backend run on the host, which
+    # doesn't hit this UID mismatch at all). Only two small marker files
+    # ever live here, shared solely between these two trusted containers —
+    # world-writable is an acceptable trade for not having to align UID/GID
+    # across two unrelated base images.
+    chmod 777 "$RELOAD_DIR" 2>/dev/null || true
+fi
 APPLIED="$(cat "$RELOAD_DIR/reload-applied" 2>/dev/null || true)"
 start_winbindd
 if $WINBIND_ENABLED; then
