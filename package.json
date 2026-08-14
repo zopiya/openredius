@@ -1,7 +1,7 @@
 {
   "name": "openredius-console",
   "private": true,
-  "version": "0.3.1",
+  "version": "0.3.2",
   "type": "module",
   "description": "准入认证控制台 — RADIUS 802.1X 企业内网准入管理(React + TypeScript + bun)",
   "scripts": {
