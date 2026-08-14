@@ -24,6 +24,10 @@ deploy/backups
 # pi session exports(TUI /export 产物)——个人本地文件，不入库
 *.jsonl
 
+# audit loop kill-switch — never commit this, it would permanently disable
+# the loop for anyone who clones the repo (see .pi/audit/README.md)
+.pi/audit/STOP
+
 # backend dev database
 backend/openredius-dev.db
 backend/*.db
