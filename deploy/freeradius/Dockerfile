@@ -4,7 +4,7 @@
 # Tested baseline: FreeRADIUS 3.2.10 (docs/06). On upgrade run
 # deploy/scripts/smoke_freeradius.sh + `uv run pytest -m integration` — the
 # entrypoint's awk anchors and the queries.conf class patch are version-sensitive.
-FROM freeradius/freeradius-server:latest
+FROM freeradius/freeradius-server:3.2.10
 
 # envsubst for credential injection in entrypoint.sh
 RUN apt-get update && apt-get install -y --no-install-recommends gettext-base \
