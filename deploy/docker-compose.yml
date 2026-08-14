@@ -45,11 +45,26 @@ services:
       # docs/16: in-container watcher restarts radiusd when the backend writes
       # a sentinel here (shared volume, never a shell command).
       OPENRADIUS_RADIUS_RELOAD_DIR: /var/run/openredius
+      # docs/15: AD direct auth via winbind/ntlm_auth. All RADIUS_AD_* empty
+      # (plain .env) = feature skipped, startup identical to pre-AD.
+      RADIUS_AD_REALM: ${RADIUS_AD_REALM:-}
+      RADIUS_AD_WORKGROUP: ${RADIUS_AD_WORKGROUP:-}
+      RADIUS_AD_KDC: ${RADIUS_AD_KDC:-}
+      RADIUS_AD_JOIN_USER: ${RADIUS_AD_JOIN_USER:-}
+      RADIUS_AD_JOIN_PASSWORD: ${RADIUS_AD_JOIN_PASSWORD:-}
+    # docs/15: AD DNS for domain/KDC resolution; 127.0.0.11 is Docker's
+    # embedded DNS (inherits host resolution) — set to the DC or corporate
+    # DNS in .env when the host cannot resolve the AD domain itself.
+    dns:
+      - "${RADIUS_AD_DNS_SERVER:-127.0.0.11}"
     ports:
       - "${NAS_UDP_EXPOSE:-1812-1813}:1812-1813/udp"
     volumes:
       - ./freeradius/certs:/etc/raddb/certs
       - radius-reload:/var/run/openredius
+      # docs/15: join state (secrets.tdb) + machine keytab live on a volume so
+      # a recreated container re-joins via testjoin instead of re-joining AD.
+      - samba-state:/var/lib/samba
     depends_on:
       postgres:
         condition: service_healthy
@@ -118,3 +133,4 @@ services:
 volumes:
   postgres-data:
   radius-reload:
+  samba-state:

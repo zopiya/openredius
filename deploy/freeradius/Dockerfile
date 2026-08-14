@@ -6,8 +6,14 @@
 # entrypoint's awk anchors and the queries.conf class patch are version-sensitive.
 FROM freeradius/freeradius-server:3.2.10
 
-# envsubst for credential injection in entrypoint.sh
-RUN apt-get update && apt-get install -y --no-install-recommends gettext-base \
+# winbind + samba-common-bin (ntlm_auth) + krb5-user (kinit/net) for AD direct
+# auth via winbind/ntlm_auth (docs/15 方案 A). join state lives on the mounted
+# /var/lib/samba volume, never baked into the image.
+# DEBIAN_FRONTEND=noninteractive: krb5-user/samba debconf would otherwise block
+# the build asking for a default Kerberos realm (entrypoint generates the real
+# krb5.conf at runtime from RADIUS_AD_*).
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends gettext-base \
+    winbind samba-common-bin krb5-user \
     && rm -rf /var/lib/apt/lists/* \
     && ln -s /usr/sbin/freeradius /usr/sbin/radiusd
 

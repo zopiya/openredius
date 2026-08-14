@@ -128,6 +128,13 @@ cp /path/to/your/privkey.pem   deploy/nginx/certs/key.pem
 # 3. 构建并启动
 docker compose -f deploy/docker-compose.yml up -d --build
 
+# 3.5 (可选)启用 AD 直通认证(docs/15):在 deploy/.env 填 RADIUS_AD_REALM/
+#     _JOIN_USER/_JOIN_PASSWORD(AD 管理员开的委派 join 账号)后重启 freeradius:
+docker compose -f deploy/docker-compose.yml up -d --force-recreate freeradius
+docker compose -f deploy/docker-compose.yml logs freeradius | grep -i "join\|ntlm_auth"
+#     看到 "already joined" 或成功 join + ntlm_auth smoke test OK 即生效;
+#     join 状态存 samba-state 卷,容器重建不会重复 join。
+
 # 4. 运行数据库迁移(首次)
 docker compose -f deploy/docker-compose.yml exec backend \
   alembic upgrade head
