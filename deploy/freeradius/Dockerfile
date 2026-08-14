@@ -15,7 +15,20 @@ FROM freeradius/freeradius-server:3.2.10
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends gettext-base \
     winbind samba-common-bin krb5-user \
     && rm -rf /var/lib/apt/lists/* \
-    && ln -s /usr/sbin/freeradius /usr/sbin/radiusd
+    && ln -s /usr/sbin/freeradius /usr/sbin/radiusd \
+    && usermod -aG winbindd_priv freerad
+
+# radiusd runs as the unprivileged `freerad` user (radiusd.conf, upstream
+# default). `ntlm_auth --request-nt-key` needs winbindd's *privileged* pipe
+# (/var/lib/samba/winbindd_privileged/pipe, mode 0750 root:winbindd_priv) —
+# without membership every mschap→ntlm_auth call from radiusd itself fails
+# with "Reading winbind reply failed! (0xc0000001)", even though the exact
+# same command run as root (e.g. `docker exec` default user) succeeds fine.
+# Confirmed on real AD (2026-08-14, 10.36.8.10): manual root-shell ntlm_auth
+# calls always worked; radiusd's own calls always failed until this group was
+# added, which is why the mschap wiring smoke test (`ntlm_auth --username=...
+# --password=...` run directly from entrypoint.sh, also as root) passed while
+# real MS-CHAPv2 requests through radiusd kept failing.
 
 COPY raddb/ /etc/raddb/
 COPY entrypoint.sh /entrypoint.sh
