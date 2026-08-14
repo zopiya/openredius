@@ -52,7 +52,7 @@ services:
     ports:
       - "${NAS_UDP_EXPOSE:-1812-1813}:1812-1813/udp"
     volumes:
-      - ./freeradius/certs:/etc/raddb/certs:ro
+      - ./freeradius/certs:/etc/raddb/certs
     depends_on:
       postgres:
         condition: service_healthy
