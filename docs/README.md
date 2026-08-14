@@ -114,5 +114,16 @@
   `/api/devices/nas` 等真实路径的有无。以后新增页面/版本发布前,验收流程
   必须包含"真实浏览器登录控制台,至少对一个真实资源做一次增删改"这一步,
   不能只验证后端 API 本身可达。
+- **版本:v0.3.3——`10.36.8.10` 真实域(`HENAN.JZTEY.COM`)join 成功后,真机
+  802.1X 测试暴露 winbindd 进程管理 bug**:`deploy/freeradius/entrypoint.sh`
+  的 `winbindd &` 没加 `-F`,winbindd 自己会 fork 到后台(标准 daemon 行为),
+  `$!` 拿到的是几毫秒后就退出的启动进程 PID,监控循环每 ~2s 就误判"挂了"
+  去重启一次;重复启动尝试会偶发干扰正在处理请求的真实 winbindd 进程,导致
+  `ntlm_auth` 报 `Reading winbind reply failed! (0xc0000001)`,把本来密码
+  正确的 MS-CHAPv2 认证判成失败——不是纯日志噪音,是真的会偶发丢真实认证
+  请求,而且触发几次失败后会连带撞上账号锁定策略(`OPENRADIUS_LOCKOUT_*`),
+  把测试账号本身也锁掉。修复:`winbindd -F`(前台运行,让 `$!` 正确跟踪真实
+  进程)(PR #20)。用 `wbinfo -a`/手工 `ntlm_auth` 直接测已确认 join 账号
+  本身、AD 侧密码校验完全没问题,问题完全在这个进程监控逻辑上。
 - 分支:主线 `dev`(集成日常开发);`main` 发布线;无其他活跃分支(2026-08-13 项目审计清理)。
 - 开发环境:GitHub Codespaces,经 `gh`/SSH 直连(ADR-0007)。
