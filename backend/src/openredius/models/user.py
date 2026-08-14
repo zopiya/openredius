@@ -31,6 +31,9 @@ class AccessUser(Base):
     name: Mapped[str] = mapped_column(String(128))
     dept: Mapped[str] = mapped_column(String(128), default="", index=True)
     title: Mapped[str] = mapped_column(String(128), default="")
+    email: Mapped[str] = mapped_column(String(128), default="")
+    mobile: Mapped[str] = mapped_column(String(32), default="")
+    description: Mapped[str] = mapped_column(String(256), default="")
     status: Mapped[UserStatus] = mapped_column(
         enum_column(UserStatus, 16), default=UserStatus.ACTIVE, index=True
     )
