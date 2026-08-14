@@ -25,8 +25,9 @@
 | [12-post-mvp-operating-model.md](./12-post-mvp-operating-model.md) | 后 MVP 能力排序、运行模型、角色演进 | 已评审(2026-08-13) |
 | [13-operational-sop.md](./13-operational-sop.md) | 生产运行 SOP、变更与事件处置 | 已评审(2026-08-13) |
 | [14-ci-cd.md](./14-ci-cd.md) | CI/CD workflow 全景、版本/发布策略、离线部署包 | 已评审(2026-08-13) |
-| [15-ad-ldap-auth-integration.md](./15-ad-ldap-auth-integration.md) | AD 直通认证(免密码同步)+ 属性同步扩展设计 | 已实现(v0.3.0),待真实 AD 生产验收 |
-| [16-nas-ap-onboarding.md](./16-nas-ap-onboarding.md) | NAS/AP 接入与热更新机制改进设计 | 已实现(v0.3.0) |
+| [15-ad-ldap-auth-integration.md](./15-ad-ldap-auth-integration.md) | AD 直通认证(免密码同步)+ 属性同步扩展设计 | 已实现,已在真实 AD 验收通过(见 17) |
+| [16-nas-ap-onboarding.md](./16-nas-ap-onboarding.md) | NAS/AP 接入与热更新机制改进设计 | 已实现,已在真实 NAS 验收通过(见 17) |
+| [17-ad-nas-rollout-audit.md](./17-ad-nas-rollout-audit.md) | 15/16 生产落地审计记录(10.36.8.10 真机排障、5 处缺陷根因、遗留问题) | 审计记录(2026-08-14) |
 | [decisions/](./decisions/) | ADR 架构决策记录(只增不改) | 持续 |
 
 ## 如何配合 `/goal` 使用
@@ -125,5 +126,14 @@
   把测试账号本身也锁掉。修复:`winbindd -F`(前台运行,让 `$!` 正确跟踪真实
   进程)(PR #20)。用 `wbinfo -a`/手工 `ntlm_auth` 直接测已确认 join 账号
   本身、AD 侧密码校验完全没问题,问题完全在这个进程监控逻辑上。
+- **版本:v0.3.4——真机 802.1X 联调,`radiusd` 自身调用 `ntlm_auth` 权限被拒**:
+  `radiusd` 以非 root 的 `freerad` 用户运行,但 `ntlm_auth --request-nt-key`
+  需要 winbindd 特权 pipe(`root:winbindd_priv`,0750),`freerad` 不在这个组
+  里。跟 v0.3.3 那处 bug 报的是同一条错误信息,根因完全独立,容易被误认成
+  没修干净。修复:构建时把 `freerad` 加入 `winbindd_priv` 组(PR #22)。
+  修复后 `radtest -t mschap` 连续 5/5 次 `Access-Accept`,AD 直通认证核心
+  链路在真实环境验证通过。这一整轮(v0.3.0→v0.3.4)5 处缺陷的完整根因、
+  证据、验证方法论教训见
+  [17-ad-nas-rollout-audit.md](./17-ad-nas-rollout-audit.md)。
 - 分支:主线 `dev`(集成日常开发);`main` 发布线;无其他活跃分支(2026-08-13 项目审计清理)。
 - 开发环境:GitHub Codespaces,经 `gh`/SSH 直连(ADR-0007)。
