@@ -4,21 +4,18 @@
 
 - 基线:FreeRADIUS **3.2.x** 官方镜像 `freeradius/freeradius-server:latest`(构建时校验
   `radiusd -v` 并记录到 deploy/README)。
-- 本项目构建本地镜像 `openredius/freeradius`(`deploy/freeradius/Dockerfile`):
-
-```dockerfile
-FROM freeradius/freeradius-server:latest
-COPY raddb/ /etc/raddb/
-COPY entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
-EXPOSE 1812/udp 1813/udp
-ENTRYPOINT ["/entrypoint.sh"]
-CMD ["radiusd", "-X"]
-```
+- 本项目构建本地镜像 `openredius/freeradius`(`deploy/freeradius/Dockerfile`),
+  在官方镜像之上追加:gettext-base(envsubst 注入凭据)、winbind +
+  samba-common-bin(ntlm_auth)+ krb5-user(net/kinit,AD 直通依赖,docs/15);
+  `raddb/mods-available/mschap` 是上游 3.2.10 基线 + 启用 `ntlm_auth` 行的
+  overlay(其余配置保持上游默认)。
 
 - `entrypoint.sh`:对 `/etc/raddb/mods-available/sql` 等清单文件执行 `envsubst`
   (仅 `$RADIUS_SQL_HOST/$RADIUS_SQL_PORT/$RADIUS_SQL_USER/$RADIUS_SQL_PASSWORD/$RADIUS_SQL_DB`),
-  然后 `exec "$@"`。密钥不落仓库。
+  补 default site 的 sql/policy 接线、生成 dev 自签证书;`RADIUS_AD_*` 全部
+  非空时额外生成 krb5.conf/smb.conf、幂等 join 域(`net ads testjoin`)、
+  启动 winbindd;最后进入监督主循环(radiusd + winbindd 子进程 + 哨兵文件
+  reload watcher,docs/16)。密钥不落仓库。
 
 ## PostgreSQL 初始化(deploy/postgres/init.sql)
 
@@ -171,7 +168,10 @@ Class 的原生拒绝计入"其他";归类器的 Reply-Message 正则回退为�
 - `deploy/freeradius/certs/gen.sh`(openssl):自签 CA + 服务器证书(CN=OpenRedius-Dev,
   SAN 含 localhost),输出 ca.pem/server.pem/server.key → 挂载 `/etc/raddb/certs`。
 - eap 模块启用 `peap` 与 `tls` 子模块;dev 演示以 PEAP-MSCHAPv2 为主
-  (radcheck 存 `Cleartext-Password`;prod/AD 模式可切 NT-Password 或 rlm_ldap 直通)。
+  (radcheck 存 `Cleartext-Password`)。生产 AD 直通(方案 A,docs/15):容器
+  join 域并常驻 `winbindd`,`mods-available/mschap` 启用 `ntlm_auth` 行,
+  MS-CHAP 请求直接交给域控校验,终端零改造(Windows 原生 supplicant);
+  radcheck 里的明文/NT 哈希行配合 `MS-CHAP-Use-NTLM-Auth := No` 仍可优先。
 - EAP-TLS 完整链路(客户端证书)列为 M3 验收可选项,不阻塞主线。
 
 ## CoA / Disconnect(RFC 5176)

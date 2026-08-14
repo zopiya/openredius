@@ -10,7 +10,7 @@
 | 实体 | 关键字段 | 说明 |
 |---|---|---|
 | `admin_user` | id, username, display_name, password_hash, role(admin/operator/auditor), status, token_version, fail_count, first_failed_at, locked_until, linked_account(委派认证标记,预留) | 控制台登录账户 |
-| `access_user` | id, account(=sAMAccountName), name, dept, title, status(active/disabled/locked), locked_until, policy_group_id, ad_dn, ad_synced_at, source(ad/local) | 准入账号;account 唯一 |
+| `access_user` | id, account(=sAMAccountName), name, dept, title, email, mobile(优先 AD mobile,空回退 telephoneNumber,docs/15), description, status(active/disabled/locked), locked_until, policy_group_id, ad_dn, ad_synced_at, source(ad/local) | 准入账号;account 唯一 |
 | `policy_group` | id, name, slug, description, scope_dept, eap_method(eap-tls/peap-mschapv2), vlan_id, acl_name, session_timeout_s, reauth_interval_s, require_cert, require_mac_bind, require_edr, time_window_enabled, time_from, time_to, rate_limit_mbps, priority, enabled | 策略组=授权单元 |
 | `vlan` | id, vid, name | VLAN 字典(10 办公/20 研发/30 访客/40 财务隔离/50 供应链/99 运维) |
 | `acl_profile` | id, name(acl_staff…), description | ACL 字典(预留表;当前策略以 acl_name 字符串引用,暂只建模不读写) |
