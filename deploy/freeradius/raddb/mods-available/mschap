@@ -120,7 +120,7 @@ mschap {
 #  or NT-hash rows in radcheck still take precedence when
 #  MS-CHAP-Use-NTLM-Auth := No is set in control items (per upstream docs).
 #
-	ntlm_auth = "/usr/bin/ntlm_auth --request-nt-key --allow-mschapv2 --username=%{%{Stripped-User-Name}:-%{%{User-Name}:-None}} --challenge=%{%{mschap:Challenge}:-00} --nt-response=%{%{mschap:NT-Response}:-00}}"
+	ntlm_auth = "/usr/bin/ntlm_auth --request-nt-key --allow-mschapv2 --username=%{%{Stripped-User-Name}:-%{%{User-Name}:-None}} --challenge=%{%{mschap:Challenge}:-00} --nt-response=%{%{mschap:NT-Response}:-00}"
 
 	#
 	#  The default is to wait 10 seconds for ntlm_auth to
