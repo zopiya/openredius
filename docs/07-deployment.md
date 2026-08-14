@@ -92,7 +92,7 @@ CMD ["uvicorn", "openredius.main:app", "--host", "0.0.0.0", "--port", "8000"]
 | `OPENRADIUS_JWT_SECRET` | 必填(prod 校验长度 ≥32) |
 | `OPENRADIUS_BOOTSTRAP_ADMIN_USER/_PASSWORD` | 首次启动创建初始管理员 |
 | `OPENRADIUS_ENV=prod` | 后端运行模式 |
-| `OPENRADIUS_AD_*` | 可选 AD |
+| `OPENRADIUS_AD_*` | 可选 AD 目录同步(账号/姓名/部门等只读信息)。**不提供 802.1X 登录密码**——AD 直通认证是独立能力,设计见 [15-ad-ldap-auth-integration.md](./15-ad-ldap-auth-integration.md) |
 | `NAS_UDP_EXPOSE=1812-1813` | radius 端口映射 |
 
 `.env` 永不入库;`.env.example` 提供全部键与注释。
@@ -135,7 +135,7 @@ docker compose -f deploy/docker-compose.yml up -d postgres     # 先起数据库
 # 迁移必须在 backend 正常起来之前跑完——backend 的 FastAPI lifespan 启动时会
 # 查 admin_user 表(bootstrap 首个管理员),库还没迁移直接 UndefinedTableError
 # 崩溃;而 frontend 又 depends_on backend: condition: service_healthy,顺序反了
-# 会卡住(2026-08-14 首次真实部署踩过,详见 15 §2 / v0.2.1 发布记录)。
+# 会卡住(2026-08-14 首次真实部署踩过,详见 v0.2.1/v0.2.2 发布记录)。
 # `run --rm --no-deps` 绕开 depends_on 的健康检查门槛,起一个一次性容器专门跑迁移。
 docker compose -f deploy/docker-compose.yml run --rm --no-deps backend alembic upgrade head
 
@@ -148,6 +148,52 @@ docker compose -f deploy/docker-compose.yml logs -f backend
   `scripts/create_admin.py` 只是备用/重置口令的手工工具,不是必需步骤。
 - TLS:nginx 挂载证书(自签或 CA);MVP 允许 HTTP 仅内网使用,文档需警示。
 - 资源基线:postgres 1C/1G、backend 1C/512M、freeradius 1C/512M(万级日认证足够)。
+
+## 数据安全红线:首次部署 vs. 已有数据环境
+
+**这是强制流程,不是建议。** 任何一次 `up -d`/升级操作之前,先判断这个环境是
+"首次部署(全新、无数据)"还是"已有真实数据(哪怕只是升级一个次版本)",两种
+情况走完全不同的路径,判断方法是跑一次业务表 count 检查:
+
+```bash
+docker compose -f deploy/docker-compose.yml exec postgres \
+  psql -U postgres -d openredius -c "
+SELECT 'access_user' t, count(*) FROM access_user
+UNION ALL SELECT 'endpoint', count(*) FROM endpoint
+UNION ALL SELECT 'nas_device', count(*) FROM nas_device
+UNION ALL SELECT 'policy_group', count(*) FROM policy_group
+UNION ALL SELECT 'radius.nas', count(*) FROM radius.nas
+UNION ALL SELECT 'radius.radcheck', count(*) FROM radius.radcheck
+UNION ALL SELECT 'radius.radacct', count(*) FROM radius.radacct
+UNION ALL SELECT 'radius.radpostauth', count(*) FROM radius.radpostauth;
+"
+```
+(离线部署把 `docker-compose.yml` 换成 `docker-compose.offline.yml` 即可,命令
+本身不变;`admin_user`/`audit_log` 不算在判断范围内,因为控制台自己的 bootstrap
+管理员和它产生的审计记录不算"业务测试数据"。)
+
+- **全部为 0 → 首次部署**:说明这个环境从没跑过
+  `backend/scripts/seed_demo.py`,可以放心继续初始化流程(建管理员、配 AD、
+  接 NAS 等)。上线放真实流量之前必须跑一遍这个检查并确认全 0,这是强制的
+  前置门槛,不是可选项。
+- **任意一项非 0 → 已有数据环境(升级/redeploy)**:此时**严禁**执行以下任何
+  操作,不管出于什么理由("顺手清一下"、"看着像测试数据"都不是例外):
+  - 清空/截断(`TRUNCATE`)任何业务表
+  - 批量 `DELETE`/`DROP TABLE`
+  - 重新执行 `backend/scripts/seed_demo.py`
+  - 任何形式的"重置到干净状态"操作
+
+  升级流程只能是:加载新版本镜像 → `alembic upgrade head`(只做向后兼容的
+  schema 变更,见「升级与回滚」)→ 重启服务。**数据本身一律不动**。
+
+已知缺口(不在这次实现,记录下来避免以后重复纠结):项目目前没有一个"一键清空
+业务数据、保留 schema"的脚本。万一真的出现"环境不慎跑过 demo 数据、但确实还
+没上线,需要清成干净态"这种场景(注意:**仅限首次部署前**,已有真实数据的环境
+永远不适用),现在只能手工写 SQL 逐表清。如果这个场景以后频繁出现,可以让 pi
+补一个专门脚本,但要求脚本本身有醒目的二次确认(比如要求手工输入环境名称或者
+一次性随机确认码才能执行),防止误用到已有真实数据的环境上。
+
+配套的运行 SOP 见 [13-operational-sop.md](./13-operational-sop.md) SOP-07。
 
 ## 备份与恢复
 
@@ -209,8 +255,13 @@ docker compose -f docker-compose.offline.yml ps   # 全部 healthy 为止
 # 6.(可选)没在 .env 里配 bootstrap 口令,或要重置管理员密码,再手工建/改:
 docker compose -f docker-compose.offline.yml exec backend \
   python scripts/create_admin.py admin --password '<强口令>' --role admin --force
+
+# 7. 上线放真实流量之前,必须跑一遍「数据安全红线」一节的业务表 count 检查,
+#    确认是首次部署且全 0——这一步是强制的,不是可选项。
 ```
 
 之后的运维(TLS 证书、备份/恢复、NAS 接入、故障排查)与「生产运行」一节完全一致——离线包
 只是换了镜像的来源(本地 tar vs. registry pull),服务清单、端口、健康检查、备份脚本都是
 同一套。升级新版本 = 下载新的 offline 包、重复第 2–3 步(数据库迁移向后兼容,见上「升级与回滚」)。
+**升级前先跑「数据安全红线」一节的 count 检查——只要不是全 0,就是已有数据环境,
+升级流程绝不能碰数据本身。**

@@ -25,6 +25,8 @@
 | [12-post-mvp-operating-model.md](./12-post-mvp-operating-model.md) | 后 MVP 能力排序、运行模型、角色演进 | 已评审(2026-08-13) |
 | [13-operational-sop.md](./13-operational-sop.md) | 生产运行 SOP、变更与事件处置 | 已评审(2026-08-13) |
 | [14-ci-cd.md](./14-ci-cd.md) | CI/CD workflow 全景、版本/发布策略、离线部署包 | 已评审(2026-08-13) |
+| [15-ad-ldap-auth-integration.md](./15-ad-ldap-auth-integration.md) | AD 直通认证(免密码同步)+ 属性同步扩展设计 | 设计文档,未实现(2026-08-14) |
+| [16-nas-ap-onboarding.md](./16-nas-ap-onboarding.md) | NAS/AP 接入与热更新机制改进设计 | 设计文档,未实现(2026-08-14) |
 | [decisions/](./decisions/) | ADR 架构决策记录(只增不改) | 持续 |
 
 ## 如何配合 `/goal` 使用
@@ -67,5 +69,12 @@
   的 lifespan 会查 admin_user 表,库没迁移就查表直接崩),`docs/07-deployment.md`
   「生产运行」「离线部署」两节已补上 `docker compose run --rm --no-deps backend
   alembic upgrade head` 的正确步骤。
+- 生产试点接入(2026-08-14,`10.36.8.10`):v0.2.2 部署验证通过后,复核 AD 同步
+  (10.36.5.245)与 NAS/AP 接入这两条链路时,又发现两处未产品化的真实缺口——
+  AD 同步不提供 802.1X 登录密码、NAS 变更后的"重载"机制大概率执行不了——均已
+  写成设计文档(见 15/16),交由 pi 实现,不在这次直接改代码。同时把"首次部署
+  必须无测试数据、已有数据环境禁止清空"这条红线正式写入
+  [07-deployment.md](./07-deployment.md#数据安全红线首次部署-vs-已有数据环境)
+  与 [13-operational-sop.md](./13-operational-sop.md) SOP-07。
 - 分支:主线 `dev`(集成日常开发);`main` 发布线;无其他活跃分支(2026-08-13 项目审计清理)。
 - 开发环境:GitHub Codespaces,经 `gh`/SSH 直连(ADR-0007)。
