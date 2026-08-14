@@ -79,7 +79,10 @@ export interface paths {
     post: operations["assign_user_policy_api_users_policy_post"];
   };
   "/api/policies": {
-    /** List Policies */
+    /**
+     * List Policies
+     * @description Envelope per docs/03 通用约定(列表统一信封)。
+     */
     get: operations["list_policies_api_policies_get"];
     /** Create Policy */
     post: operations["create_policy_api_policies_post"];
@@ -248,11 +251,15 @@ export interface paths {
   "/api/ops/reload-radius": {
     /**
      * Reload Radius
-     * @description Restart FreeRADIUS so rlm_sql re-reads the nas table (docs/06).
+     * @description Request a radiusd restart so rlm_sql re-reads the nas table (docs/16).
      *
-     * ``read_clients`` only loads at startup, so client changes need a restart.
-     * Runs ``OPENRADIUS_RADIUS_RELOAD_COMMAND`` when configured; otherwise
-     * responds in manual mode with instructions.
+     * Writes a sentinel file (epoch seconds, atomic replace) into
+     * ``OPENRADIUS_RADIUS_RELOAD_DIR``; the FreeRADIUS container watcher detects
+     * the change, restarts radiusd and writes the matching ``reload-applied``
+     * marker. The endpoint polls that marker so callers know whether the reload
+     * has taken effect. No shell command is ever executed (docs/16 §3).
+     *
+     * Empty reload dir = manual mode: restart the FreeRADIUS container by hand.
      */
     post: operations["reload_radius_api_ops_reload_radius_post"];
   };
@@ -265,27 +272,27 @@ export interface paths {
   };
   "/api/portal": {
     /** Portal Root */
-    get: operations["_portal_root_api_portal_get"];
+    get: operations["_portal_root_api_portal_delete"];
     /** Portal Root */
-    put: operations["_portal_root_api_portal_get"];
+    put: operations["_portal_root_api_portal_delete"];
     /** Portal Root */
-    post: operations["_portal_root_api_portal_get"];
+    post: operations["_portal_root_api_portal_delete"];
     /** Portal Root */
-    delete: operations["_portal_root_api_portal_get"];
+    delete: operations["_portal_root_api_portal_delete"];
     /** Portal Root */
-    patch: operations["_portal_root_api_portal_get"];
+    patch: operations["_portal_root_api_portal_delete"];
   };
   "/api/portal/{path}": {
     /** Portal Catch All */
-    get: operations["_portal_catch_all_api_portal__path__get"];
+    get: operations["_portal_catch_all_api_portal__path__delete"];
     /** Portal Catch All */
-    put: operations["_portal_catch_all_api_portal__path__get"];
+    put: operations["_portal_catch_all_api_portal__path__delete"];
     /** Portal Catch All */
-    post: operations["_portal_catch_all_api_portal__path__get"];
+    post: operations["_portal_catch_all_api_portal__path__delete"];
     /** Portal Catch All */
-    delete: operations["_portal_catch_all_api_portal__path__get"];
+    delete: operations["_portal_catch_all_api_portal__path__delete"];
     /** Portal Catch All */
-    patch: operations["_portal_catch_all_api_portal__path__get"];
+    patch: operations["_portal_catch_all_api_portal__path__delete"];
   };
 }
 
@@ -536,6 +543,8 @@ export interface components {
       mac: string;
       /** Owner Name */
       owner_name: string | null;
+      /** Cert Serial */
+      cert_serial: string | null;
       /** Cert Not After */
       cert_not_after: string | null;
       /** First Seen At */
@@ -838,6 +847,104 @@ export interface components {
        * @default true
        */
       enabled?: boolean;
+    };
+    /**
+     * PolicyDetail
+     * @description docs/03「策略管理」:详情含编译后的 FreeRADIUS 属性清单。
+     */
+    PolicyDetail: {
+      /** Name */
+      name: string;
+      /** Slug */
+      slug: string;
+      /**
+       * Description
+       * @default
+       */
+      description?: string;
+      /**
+       * Scope Dept
+       * @default
+       */
+      scope_dept?: string;
+      /** @default peap-mschapv2 */
+      eap_method?: components["schemas"]["EapMethod"];
+      /** Vlan Id */
+      vlan_id: number;
+      /**
+       * Acl Name
+       * @default
+       */
+      acl_name?: string;
+      /** Session Timeout S */
+      session_timeout_s?: number | null;
+      /** Reauth Interval S */
+      reauth_interval_s?: number | null;
+      /**
+       * Require Cert
+       * @default false
+       */
+      require_cert?: boolean;
+      /**
+       * Require Mac Bind
+       * @default false
+       */
+      require_mac_bind?: boolean;
+      /**
+       * Require Edr
+       * @default false
+       */
+      require_edr?: boolean;
+      /**
+       * Time Window Enabled
+       * @default false
+       */
+      time_window_enabled?: boolean;
+      /**
+       * Time From
+       * Format: time
+       * @default 08:00:00
+       */
+      time_from?: string;
+      /**
+       * Time To
+       * Format: time
+       * @default 20:00:00
+       */
+      time_to?: string;
+      /** Rate Limit Mbps */
+      rate_limit_mbps?: number | null;
+      /**
+       * Priority
+       * @default 0
+       */
+      priority?: number;
+      /**
+       * Enabled
+       * @default true
+       */
+      enabled?: boolean;
+      /** Id */
+      id: number;
+      /** Vlan Name */
+      vlan_name: string | null;
+      /** User Count */
+      user_count: number;
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+      /**
+       * Updated At
+       * Format: date-time
+       */
+      updated_at: string;
+      /**
+       * Compiled Rules
+       * @default []
+       */
+      compiled_rules?: string[];
     };
     /** PolicyOut */
     PolicyOut: {
@@ -1188,6 +1295,8 @@ export interface components {
       source: components["schemas"]["UserSource"];
       /** Endpoint Count */
       endpoint_count: number;
+      /** Last Auth */
+      last_auth?: string | null;
       /**
        * Created At
        * Format: date-time
@@ -1607,13 +1716,18 @@ export interface operations {
       };
     };
   };
-  /** List Policies */
+  /**
+   * List Policies
+   * @description Envelope per docs/03 通用约定(列表统一信封)。
+   */
   list_policies_api_policies_get: {
     responses: {
       /** @description Successful Response */
       200: {
         content: {
-          "application/json": components["schemas"]["PolicyOut"][];
+          "application/json": {
+            [key: string]: unknown;
+          };
         };
       };
     };
@@ -1651,7 +1765,7 @@ export interface operations {
       /** @description Successful Response */
       200: {
         content: {
-          "application/json": components["schemas"]["PolicyOut"];
+          "application/json": components["schemas"]["PolicyDetail"];
         };
       };
       /** @description Validation Error */
@@ -1747,7 +1861,9 @@ export interface operations {
       /** @description Successful Response */
       200: {
         content: {
-          "application/json": components["schemas"]["PolicyOut"][];
+          "application/json": {
+            [key: string]: unknown;
+          };
         };
       };
       /** @description Validation Error */
@@ -2599,11 +2715,15 @@ export interface operations {
   };
   /**
    * Reload Radius
-   * @description Restart FreeRADIUS so rlm_sql re-reads the nas table (docs/06).
+   * @description Request a radiusd restart so rlm_sql re-reads the nas table (docs/16).
    *
-   * ``read_clients`` only loads at startup, so client changes need a restart.
-   * Runs ``OPENRADIUS_RADIUS_RELOAD_COMMAND`` when configured; otherwise
-   * responds in manual mode with instructions.
+   * Writes a sentinel file (epoch seconds, atomic replace) into
+   * ``OPENRADIUS_RADIUS_RELOAD_DIR``; the FreeRADIUS container watcher detects
+   * the change, restarts radiusd and writes the matching ``reload-applied``
+   * marker. The endpoint polls that marker so callers know whether the reload
+   * has taken effect. No shell command is ever executed (docs/16 §3).
+   *
+   * Empty reload dir = manual mode: restart the FreeRADIUS container by hand.
    */
   reload_radius_api_ops_reload_radius_post: {
     responses: {
@@ -2634,7 +2754,7 @@ export interface operations {
     };
   };
   /** Portal Root */
-  _portal_root_api_portal_get: {
+  _portal_root_api_portal_delete: {
     responses: {
       /** @description Successful Response */
       200: {
@@ -2645,7 +2765,7 @@ export interface operations {
     };
   };
   /** Portal Catch All */
-  _portal_catch_all_api_portal__path__get: {
+  _portal_catch_all_api_portal__path__delete: {
     parameters: {
       path: {
         path: string;

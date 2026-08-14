@@ -29,11 +29,9 @@
    CoA 支持和回退窗口。
 2. 使用专用、随机的 NAS Secret；仅在确有必要时通过受审计的接口查看，不复制到工单。
 3. 新 NAS 先在限定客户端范围验证 `Access-Accept`、`Access-Reject`、Accounting 与 CoA；
-   FreeRADIUS v3 的客户端变更需要按既定流程 reload。**现状提醒**：2026-08-14 代码复核
-   发现现有 `reload-radius` 默认配置大概率执行不了（见
-   [16-nas-ap-onboarding.md](./16-nas-ap-onboarding.md) §2），改进方案已写入该设计文档、
-   待实现；在修好之前，新增/变更 NAS 后应直接重启 freeradius 容器确认生效，不要只依赖
-   控制台"重载"按钮的成功提示。
+   FreeRADIUS v3 的客户端变更通过 `POST /api/ops/reload-radius` 生效（哨兵文件
+   + 容器内 watcher 重启 radiusd，见 docs/16）。若该接口不可用（manual 模式），
+   直接重启 freeradius 容器确认生效，不要只依赖控制台"重载"按钮的成功提示。
 4. 下线前确认无活跃会话，或由业务负责人批准强制下线；移除后保留审计记录并撤销相关 Secret。
 
 ## SOP-03 · 认证异常与 NAS 离线

@@ -68,8 +68,8 @@ bash deploy/scripts/smoke_freeradius.sh    # radiusd -CX 配置语法校验
 - **口令**:seed 演示用户统一 `Demo-Radius-2026`(radcheck Cleartext-Password,
   仅 dev);radtest 客户端密钥 `testing123-dev`(compose init 写入 radius.nas)。
 - **NAS 客户端**:全部来自 `radius.nas`(后端 NAS CRUD 写入),镜像内
-  `clients.conf` 清空静态客户端;`read_clients` 仅启动时读取,变更后用
-  `POST /api/ops/reload-radius`(或 `OPENRADIUS_RADIUS_RELOAD_COMMAND`)重启容器。
+  `clients.conf` 清空静态客户端;`read_clients` 仅启动时读取,变更后通过
+  `POST /api/ops/reload-radius`(哨兵文件 + 容器内 watcher,docs/16)生效。
 - **证书**:挂载 `deploy/freeradius/certs/` 遮蔽上游证书目录;无证书文件时
   entrypoint 自签兜底(口令 `whatever`,对齐上游 eap tls-config)。手工生成用
   `deploy/freeradius/certs/gen.sh`。
@@ -172,8 +172,10 @@ dot1x system-auth-control
 
 ### 4. FreeRADIUS 重载
 
-NAS 变更后生效:通过 API `POST /api/ops/reload-radius` 或 compose
-`docker compose -f deploy/docker-compose.yml restart freeradius`。
+NAS 变更后生效:通过 API `POST /api/ops/reload-radius`(哨兵文件机制,
+详见 docs/16;后端与 freeradius 容器共享 `radius-reload` 卷,watcher 在几秒内
+重启 radiusd),或手工 `docker compose -f deploy/docker-compose.yml restart
+freeradius`。
 
 ### 5. 冒烟
 

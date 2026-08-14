@@ -59,11 +59,14 @@ post-auth 各阶段加入 `sql`,authenticate 启用 eap。
 ## NAS 客户端生命周期
 
 - 设备管理 CRUD → 写 `radius.nas`(nasname=IP, shortname=名称, secret, type, description)。
-- **变更后必须重启 freeradius 容器**(`read_clients` 仅启动时读取)。后端流程:
-  1. 写库成功,响应携带 `reload_required=true`(后端不自动重启);
-  2. 由操作方(前端 toast 引导或运维)调用 `POST /api/ops/reload-radius`:配置了
-  `OPENRADIUS_RADIUS_RELOAD_COMMAND`(dev 如 `docker compose -f deploy/docker-compose.dev.yml restart freeradius`)
-  则自动执行,未配置返回 `{mode:"manual"}` 提示手动重启;3. 前端 toast 说明。
+- **变更后需触发 radiusd 重启**(`read_clients` 仅启动时读取)。后端流程:
+  1. 写库成功,响应携带 `reload_required=true`(后端不自动重载);
+  2. 由操作方(前端 toast 引导或运维)调用 `POST /api/ops/reload-radius`;
+  3. 实现为**共享卷哨兵文件机制**(docs/16):后端向 `OPENRADIUS_RADIUS_RELOAD_DIR`
+     写入 `reload-requested`(epoch 秒,原子替换),freeradius 容器内 watcher
+     轮询发现变化后重启 radiusd 并回写 `reload-applied`,后端轮询该标记确认
+     生效(默认 35s 内)。未配置目录时返回 `{mode:"manual"}`,提示手工
+     `docker compose restart freeradius`。**不再是任意 shell 命令模式。**
 - 删除 NAS 前校验无活跃会话(03 已定义)。
 
 ## 策略消费:unlang 设计(authorize,在 sql 之后)

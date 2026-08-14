@@ -49,10 +49,14 @@ services:
       RADIUS_SQL_PASSWORD: ${RADIUS_SQL_PASSWORD:?}
       RADIUS_SQL_DB: openredius
       OPENRADIUS_ENV: ${OPENRADIUS_ENV:-prod}
+      # docs/16: in-container watcher restarts radiusd when the backend writes
+      # a sentinel here (shared volume, never a shell command).
+      OPENRADIUS_RADIUS_RELOAD_DIR: /var/run/openredius
     ports:
       - "${NAS_UDP_EXPOSE:-1812-1813}:1812-1813/udp"
     volumes:
       - ./freeradius/certs:/etc/raddb/certs
+      - radius-reload:/var/run/openredius
     depends_on:
       postgres:
         condition: service_healthy
@@ -74,7 +78,9 @@ services:
       OPENRADIUS_JWT_REFRESH_TTL: ${OPENRADIUS_JWT_REFRESH_TTL:-7d}
       OPENRADIUS_BOOTSTRAP_ADMIN_USER: ${OPENRADIUS_BOOTSTRAP_ADMIN_USER:-admin}
       OPENRADIUS_BOOTSTRAP_ADMIN_PASSWORD: ${OPENRADIUS_BOOTSTRAP_ADMIN_PASSWORD:-}
-      OPENRADIUS_RADIUS_RELOAD_COMMAND: ${OPENRADIUS_RADIUS_RELOAD_COMMAND:-docker kill -s HUP openredius-freeradius-1 2>/dev/null || true}
+      # docs/16: shared sentinel directory with the freeradius container
+      # (default matches the volume mount below; empty = manual mode).
+      OPENRADIUS_RADIUS_RELOAD_DIR: ${OPENRADIUS_RADIUS_RELOAD_DIR:-/var/run/openredius}
       OPENRADIUS_RADIUS_COA_PORT: ${OPENRADIUS_RADIUS_COA_PORT:-3799}
       OPENRADIUS_AD_URL: ${OPENRADIUS_AD_URL:-}
       OPENRADIUS_AD_BIND_DN: ${OPENRADIUS_AD_BIND_DN:-}
@@ -83,6 +89,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    volumes:
+      - radius-reload:/var/run/openredius
     healthcheck:
       test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health', timeout=3)"]
       interval: 15s
@@ -110,3 +118,4 @@ services:
 
 volumes:
   postgres-data:
+  radius-reload:
