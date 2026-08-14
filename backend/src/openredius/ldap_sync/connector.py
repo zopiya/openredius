@@ -20,6 +20,10 @@ class AdUserEntry:
     displayName: str = ""
     department: str = ""
     title: str = ""
+    mail: str = ""
+    # C-003: prefer AD "mobile", fall back to "telephoneNumber" (docs/15 §4).
+    mobile: str = ""
+    description: str = ""
     distinguishedName: str = ""
     whenChanged: datetime | None = None
     # True when the directory marks the account as disabled (UAC 0x2).

@@ -47,9 +47,11 @@ class Settings(BaseSettings):
     # After a Disconnect-ACK, poll radacct this long for the NAS-side stop
     # before backend-closing the row (docs/04 CoA).
     radius_coa_close_poll_s: float = 10.0
-    # Command used by POST /api/ops/reload-radius (empty = manual mode).
-    # Dev: "docker compose -f deploy/docker-compose.dev.yml restart freeradius"
-    radius_reload_command: str = ""
+    # Directory shared with the FreeRADIUS container (docs/16):
+    # POST /api/ops/reload-radius writes a sentinel file here and the
+    # in-container watcher restarts radiusd when it changes (empty = manual
+    # mode). Never an arbitrary shell command — see docs/16 §3.
+    radius_reload_dir: str = ""
     nas_online_window: int = 300
     # Derived NAS status flips to high-load above this ratio (docs/02).
     nas_high_load_ratio: float = 0.9

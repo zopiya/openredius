@@ -51,6 +51,9 @@ def _entry(
     name: str = "",
     dept: str = "",
     title: str = "",
+    mail: str = "",
+    mobile: str = "",
+    description: str = "",
     disabled: bool = False,
     dn: str = "",
 ) -> AdUserEntry:
@@ -59,6 +62,9 @@ def _entry(
         displayName=name or account,
         department=dept,
         title=title,
+        mail=mail,
+        mobile=mobile,
+        description=description,
         distinguishedName=dn or f"CN={account},OU=Users,DC=contoso,DC=com",
         disabled=disabled,
     )
@@ -69,7 +75,14 @@ async def test_sync_new_user_created(db, settings):
     """Branch ADDED: new AD accounts become local ACTIVE users."""
     connector = _MockConnector(
         [
-            _entry(account="new.user", name="New User", dept="IT"),
+            _entry(
+                account="new.user",
+                name="New User",
+                dept="IT",
+                mail="new.user@contoso.com",
+                mobile="+86-138-0000-0000",
+                description="外协驻场",
+            ),
         ]
     )
     job = await run_ad_sync(db, settings, connector, triggered_by=SyncTrigger.MANUAL)
@@ -84,6 +97,9 @@ async def test_sync_new_user_created(db, settings):
     assert user is not None
     assert user.name == "New User"
     assert user.dept == "IT"
+    assert user.email == "new.user@contoso.com"
+    assert user.mobile == "+86-138-0000-0000"
+    assert user.description == "外协驻场"
     assert user.source is UserSource.AD
     assert user.status is UserStatus.ACTIVE
     await db.commit()

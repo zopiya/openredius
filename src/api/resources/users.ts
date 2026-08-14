@@ -51,6 +51,9 @@ function mapUser(raw: any): UserRow {
     title: raw.title ?? '',
     devices: raw.endpoint_count ?? 0,
     lastAuth: raw.last_auth ?? '',
+    email: raw.email ?? '',
+    mobile: raw.mobile ?? '',
+    description: raw.description ?? '',
   };
 }
 

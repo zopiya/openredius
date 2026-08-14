@@ -398,6 +398,8 @@ export default function UsersPage() {
               items={[
                 { key: 'name', label: '姓名 / 账号', children: `${drawerUser.name} · ${drawerUser.account}` },
                 { key: 'dept', label: '所属部门 / 职位', children: `${drawerUser.dept} · ${drawerUser.title}` },
+                { key: 'contact', label: '邮箱 / 手机', children: [drawerUser.email, drawerUser.mobile].filter(Boolean).join(' · ') || '—' },
+                { key: 'desc', label: '备注', children: drawerUser.description || '—' },
                 { key: 'status', label: '账号状态', children: drawerUser.status },
                 { key: 'src', label: '账号来源', children: 'AD 同步(corp.example.com)' },
                 { key: 'last', label: '最近认证', children: detail ? (detail.recentAuth[0] ? `${detail.recentAuth[0].time},${detail.recentAuth[0].nas} · ${detail.recentAuth[0].result === '失败' ? '拒绝' : '接受'}` : '—') : '2026-07-27,SW-3F-01 · EAP-TLS' },

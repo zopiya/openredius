@@ -66,8 +66,9 @@ Secret 查看/修改、设置变更、AD 同步触发、管理员账户变更、
 
 ## 数据安全
 
-- 口令字段(radcheck Cleartext-Password)仅 dev 使用;prod 建议 NT-Password(不可逆哈希)
-  或 AD 直通(rlm_ldap),文档与设置页明示。
+- 口令字段(radcheck Cleartext-Password)仅 dev 使用;prod 采用 AD 直通
+  (winbind/ntlm_auth,docs/15 方案 A)——MS-CHAP 密码不回传后端、不落库,
+  由域控校验;如需本地口令回退,用 NT-Password(不可逆哈希)而非明文。
 - 备份文件同数据库密级管理;backups/ 目录权限 700。
 - 日志脱敏:password/secret 等敏感值一律 `***`。
 
