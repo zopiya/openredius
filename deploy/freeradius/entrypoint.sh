@@ -5,7 +5,10 @@
 #   2. Patch sites-enabled/default to wire in `sql` + `policy-openredius`
 #      (section-aware awk; fail fast if upstream anchors move).
 #   3. Self-signed dev certs when the certs mount has none.
-#   4. exec the server (default: radiusd -X).
+#   4. AD join + winbindd when RADIUS_AD_* is set (docs/15 方案 A; skipped
+#      entirely otherwise).
+#   5. supervise radiusd (+ winbindd) with the sentinel-file reload watcher
+#      (docs/16), then loop forever.
 set -eu
 
 SQL_MODS=/etc/raddb/mods-available/sql
@@ -82,5 +85,179 @@ fi
 chmod 644 "$CERTDIR"/*.pem 2>/dev/null || true
 chmod 600 "$CERTDIR"/*.key 2>/dev/null || true
 
-# --- 4. run ------------------------------------------------------------------
-exec "$@"
+# --- 4. AD join + winbind (docs/15 方案 A) ----------------------------------
+# Gated entirely on RADIUS_AD_* env: with no AD variables set (plain dev)
+# nothing here runs and startup is byte-identical to the pre-AD entrypoint.
+AD_ENABLED=false
+if [ -n "${RADIUS_AD_REALM:-}" ] && [ -n "${RADIUS_AD_JOIN_USER:-}" ] && [ -n "${RADIUS_AD_JOIN_PASSWORD:-}" ]; then
+    AD_ENABLED=true
+fi
+WINBIND_PID=""
+# winbindd only starts when the join actually succeeded; a failed join would
+# otherwise crash-loop the supervisor (2s restart spam, no benefit).
+WINBIND_ENABLED=false
+
+if $AD_ENABLED; then
+    AD_REALM="${RADIUS_AD_REALM}"
+    AD_WORKGROUP="${RADIUS_AD_WORKGROUP:-$(printf '%s' "$AD_REALM" | cut -d. -f1)}"
+    AD_LCREALM="$(printf '%s' "$AD_REALM" | tr '[:upper:]' '[:lower:]')"
+    AD_KDC="${RADIUS_AD_KDC:-}"
+
+    # /etc/krb5.conf — realm + optional explicit KDC; otherwise rely on DNS
+    # SRV records (AD DNS is set on the compose service, T-107).
+    {
+        echo "[libdefaults]"
+        echo "    default_realm = $AD_REALM"
+        echo "    default_keytab_name = /var/lib/samba/krb5.keytab"
+        echo "    dns_lookup_realm = false"
+        if [ -n "$AD_KDC" ]; then
+            echo "    dns_lookup_kdc = false"
+        else
+            echo "    dns_lookup_kdc = true"
+        fi
+        echo ""
+        echo "[realms]"
+        echo "    $AD_REALM = {"
+        if [ -n "$AD_KDC" ]; then
+            echo "        kdc = $AD_KDC"
+        fi
+        echo "    }"
+        echo ""
+        echo "[domain_realm]"
+        echo "    .$AD_LCREALM = $AD_REALM"
+    } > /etc/krb5.conf
+
+    # /etc/samba/smb.conf — minimal winbind member config.
+    {
+        echo "[global]"
+        echo "    workgroup = $AD_WORKGROUP"
+        echo "    realm = $AD_REALM"
+        echo "    security = ADS"
+        echo "    winbind use default domain = yes"
+        echo "    winbind refresh tickets = yes"
+        echo "    winbind offline logon = yes"
+        echo "    idmap config * : backend = tdb"
+        echo "    idmap config * : range = 100000-200000"
+        echo "    kerberos method = secrets and keytab"
+        echo "    dedicated keytab file = /var/lib/samba/krb5.keytab"
+        echo "    log file = /var/log/samba/log.winbind"
+    } > /etc/samba/smb.conf
+
+    mkdir -p /var/lib/samba /var/log/samba /run/samba
+
+    # Idempotent join: secrets.tdb lives on the mounted /var/lib/samba volume,
+    # so a recreated container passes testjoin and skips the join call.
+    if net ads testjoin >/dev/null 2>&1; then
+        echo "entrypoint: already joined to $AD_REALM (testjoin ok)"
+        WINBIND_ENABLED=true
+    else
+        echo "entrypoint: joining domain $AD_REALM as $RADIUS_AD_JOIN_USER"
+        if net ads join -U "$RADIUS_AD_JOIN_USER%$RADIUS_AD_JOIN_PASSWORD" >/dev/null 2>&1; then
+            WINBIND_ENABLED=true
+        else
+            echo "entrypoint: WARNING — domain join FAILED; MS-CHAP auth via winbind will not work" >&2
+        fi
+    fi
+    # (Re)create the machine keytab into the state volume when missing — the
+    # keytab is derived state, secrets.tdb holds the actual join secret.
+    if $WINBIND_ENABLED && [ ! -f /var/lib/samba/krb5.keytab ]; then
+        net ads keytab create -P >/dev/null 2>&1 \
+            || echo "entrypoint: WARNING — keytab create failed" >&2
+    fi
+    # Smoke check ntlm_auth wiring once winbindd is up (best-effort: the join
+    # account may lack interactive logon rights, so failure is a warning only).
+fi
+
+# --- 5. supervise radiusd + sentinel-file reload watcher (docs/16) -----------
+# radiusd runs as a child process so it can be restarted in place (a PID-1
+# radiusd could never reload the SQL nas client list). A 2s poll loop watches
+# the shared reload directory for ``reload-requested`` (epoch seconds, written
+# atomically by the backend) and restarts radiusd, then echoes the epoch into
+# ``reload-applied``. Crashes are also restarted. No inotify dependency.
+RELOAD_DIR="${OPENRADIUS_RADIUS_RELOAD_DIR:-}"
+RADIUS_PID=""
+
+# NOTE: inside a POSIX-sh function "$@" is the *function's* arguments, so the
+# radiusd command is always passed along explicitly ("$@" at call sites below
+# refers to the entrypoint's own arguments).
+start_radiusd() {
+    "$@" &
+    RADIUS_PID=$!
+}
+
+stop_radiusd() {
+    [ -n "$RADIUS_PID" ] || return 0
+    kill "$RADIUS_PID" 2>/dev/null || true
+    wait "$RADIUS_PID" 2>/dev/null || true
+    RADIUS_PID=""
+}
+
+reload_if_requested() {
+    [ -n "$RELOAD_DIR" ] || return 0
+    REQUESTED="$(cat "$RELOAD_DIR/reload-requested" 2>/dev/null || true)"
+    [ -n "$REQUESTED" ] || return 0
+    [ "$REQUESTED" != "$APPLIED" ] || return 0
+    echo "entrypoint: reload requested (epoch=$REQUESTED) — restarting radiusd"
+    stop_radiusd
+    start_radiusd "$@"
+    APPLIED="$REQUESTED"
+    printf '%s' "$APPLIED" > "$RELOAD_DIR/reload-applied"
+}
+
+restart_if_crashed() {
+    kill -0 "$RADIUS_PID" 2>/dev/null && return 0
+    wait "$RADIUS_PID" 2>/dev/null || true
+    echo "entrypoint: radiusd exited unexpectedly — restarting"
+    start_radiusd "$@"
+}
+
+start_winbindd() {
+    $WINBIND_ENABLED || return 0
+    winbindd &
+    WINBIND_PID=$!
+}
+
+stop_winbindd() {
+    [ -n "$WINBIND_PID" ] || return 0
+    kill "$WINBIND_PID" 2>/dev/null || true
+    wait "$WINBIND_PID" 2>/dev/null || true
+    WINBIND_PID=""
+}
+
+exec 2>&1
+mkdir -p "$RELOAD_DIR" 2>/dev/null || true
+APPLIED="$(cat "$RELOAD_DIR/reload-applied" 2>/dev/null || true)"
+start_winbindd
+if $WINBIND_ENABLED; then
+    # Best-effort wiring smoke test (docs/15 §5): validates the
+    # eap→mschap→ntlm_auth chain from inside the container. Failure is a
+    # warning — real auth still requires a reachable DC and valid users.
+    SMOKE_OK=false
+    i=0
+    while [ "$i" -lt 3 ]; do
+        if ntlm_auth --username="$RADIUS_AD_JOIN_USER" --password="$RADIUS_AD_JOIN_PASSWORD" --domain="$AD_WORKGROUP" >/dev/null 2>&1; then
+            SMOKE_OK=true
+            break
+        fi
+        i=$((i + 1))
+        sleep 1
+    done
+    if $SMOKE_OK; then
+        echo "entrypoint: ntlm_auth smoke test OK"
+    else
+        echo "entrypoint: WARNING — ntlm_auth smoke test failed (check join/DC reachability)" >&2
+    fi
+fi
+start_radiusd "$@"
+trap 'echo "entrypoint: SIGTERM — stopping radiusd/winbindd"; stop_radiusd; stop_winbindd; exit 0' TERM INT
+while :; do
+    sleep 2
+    reload_if_requested "$@"
+    restart_if_crashed "$@"
+    # winbindd supervisor (crash-restart only; reload only restarts radiusd).
+    if $WINBIND_ENABLED && ! kill -0 "$WINBIND_PID" 2>/dev/null; then
+        wait "$WINBIND_PID" 2>/dev/null || true
+        echo "entrypoint: winbindd exited unexpectedly — restarting"
+        start_winbindd
+    fi
+done

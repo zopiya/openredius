@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import asyncio
-import shlex
+import os
 import time
+from pathlib import Path
 
 from fastapi import APIRouter, Depends, Request
 from sqlalchemy import text
@@ -21,7 +22,9 @@ from openredius.services.audit import record_audit
 router = APIRouter()
 health_router = APIRouter()
 
-_RELOAD_TIMEOUT_S = 30
+# Poll the applied marker this long after writing the sentinel (docs/16).
+_RELOAD_APPLIED_TIMEOUT_S = 35.0
+_RELOAD_POLL_INTERVAL_S = 0.5
 
 
 @health_router.get("/health")
@@ -36,8 +39,9 @@ async def health(request: Request, settings: Settings = Depends(get_app_settings
     return {
         "status": "ok" if db_status == "ok" else "degraded",
         "db": db_status,
-        # reload command configured -> ops can restart FreeRADIUS itself (docs/06).
-        "radius_config": "configured" if settings.radius_reload_command.strip() else "manual",
+        # reload dir configured -> ops can ask the in-container watcher to
+        # restart radiusd via the shared sentinel directory (docs/16).
+        "radius_config": "file" if settings.radius_reload_dir.strip() else "manual",
         "version": __version__,
         "uptime_s": int(time.monotonic() - started_at) if started_at is not None else None,
     }
@@ -59,52 +63,79 @@ async def reload_radius(
     admin: AdminUser = Depends(require_role(AdminRole.ADMIN)),
     settings: Settings = Depends(get_app_settings),
 ) -> dict:
-    """Restart FreeRADIUS so rlm_sql re-reads the nas table (docs/06).
+    """Request a radiusd restart so rlm_sql re-reads the nas table (docs/16).
 
-    ``read_clients`` only loads at startup, so client changes need a restart.
-    Runs ``OPENRADIUS_RADIUS_RELOAD_COMMAND`` when configured; otherwise
-    responds in manual mode with instructions.
+    Writes a sentinel file (epoch seconds, atomic replace) into
+    ``OPENRADIUS_RADIUS_RELOAD_DIR``; the FreeRADIUS container watcher detects
+    the change, restarts radiusd and writes the matching ``reload-applied``
+    marker. The endpoint polls that marker so callers know whether the reload
+    has taken effect. No shell command is ever executed (docs/16 §3).
+
+    Empty reload dir = manual mode: restart the FreeRADIUS container by hand.
     """
-    command = settings.radius_reload_command.strip()
-    if not command:
+    reload_dir = settings.radius_reload_dir.strip()
+    if not reload_dir:
         detail = {"mode": "manual"}
         await record_audit(db, actor=admin.username, action="ops.reload_radius", detail=detail)
         await db.commit()
         return {
             "mode": "manual",
             "message": (
-                "OPENRADIUS_RADIUS_RELOAD_COMMAND not configured; restart the "
+                "OPENRADIUS_RADIUS_RELOAD_DIR not configured; restart the "
                 "FreeRADIUS container manually (docker compose restart freeradius)."
             ),
         }
 
-    argv = shlex.split(command)
-    proc = None
+    requested = str(int(time.time()))
+    sentinel = Path(reload_dir) / "reload-requested"
+    applied_path = Path(reload_dir) / "reload-applied"
     try:
-        proc = await asyncio.wait_for(
-            asyncio.create_subprocess_exec(
-                *argv,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.STDOUT,
-            ),
-            timeout=5,
-        )
-        stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=_RELOAD_TIMEOUT_S)
-    except TimeoutError as exc:
-        if proc is not None:
-            proc.kill()
-            await proc.wait()
-        raise ApiError("reload_timeout", "reload command timed out", 504) from exc
-    except FileNotFoundError as exc:
-        raise ApiError("reload_unavailable", f"reload command not found: {argv[0]}", 500) from exc
+        tmp = sentinel.with_name(".reload-requested.tmp")
+        tmp.write_text(requested, encoding="ascii")
+        os.replace(tmp, sentinel)
+    except OSError as exc:
+        raise ApiError(
+            "reload_unavailable",
+            f"cannot write reload sentinel in {reload_dir}: {exc}",
+            500,
+        ) from exc
 
-    output = stdout.decode(errors="replace").strip()[-2000:]
-    detail = {"mode": "auto", "command": command, "returncode": proc.returncode}
+    applied_at = await _wait_for_applied(applied_path, requested)
+    detail = {"mode": "file", "requested": requested, "applied": applied_at}
     await record_audit(db, actor=admin.username, action="ops.reload_radius", detail=detail)
     await db.commit()
-    if proc.returncode != 0:
-        raise ApiError("reload_failed", f"reload command failed: {output}", 500)
-    return {"mode": "auto", "message": "FreeRADIUS restarted", "output": output}
+    if applied_at is None:
+        return {
+            "mode": "file",
+            "applied": False,
+            "message": (
+                "Reload requested; the FreeRADIUS watcher has not confirmed yet "
+                "(usually a few seconds)."
+            ),
+        }
+    return {
+        "mode": "file",
+        "applied": True,
+        "applied_at": applied_at,
+        "message": "FreeRADIUS re-read the NAS client list",
+    }
+
+
+async def _wait_for_applied(applied_path: Path, requested: str) -> str | None:
+    """Poll the watcher's applied marker until it matches our request.
+
+    Returns the applied timestamp string, or None on timeout.
+    """
+    deadline = time.monotonic() + _RELOAD_APPLIED_TIMEOUT_S
+    while time.monotonic() < deadline:
+        try:
+            value = applied_path.read_text(encoding="ascii").strip()
+        except OSError:
+            value = ""
+        if value and value >= requested:
+            return value
+        await asyncio.sleep(_RELOAD_POLL_INTERVAL_S)
+    return None
 
 
 @router.post("/compile")

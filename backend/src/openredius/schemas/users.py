@@ -37,6 +37,9 @@ class UserOut(BaseModel):
     name: str
     dept: str
     title: str
+    email: str
+    mobile: str
+    description: str
     status: UserStatus
     locked_until: datetime | None
     policy_id: int | None

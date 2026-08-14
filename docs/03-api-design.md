@@ -123,7 +123,7 @@
 | 方法 路径 | 说明 |
 |---|---|
 | `GET /api/health` | `{status:"ok"\|"degraded", db, radius_config, version, uptime_s}`(无鉴权) |
-| `POST /api/ops/reload-radius` | 触发 freeradius 容器重启(仅 admin);命令由 `OPENRADIUS_RADIUS_RELOAD_COMMAND` 提供,未配置返回 `{mode:"manual"}`(M3 实现) |
+| `POST /api/ops/reload-radius` | 触发 radiusd 重启以重读 `radius.nas`(仅 admin);哨兵文件机制(docs/16):写 `reload-requested` 到 `OPENRADIUS_RADIUS_RELOAD_DIR`,容器内 watcher 重启 radiusd 后回写 `reload-applied`,响应 `{mode:"file", applied}`;目录未配置返回 `{mode:"manual"}` |
 | `POST /api/ops/compile` | 全量幂等重编策略/用户 → radius schema,返回编译摘要(仅 admin;M3 新增) |
 
 ## OpenAPI → 前端类型

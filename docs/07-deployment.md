@@ -84,6 +84,15 @@ CMD ["uvicorn", "openredius.main:app", "--host", "0.0.0.0", "--port", "8000"]
 - 阶段 2:`nginx:alpine`,COPY dist/ + nginx.conf。
 - 构建时注入 `VITE_API_BASE`(prod 留空走同源 /api)。
 
+### freeradius(AD 直通,docs/15)
+
+- 官方 3.2.x 镜像 + `winbind`/`samba-common-bin`/`krb5-user`;
+  `raddb/mods-available/mschap` overlay 启用 `ntlm_auth` 行。
+- 卷:`samba-state:/var/lib/samba` 存 join 状态(secrets.tdb)与机器 keytab,
+  容器重建走 `net ads testjoin` 幂等跳过,不重复 join。
+- 启用条件:`RADIUS_AD_REALM`/`_JOIN_USER`/`_JOIN_PASSWORD` 全非空;join 账号
+  是 AD 管理员单独开的委派账号(最小权限,不复用 radius 读库账号)。
+
 ## 环境变量(deploy/.env)
 
 | 变量 | 用途 |
@@ -92,7 +101,8 @@ CMD ["uvicorn", "openredius.main:app", "--host", "0.0.0.0", "--port", "8000"]
 | `OPENRADIUS_JWT_SECRET` | 必填(prod 校验长度 ≥32) |
 | `OPENRADIUS_BOOTSTRAP_ADMIN_USER/_PASSWORD` | 首次启动创建初始管理员 |
 | `OPENRADIUS_ENV=prod` | 后端运行模式 |
-| `OPENRADIUS_AD_*` | 可选 AD 目录同步(账号/姓名/部门等只读信息)。**不提供 802.1X 登录密码**——AD 直通认证是独立能力,设计见 [15-ad-ldap-auth-integration.md](./15-ad-ldap-auth-integration.md) |
+| `OPENRADIUS_AD_*` | 可选 AD 目录同步(账号/姓名/部门/邮箱/手机/备注等只读信息,读库账号) |
+| `RADIUS_AD_*` | 可选 AD 直通认证(docs/15 方案 A):`REALM`/`WORKGROUP`/`KDC`/`JOIN_USER`/`JOIN_PASSWORD` 全空 = 跳过;启用后 freeradius 容器 join 域 + winbind 校验 MS-CHAP,`DNS_SERVER` 默认 Docker 内嵌 DNS(继承宿主解析) |
 | `NAS_UDP_EXPOSE=1812-1813` | radius 端口映射 |
 
 `.env` 永不入库;`.env.example` 提供全部键与注释。

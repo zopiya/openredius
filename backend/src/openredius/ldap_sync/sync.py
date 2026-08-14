@@ -223,6 +223,9 @@ async def _process_users(
                 ("name", entry.displayName or user.name),
                 ("dept", entry.department or user.dept),
                 ("title", entry.title or user.title),
+                ("email", entry.mail),
+                ("mobile", entry.mobile),
+                ("description", entry.description),
                 ("ad_dn", entry.distinguishedName or user.ad_dn),
             ]:
                 if getattr(user, attr) != new_val:
@@ -247,6 +250,9 @@ async def _process_users(
             name=entry.displayName or entry.sAMAccountName,
             dept=entry.department or "",
             title=entry.title or "",
+            email=entry.mail,
+            mobile=entry.mobile,
+            description=entry.description,
             source=UserSource.AD,
             ad_dn=entry.distinguishedName or "",
             ad_synced_at=now,

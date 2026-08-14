@@ -38,12 +38,28 @@ services:
       RADIUS_SQL_USER: radius
       RADIUS_SQL_PASSWORD: ${RADIUS_SQL_PASSWORD:-dev-only-radius-sql-password}
       RADIUS_SQL_DB: openredius
+      # docs/16: watcher 重启 radiusd 的哨兵目录(bind mount 到仓库 runtime/,
+      # host 侧 backend 直接写同一目录)。
+      OPENRADIUS_RADIUS_RELOAD_DIR: /var/run/openredius
+      # docs/15: AD 直通(winbind)。dev 默认全空 = 完全跳过;如需对真实 AD
+      # 验证,在 deploy/.env 里设 RADIUS_AD_* 后重建。
+      RADIUS_AD_REALM: ${RADIUS_AD_REALM:-}
+      RADIUS_AD_WORKGROUP: ${RADIUS_AD_WORKGROUP:-}
+      RADIUS_AD_KDC: ${RADIUS_AD_KDC:-}
+      RADIUS_AD_JOIN_USER: ${RADIUS_AD_JOIN_USER:-}
+      RADIUS_AD_JOIN_PASSWORD: ${RADIUS_AD_JOIN_PASSWORD:-}
+    dns:
+      - "${RADIUS_AD_DNS_SERVER:-127.0.0.11}"
     ports:
       - "1812:1812/udp"
       - "1813:1813/udp"
     volumes:
       # dev 证书(gen.sh 生成;缺失时镜像内 eap 使用上游自带证书,仅 PEAP 冒烟)
       - ./freeradius/certs:/etc/raddb/certs
+      # NAS/AP 接入热更新哨兵目录(docs/16)
+      - ./runtime/radius-reload:/var/run/openredius
+      # AD join 状态 + keytab(dev 卷,不落仓库)
+      - samba-state:/var/lib/samba
     depends_on:
       postgres:
         condition: service_healthy
@@ -57,3 +73,4 @@ services:
 
 volumes:
   postgres-data:
+  samba-state:

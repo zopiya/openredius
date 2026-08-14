@@ -4,7 +4,8 @@ Compiles policy_group/access_user state from the app schema into the
 radius schema consumed by FreeRADIUS (rlm_sql). Full recompile is idempotent:
 existing rows owned by the compiler are diffed against the desired state and
 upserted/deleted in one transaction. Rows the compiler does not own (e.g.
-``radcheck`` ``Cleartext-Password`` written by seed/AD) are never touched.
+``radcheck`` rows written by the seed script — AD auth is direct via
+winbind/ntlm_auth and writes no password rows, docs/15) are never touched.
 
 On non-PostgreSQL dialects (local SQLite dev) radius writes are skipped —
 there is no FreeRADIUS consumer there; callers still get a summary.

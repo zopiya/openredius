@@ -70,6 +70,10 @@ class Ldap3Connector(AdConnector):
                 "displayName",
                 "department",
                 "title",
+                "mail",
+                "mobile",
+                "telephoneNumber",
+                "description",
                 "distinguishedName",
                 "whenChanged",
                 "userAccountControl",
@@ -77,12 +81,17 @@ class Ldap3Connector(AdConnector):
         )
         entries: list[AdUserEntry] = []
         for entry in self._conn.entries:
+            # C-003: mobile wins; empty mobile falls back to telephoneNumber.
+            mobile = _safe_str(entry.mobile) or _safe_str(entry.telephoneNumber)
             entries.append(
                 AdUserEntry(
                     sAMAccountName=_safe_str(entry.sAMAccountName),
                     displayName=_safe_str(entry.displayName),
                     department=_safe_str(entry.department),
                     title=_safe_str(entry.title),
+                    mail=_safe_str(entry.mail),
+                    mobile=mobile,
+                    description=_safe_str(entry.description),
                     distinguishedName=_safe_str(entry.distinguishedName),
                     whenChanged=_parse_when_changed(entry),
                     disabled=bool(_safe_uac(entry) & 0x2),
