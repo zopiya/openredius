@@ -1,6 +1,6 @@
 [project]
 name = "openredius"
-version = "0.3.0"
+version = "0.3.1"
 description = "OpenRedius backend — RADIUS network access management console"
 requires-python = ">=3.13"
 dependencies = [

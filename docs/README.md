@@ -87,5 +87,14 @@
   参数被追加一个字面 `}` 字符,对接真实 Samba `ntlm_auth` 时会导致所有
   MS-CHAPv2 认证失败;pi 本地冒烟测试因为用固定输出的假 `ntlm_auth` wrapper
   没暴露这个问题。已修复(PR #14)、CI 全绿后合并。
+- 版本:v0.3.1——v0.3.0 部署到 `10.36.8.10` 真机验证 NAS reload 新机制时,
+  `POST /api/ops/reload-radius` 一律 500 `reload_unavailable: Permission
+  denied`。根因:共享卷 `radius-reload` 由 Docker 创建为 root:root/0755,
+  freeradius 容器 root 运行、backend 容器非 root(uid 999)运行,后者写不进去;
+  pi 本地验证时 backend 是直接跑在 host 上(不会撞上容器间 UID 不匹配),没
+  暴露这个问题。修复:freeradius 容器(root)在 entrypoint 里对共享目录
+  `chmod 777`(PR #16)。这是本轮(v0.3.0→v0.3.1)第二处"设计和本地验证都对,
+  只有在真实容器化生产环境里才会暴露"的缺陷,提醒以后 pi 的容器功能验证尽量
+  在容器内(而不是 host 直跑)完成,才能覆盖到运行身份/权限这类差异。
 - 分支:主线 `dev`(集成日常开发);`main` 发布线;无其他活跃分支(2026-08-13 项目审计清理)。
 - 开发环境:GitHub Codespaces,经 `gh`/SSH 直连(ADR-0007)。
