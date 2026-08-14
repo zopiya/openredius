@@ -38,12 +38,17 @@ services:
       RADIUS_SQL_USER: radius
       RADIUS_SQL_PASSWORD: ${RADIUS_SQL_PASSWORD:-dev-only-radius-sql-password}
       RADIUS_SQL_DB: openredius
+      # docs/16: watcher 重启 radiusd 的哨兵目录(bind mount 到仓库 runtime/,
+      # host 侧 backend 直接写同一目录)。
+      OPENRADIUS_RADIUS_RELOAD_DIR: /var/run/openredius
     ports:
       - "1812:1812/udp"
       - "1813:1813/udp"
     volumes:
       # dev 证书(gen.sh 生成;缺失时镜像内 eap 使用上游自带证书,仅 PEAP 冒烟)
       - ./freeradius/certs:/etc/raddb/certs
+      # NAS/AP 接入热更新哨兵目录(docs/16)
+      - ./runtime/radius-reload:/var/run/openredius
     depends_on:
       postgres:
         condition: service_healthy

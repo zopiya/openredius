@@ -97,7 +97,7 @@ def settings() -> Settings:
         jwt_secret="integration-secret-" + "x" * 24,
         bootstrap_admin_user=ADMIN_USER,
         bootstrap_admin_password=ADMIN_PASSWORD,
-        radius_reload_command="",
+        radius_reload_dir="",
         jobs_enabled=False,
         _env_file=None,
     )

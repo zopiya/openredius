@@ -82,5 +82,56 @@ fi
 chmod 644 "$CERTDIR"/*.pem 2>/dev/null || true
 chmod 600 "$CERTDIR"/*.key 2>/dev/null || true
 
-# --- 4. run ------------------------------------------------------------------
-exec "$@"
+# --- 4. supervise radiusd + sentinel-file reload watcher (docs/16) -----------
+# radiusd runs as a child process so it can be restarted in place (a PID-1
+# radiusd could never reload the SQL nas client list). A 2s poll loop watches
+# the shared reload directory for ``reload-requested`` (epoch seconds, written
+# atomically by the backend) and restarts radiusd, then echoes the epoch into
+# ``reload-applied``. Crashes are also restarted. No inotify dependency.
+RELOAD_DIR="${OPENRADIUS_RADIUS_RELOAD_DIR:-}"
+RADIUS_PID=""
+
+# NOTE: inside a POSIX-sh function "$@" is the *function's* arguments, so the
+# radiusd command is always passed along explicitly ("$@" at call sites below
+# refers to the entrypoint's own arguments).
+start_radiusd() {
+    "$@" &
+    RADIUS_PID=$!
+}
+
+stop_radiusd() {
+    [ -n "$RADIUS_PID" ] || return 0
+    kill "$RADIUS_PID" 2>/dev/null || true
+    wait "$RADIUS_PID" 2>/dev/null || true
+    RADIUS_PID=""
+}
+
+reload_if_requested() {
+    [ -n "$RELOAD_DIR" ] || return 0
+    REQUESTED="$(cat "$RELOAD_DIR/reload-requested" 2>/dev/null || true)"
+    [ -n "$REQUESTED" ] || return 0
+    [ "$REQUESTED" != "$APPLIED" ] || return 0
+    echo "entrypoint: reload requested (epoch=$REQUESTED) — restarting radiusd"
+    stop_radiusd
+    start_radiusd "$@"
+    APPLIED="$REQUESTED"
+    printf '%s' "$APPLIED" > "$RELOAD_DIR/reload-applied"
+}
+
+restart_if_crashed() {
+    kill -0 "$RADIUS_PID" 2>/dev/null && return 0
+    wait "$RADIUS_PID" 2>/dev/null || true
+    echo "entrypoint: radiusd exited unexpectedly — restarting"
+    start_radiusd "$@"
+}
+
+exec 2>&1
+mkdir -p "$RELOAD_DIR" 2>/dev/null || true
+APPLIED="$(cat "$RELOAD_DIR/reload-applied" 2>/dev/null || true)"
+start_radiusd "$@"
+trap 'echo "entrypoint: SIGTERM — stopping radiusd"; stop_radiusd; exit 0' TERM INT
+while :; do
+    sleep 2
+    reload_if_requested "$@"
+    restart_if_crashed "$@"
+done
