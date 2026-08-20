@@ -20,7 +20,7 @@ jobs:
   typecheck:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
@@ -30,7 +30,7 @@ jobs:
   shell:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: bash -n on every script under .pi/
         run: |
           set -uo pipefail
@@ -51,7 +51,7 @@ jobs:
   json:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: validate every .json under .pi/
         run: |
           set -uo pipefail
@@ -65,5 +65,5 @@ jobs:
   frontmatter:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - run: .github/scripts/check-frontmatter.sh
